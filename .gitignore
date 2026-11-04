@@ -1,0 +1,22 @@
+/build/
+/downloads/
+/artifacts/
+__pycache__/
+*.pyc
+*Zone.Identifier
+
+# Local credentials and editor state
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+.ssh/
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

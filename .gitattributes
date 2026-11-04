@@ -1,0 +1,8 @@
+* text=auto eol=lf
+*.png binary
+*.gz binary
+*.xz binary
+*.bin binary
+*.efi binary
+*.fd binary
+uefi/patches/*.patch -text

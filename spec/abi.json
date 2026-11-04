@@ -1,0 +1,545 @@
+{
+  "schema_version": 1,
+  "abi": {
+    "major": 1,
+    "minor": 0
+  },
+  "pci": {
+    "vendor": 4660,
+    "pf": 57345,
+    "vf": 57346,
+    "revision": 1,
+    "class_code": 360448,
+    "total_vfs": 8,
+    "initial_vfs": 8
+  },
+  "limits": {
+    "queues": 8,
+    "vectors_per_function": 2,
+    "vf_vectors": 16,
+    "credits": 64,
+    "pf_bar0_bytes": 65536,
+    "vf_bar0_bytes": 16384,
+    "bar2_bytes": 16384,
+    "msix_table_offset": 0,
+    "msix_pba_offset": 4096,
+    "ring_min": 16,
+    "ring_max": 256,
+    "entry_bytes": 32,
+    "payload_max": 4096,
+    "ring_alignment": 64
+  },
+  "pf_events": {"MBX_DONE": 1, "VF_HEALTH": 2, "FLR_EVENT": 4, "UPDATE_EVENT": 8},
+  "pf_control": {"FENCE_ALL": 1, "GLOBAL_RESET": 2},
+  "vf_hw_control": {"FENCE_BEGIN": 1, "KILL": 2},
+  "mbx_status": {"IDLE": 0, "BUSY": 1, "DONE": 2},
+  "queue_status": {"UNCONFIGURED": 0, "READY_PENDING": 1, "RUNNING": 2, "ERROR": 3},
+  "last_fault": {"NONE": 0, "DMA": 1, "BAD_DESC": 2, "FW_HANG": 3, "RESET_TIMEOUT": 4, "BAD_QUEUE": 5},
+  "sq_ops": {"FILL": 1, "CRC32": 2},
+  "vf_irq": {"CQ": 1, "HEALTH": 2},
+  "registers": {
+    "pf": [
+      [
+        "MAGIC",
+        0,
+        "RO"
+      ],
+      [
+        "ABI",
+        4,
+        "RO"
+      ],
+      [
+        "CAP_VFS",
+        8,
+        "RO"
+      ],
+      [
+        "CAP_QUEUES",
+        12,
+        "RO"
+      ],
+      [
+        "CAP_VECTORS",
+        16,
+        "RO"
+      ],
+      [
+        "CAP_CREDIT",
+        20,
+        "RO"
+      ],
+      [
+        "CAP_FEATURES",
+        24,
+        "RO"
+      ],
+      [
+        "SESSION_LO",
+        32,
+        "RO"
+      ],
+      [
+        "SESSION_HI",
+        36,
+        "RO"
+      ],
+      [
+        "SNAPSHOT",
+        40,
+        "W1"
+      ],
+      [
+        "EVENT",
+        44,
+        "RO_W1C"
+      ],
+      [
+        "CONTROL",
+        48,
+        "W1"
+      ],
+      [
+        "BAD_MMIO",
+        52,
+        "RO"
+      ],
+      [
+        "FENCE_TOKEN",
+        56,
+        "RW"
+      ],
+      [
+        "HW_RESULT",
+        60,
+        "RO"
+      ],
+      [
+        "MBX_SEQ",
+        64,
+        "RW"
+      ],
+      [
+        "MBX_OPCODE",
+        68,
+        "RW"
+      ],
+      [
+        "MBX_TARGET",
+        72,
+        "RW"
+      ],
+      [
+        "MBX_ARG0",
+        76,
+        "RW"
+      ],
+      [
+        "MBX_ARG1",
+        80,
+        "RW"
+      ],
+      [
+        "MBX_ARG2",
+        84,
+        "RW"
+      ],
+      [
+        "MBX_ARG3",
+        88,
+        "RW"
+      ],
+      [
+        "MBX_SUBMIT",
+        92,
+        "W1"
+      ],
+      [
+        "MBX_STATUS",
+        96,
+        "RO"
+      ],
+      [
+        "MBX_RESULT",
+        100,
+        "RO"
+      ],
+      [
+        "MBX_ACK_SEQ",
+        104,
+        "RO"
+      ],
+      [
+        "MBX_REPLY0",
+        108,
+        "RO"
+      ],
+      [
+        "MBX_REPLY1",
+        112,
+        "RO"
+      ],
+      [
+        "MBX_REPLY2",
+        116,
+        "RO"
+      ],
+      [
+        "MBX_REPLY3",
+        120,
+        "RO"
+      ],
+      [
+        "MBX_ACK",
+        124,
+        "W1"
+      ]
+    ],
+    "pf_vf_view": [
+      [
+        "HW_CTL",
+        0,
+        "W1"
+      ],
+      [
+        "HW_STATUS",
+        4,
+        "RO"
+      ],
+      [
+        "EPOCH_LO",
+        8,
+        "RO"
+      ],
+      [
+        "EPOCH_HI",
+        12,
+        "RO"
+      ],
+      [
+        "STATE",
+        16,
+        "RO"
+      ],
+      [
+        "RESERVE",
+        20,
+        "RO"
+      ],
+      [
+        "OUTSTANDING",
+        24,
+        "RO"
+      ],
+      [
+        "STALE_DESC",
+        28,
+        "RO"
+      ],
+      [
+        "STALE_CPL",
+        32,
+        "RO"
+      ],
+      [
+        "FENCE_BLOCKED",
+        36,
+        "RO"
+      ],
+      [
+        "DMA_FAULT",
+        40,
+        "RO"
+      ],
+      [
+        "LAST_FAULT",
+        44,
+        "RO"
+      ],
+      [
+        "SERVICED_LO",
+        48,
+        "RO"
+      ],
+      [
+        "SERVICED_HI",
+        52,
+        "RO"
+      ],
+      [
+        "IRQ_SUPPRESSED",
+        56,
+        "RO"
+      ],
+      [
+        "READY_GEN",
+        60,
+        "RO"
+      ]
+    ],
+    "vf": [
+      [
+        "MAGIC",
+        0,
+        "RO"
+      ],
+      [
+        "ABI",
+        4,
+        "RO"
+      ],
+      [
+        "STATUS",
+        8,
+        "RO"
+      ],
+      [
+        "EPOCH_LATCH",
+        12,
+        "W1"
+      ],
+      [
+        "EPOCH_LO",
+        16,
+        "RO"
+      ],
+      [
+        "EPOCH_HI",
+        20,
+        "RO"
+      ],
+      [
+        "SESSION_LO",
+        24,
+        "RO"
+      ],
+      [
+        "SESSION_HI",
+        28,
+        "RO"
+      ],
+      [
+        "SQ_BASE_LO",
+        32,
+        "RW"
+      ],
+      [
+        "SQ_BASE_HI",
+        36,
+        "RW"
+      ],
+      [
+        "SQ_ENTRIES",
+        40,
+        "RW"
+      ],
+      [
+        "CQ_BASE_LO",
+        48,
+        "RW"
+      ],
+      [
+        "CQ_BASE_HI",
+        52,
+        "RW"
+      ],
+      [
+        "CQ_ENTRIES",
+        56,
+        "RW"
+      ],
+      [
+        "CONFIG_COMMIT",
+        60,
+        "W1"
+      ],
+      [
+        "SQ_TAIL",
+        64,
+        "RW"
+      ],
+      [
+        "SQ_HEAD",
+        68,
+        "RO"
+      ],
+      [
+        "CQ_HEAD",
+        72,
+        "RW"
+      ],
+      [
+        "CQ_TAIL",
+        76,
+        "RO"
+      ],
+      [
+        "DOORBELL",
+        80,
+        "W1"
+      ],
+      [
+        "QUEUE_STATUS",
+        84,
+        "RO"
+      ],
+      [
+        "QUEUE_ERROR",
+        88,
+        "RO"
+      ],
+      [
+        "IRQ_CAUSE",
+        92,
+        "RO_W1C"
+      ],
+      [
+        "CONFIG_EPOCH_LO",
+        96,
+        "RW"
+      ],
+      [
+        "CONFIG_EPOCH_HI",
+        100,
+        "RW"
+      ],
+      [
+        "CONFIG_SESSION_LO",
+        104,
+        "RW"
+      ],
+      [
+        "CONFIG_SESSION_HI",
+        108,
+        "RW"
+      ]
+    ]
+  },
+  "pf_vf_view": {
+    "base": 256,
+    "stride": 128,
+    "count": 8
+  },
+  "capsule_stage": {
+    "offset": 16384,
+    "length": 32768
+  },
+  "statuses": {
+    "OK": 0,
+    "INVAL": 1,
+    "NOSPC": 2,
+    "STATE": 3,
+    "FENCED": 4,
+    "DMA": 5,
+    "TIMEOUT": 6,
+    "UNSUP": 7,
+    "NO_NEG": 8,
+    "SEQ_CONFLICT": 9,
+    "STALE_SEQ": 10,
+    "BUSY": 11,
+    "OVERFLOW": 12,
+    "BAD_DESC": 13,
+    "BAD_QUEUE": 14,
+    "IO": 15
+  },
+  "opcodes": {
+    "VERSION_NEG": 1,
+    "GET_STATE": 2,
+    "PROVISION": 3,
+    "QUIESCE": 4,
+    "RESET": 5,
+    "REARM": 6,
+    "DESTROY": 7,
+    "SET_RESERVE": 8,
+    "GLOBAL_RESET": 9,
+    "UPDATE_STAGE": 32,
+    "UPDATE_VALIDATE": 33,
+    "UPDATE_ACTIVATE": 34,
+    "UPDATE_CONFIRM": 35,
+    "UPDATE_ROLLBACK": 36
+  },
+  "states": {
+    "FREE": 0,
+    "PROVISIONING": 1,
+    "ACTIVE": 2,
+    "QUIESCING": 3,
+    "RESETTING": 4,
+    "RECOVERING": 5,
+    "FAILED": 6,
+    "DESTROYING": 7
+  },
+  "features": {
+    "DMA_FENCE": 1,
+    "VF_KILL": 2,
+    "MODELED_FLR": 4,
+    "AB_MODEL": 8
+  },
+  "hw_flags": {
+    "FENCED": 1,
+    "KILLED": 2,
+    "PCI_PRESENT": 4,
+    "BME": 8,
+    "CONFIG_VALID": 16,
+    "READY_PENDING": 32
+  },
+  "sq": {
+    "addr": [
+      0,
+      8
+    ],
+    "len": [
+      8,
+      4
+    ],
+    "op": [
+      12,
+      1
+    ],
+    "flags": [
+      13,
+      1
+    ],
+    "id": [
+      14,
+      2
+    ],
+    "epoch": [
+      16,
+      8
+    ],
+    "arg": [
+      24,
+      8
+    ]
+  },
+  "cq": {
+    "id": [
+      0,
+      2
+    ],
+    "status": [
+      2,
+      2
+    ],
+    "len": [
+      4,
+      4
+    ],
+    "epoch": [
+      8,
+      8
+    ],
+    "result": [
+      16,
+      8
+    ],
+    "phase": [
+      24,
+      1
+    ],
+    "reserved": [
+      25,
+      7
+    ]
+  }
+}

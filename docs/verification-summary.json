@@ -1,0 +1,298 @@
+{
+  "schema_version": 1,
+  "record_type": "publication_summary_not_raw_evidence",
+  "raw_artifacts_included": false,
+  "runtime": {
+    "status": "PASS",
+    "scope": "M0-M3_T01-T10",
+    "accelerator": "tcg",
+    "jobs": 2,
+    "build_started_empty": false,
+    "collected_at": "2026-10-17T17:39:24.431614+00:00",
+    "elapsed_seconds": 2128.08776565
+  },
+  "original_project_result_sha256": "91c490ae4acb7d18840b1eae1911cf2d42252061f9f37527f980d94f933d0056",
+  "original_m3_result_sha256": "5c4adc8f65379d88c1b4068c7e92784da6c3036ee4741a21cd24be2a0626aa80",
+  "original_spec_sha256": "0adb15cfd92f792483753914ddf9207fe6af7e7df0d662b86d3b9f39223bf3af",
+  "published_spec_sha256": "452271771a433315619c3015d44661663de6017ca99a61d875e16e1e2ef551c4",
+  "spec_note": "The legacy specification was replaced by a current-scope index after the runtime run; no executable source was changed.",
+  "input_hashes": {
+    "Makefile": "7ef999f55da7dcfb9ec7ff40a18ac2f5068eb12773d28d0fe960271e18007972",
+    "device/fw_adapter.c": "ef6f8e2aeff32b95d1de3757d79bf8fe2fed8cab2a9aa4288d68bd7e00c60adf",
+    "device/meson.build": "c8e249aea06c8e4c27d62cab9851ea3c83cb11111f8e4ae7610e3118d60f53bb",
+    "device/toy.h": "df6ec5b7e0f5d796eb7c67a1a48db201c23e365cde39636a01f27cc1c0348938",
+    "device/toy_hw.c": "7d970106f4a1e900181551d62aea60674c21b3ee23632ab3639200ac416263f2",
+    "device/toy_pf.c": "f268bc8bc739400f651b29a8dd7cbd94280874ec3b16f37eedd391dac3c6cc9c",
+    "device/toy_vf.c": "b5434eeae2e389aba07c4912c3f3b246a1c26af8a5fa9aace5a9cbf5ccf769ff",
+    "fwcore/README.md": "569b58c96c7fd40e360c0a320c867fab804c8048224fcee9bbd216cd980b9810",
+    "fwcore/admission.c": "abb185ae2c50dfb60d87f9c077083538457af9bc254b62be28e45cc647d1779b",
+    "fwcore/codec.c": "74ef0524d256ce73116f2478e4da613dcfe7b57a8ad81b9434be14502e9636f0",
+    "fwcore/context.c": "64513bef101451ac95378c28a368233448ae63b3a77d47c4a5635dea6891f543",
+    "fwcore/crc.c": "141bea78f30d450988a15d4cd3e157b6af4c5cf20719fce08907041f2d2fa332",
+    "fwcore/fsm.c": "ba4138cac89a16581fcb1932e6f66778debbc553025b8f94b99ea293fdade841",
+    "fwcore/fw_context.h": "188c48d50e6b109e5b301f1d04e67d2c1f0b7a6fef966aac718398bd05a74c3a",
+    "fwcore/fw_core.h": "ea1583e5bfd12cdf861f1cee6be0c9330e6a3774da68bf262491d507ee0d6d8e",
+    "fwcore/fw_hal.h": "fae093238b96f1f8a0a9d594a3b1badb8d8323711b84b9bf60377f992835482e",
+    "fwcore/fw_internal.h": "8da6b887f9bd3511a2659274a5f909cf7db6b43207737fdcf95930aab91c5319",
+    "fwcore/fw_port.h": "359f814bc1d610ba494e7c471d764e9b0274a040e7db6bc687e72477b8612dfb",
+    "fwcore/fw_types.h": "d14db9836358f1e6f9540f9e795363ec9b13e4c3d0b53b441d879c0996b24953",
+    "fwcore/mailbox.c": "60c702b82fb41ed0d888198fd3414c3a91ae372cb3bd9774242c8cd159dc8fd5",
+    "fwcore/scheduler.c": "9f33a7f7fadef7c088dc5539c65ed3dff15942b6e3df0be99be243f800f9bb41",
+    "guest/admin/labctl.c": "ceae9141fc251ec94ba3c918d6d06e0cb7945fd1b9e1114a132876be906736c9",
+    "guest/admin/labd.c": "1f5bae33839876d1953f58996b4745aff062aff66885bd418dc2e2d3a3fb8dae",
+    "guest/admin/recovery.inc": "e97e5a66dc8379759120b0f129d93a5a17075f0ddfcb633a418bd8f02089ea3c",
+    "guest/admin/t02.c": "636d958234a6b9a48580c1ea02784cfa2de1f994793c0a445aa8c531ba7532dc",
+    "guest/admin/t02.h": "72c84ee01cf66da8f2500e65ea89c986686a55ea250fb091102afd4d0d42d3d2",
+    "guest/admin/t06.inc": "02a92b335f40858db03ab31c0d2be417d6533caffbee9f9536a3e1648ad1451d",
+    "guest/common/lab_ring.h": "fac643fe2f1883036d404bb7c0c482957d420bd0e27eadb7cd0dfdadf379dff8",
+    "guest/common/lab_wire.c": "c812e3527dbd4d60e02be3d3175f08f12844c761b518863f87cc1059875da57b",
+    "guest/common/lab_wire.h": "50c37322ffc5e94bbc30c83762cb88367f6cb879284c7e89805c1bd43e704521",
+    "guest/configs/base.config": "ce3564549c22dec6317e2d4a31abb499fc60f149b1eda944651196670bda8541",
+    "guest/configs/kasan.config": "2743094a265de0d37efe67d05093805487171b2505b74b4bb9e120ec1d560a83",
+    "guest/configs/stress.config": "6f0f7e3d2740d2e299b68d8e5c898abbaf2a3de215b3d101fc83b378142ee1d1",
+    "guest/init": "6d5e7773229e7366a76d3edb1314aabd4973afe6086da42a8b33790f73f43af7",
+    "guest/pf/Kbuild": "40e07b828aa0e2e3ab0ec2a9f331c841cd8c9337fc7969a3e439c216f1270c39",
+    "guest/pf/Makefile": "a059286f776811a5d98e24eba96ee37d2bf7bc993583ae5afdf87509007f9154",
+    "guest/pf/toy_control.inc": "e38d514a953b916fc4cc552e138b482c97395a56ed3b53b0eb3924b0e864543c",
+    "guest/pf/toy_pf.c": "fc99abb0b14e9c6f7b5b7125dd976c55aa9450219728dc95cbdbd36114f4976a",
+    "guest/tenant/Makefile": "468590e6310f467e3c8299e03452362c19c161b5d6edc185279472a4a9c4b0d5",
+    "guest/tenant/dma_fault.c": "f39cb63868844919a917a19dc853b79a368acbfd83f33f6335fcaba8c7e43072",
+    "guest/tenant/lab_exit.c": "e283a822d19502f56cb04fdb64a099b233f94b2fe491576bc52fda7d454ca42c",
+    "guest/tenant/m1_spike.c": "3693060d0a70cd8db000ae40e892a95821858247d5e5e9b94cf405dbe73236ea",
+    "guest/tenant/owner.c": "f4e7004c8b312e6c03645786e30a5760449568e83e8dfe7d7cd8e663f66caa35",
+    "guest/tenant/owner.h": "5f7e51e293e6eb670d9bf480bdb68fbef4c26998894b47ba04d33cb9f58a1513",
+    "guest/tenant/recovery.c": "25f1f04bab21e5388135569d292a9abb99d4696b5bb1c7388dce97021c5f77e2",
+    "guest/tenant/reset.c": "5b3c4e1c29a4d5c1e52a05ff79ae5fec394a8fd0bef5d42a736a47229ee92e10",
+    "guest/tenant/tenant.c": "2bdd635fcad76e0cf484324e9be3b6db01da8f2b69279c87f2ce7085c989f5d9",
+    "guest/tenant/vfio.c": "3e2648b2a11a94fd8bb222378fa2b0f17c4fa0516854052dee9789256b3f155f",
+    "guest/tenant/vfio.h": "11811469330da1682261394ecfc86a9f7ef1f4372e7b0ed072d718b002039e04",
+    "include/toy_regs.h": "b72f4c18e1d9693be53efbc13fd985ebbf131290af9805952fab5126fbcc8cdf",
+    "include/toy_uapi.h": "0ef44b825b93ae5d602baaafdd5e23e6bfb3e197a5286e75dd9e34b36ebbbed7",
+    "patches/linux/0001-toy-pci-enumeration-failpoint.patch": "98d5ce17d014e45df92a581e9c81f5a56fff46d4dadc7f7b84eb7bf682984a3d",
+    "patches/linux/0002-toy-vfio-strict-write-only.patch": "3a830c19e29d8262e3283d8d3e6a070ed4118d31b9c306192235f2e350c62ea0",
+    "patches/qemu/0001-toy-sriov-build.patch": "679fac52a9bdad6220ba6eeb43fa41f3411cca61bad0186df60461a89146fe75",
+    "sources.lock.json": "6500a9086e1e33bc1caa6f2e082e2046b01d34afad7ff26c9cec46d77d93bbcb",
+    "spec/abi.json": "e8defb0b7f4beef7f77cd768b7c760007beb196b1121015b3137798b4db4c1a6",
+    "tests/fuzz/descriptor_scheduler.c": "15d543d87bb5707853acf35761d7cc9d25b9205acbbdcfe587dcc06aa2c19141",
+    "tests/fuzz/mailbox_state.c": "7efcc9187a67fa4dfe9b02f7334dc0539252b079451303e45d2d7123b776397c",
+    "tests/guest/ring_driver.c": "c80c4d3a4e6729ac6221905361c219412ef2ac2da26d7a0d026cc19b28da97bc",
+    "tests/guest/ring_oracle.py": "c38f8f239ba94dab1188fb8680a32611fe457d520f4d3ccb2e2ef1943794ae29",
+    "tests/guest/test_owner_workload.c": "e5e9ee245ad2cc142bc97cb2058e4755dd8c6d0cdd8e1f0907b05ad76d776fda",
+    "tests/guest/test_wire.c": "a22c0a0cafd44586bddd78d1d6ec724726ebc9a734826838b07a6c3f7455bc07",
+    "tests/guest/uapi_layout.c": "ea21952742c4fd53baa828dff0776afae029e225923f6c7c694d5eaff06b011d",
+    "tests/oracle/core_driver.c": "1272b391f1e07f36227242aa77a8acd1c4bedba469852937e8a2d3d466fcd7bb",
+    "tests/oracle/model.py": "07b1ddc9d7d75a3a700c8c1f0304c8a34cf28a47b34fd257ba77b46ed5ada943",
+    "tests/oracle/run_oracle.py": "70f0ad863abdb4fc1382995358bd2ee2c229de0d9c079d80063b9e99291e19b5",
+    "tests/scenarios.json": "ce19e94c5942085b52e2ff170f33e348bf20022119e1cffa073ffa2fe635db71",
+    "tests/scenarios/deadline_vectors.c": "26587d3fb5837e088f748cb2b005cf5b115ee8da97a9462e1c24e8e87a87323e",
+    "tests/scenarios/decoder_vectors.c": "c29b01ea279bbb6745d9e490fbfa61d2ebc359c34f2f34bc8fac35d337106216",
+    "tests/scenarios/fixtures/t01.json.gz": "ffcf06336f960195d196fee1b201a239157f1a5985ece14f38f2bb394cfc0483",
+    "tests/scenarios/fixtures/t02_owner.json": "23aeabd0a4bf3d2394cfa01fb81a5e6c379fe70f5e8434ca7954f5b2b2a42dd6",
+    "tests/scenarios/fixtures/t02_pci.json": "cd7cd808770554a17e66ac57db68fe526f01de99694074f2413e1f3bf6431830",
+    "tests/scenarios/fixtures/t02_provision.json": "624a759389c654c48a6a65e5bbe4c0537395fa5324ba117dcf6296cf43000f9a",
+    "tests/scenarios/fixtures/t04.json": "c6be802836ef8ea10c0a1a0042689281281fa9964e99bf992db14bafb0dcbcdf",
+    "tests/scenarios/fixtures/t05.json.gz": "ca6b82fec9346b2b6603ea4c187047c3a01824fc784edd8a016a46ac7dc9b464",
+    "tests/scenarios/fixtures/t06.json.gz": "585457cadc74227c3751ee66e3e11c0567355ed2827faf8cb578a68734a13eae",
+    "tests/scenarios/fixtures/t07.json.gz": "c50af37c6b1420b8c93742c4fc4fc5a78050722cbe2282b19d5891869ef3379a",
+    "tests/scenarios/fixtures/t08.json.gz": "3ae70c3d01ffe97ed76f10d270b8f162d1cae31d251bef2a6b561ec72303c36f",
+    "tests/scenarios/fixtures/t09.json": "051af0eb7921f888cfb215e592d2da21e82a181c4afc262390147d967987f046",
+    "tests/scenarios/fixtures/t10.json": "cee565e3ec478ab47c2bc710bf6c55551966122a3574a2e1cc7755fb409f1b11",
+    "tests/scenarios/test_kernel_source.py": "6b779477c3c99d3542d04949c009e3c90c5d040cead1f3172cc2341f8f8202cb",
+    "tests/scenarios/test_m0_reuse.py": "2a6f9044fe981584ff70d370752476ebd48353fa6daafeedad6aeff4acc33335",
+    "tests/scenarios/test_m1_validator.py": "6666481375676884248bac13a2d322cc9ae7205b2adaf1d87f0280d8f7e6a187",
+    "tests/scenarios/test_m2_controller.py": "a8fb499ddce8cc7ce5af157b6bf105497e860c4b9e628b18faf8b53b7123a0a4",
+    "tests/scenarios/test_m3_controller.py": "336fd0c9247863c5e6b6dfacb502a0b50b8b3ccc8bb3338883421c291b1547dd",
+    "tests/scenarios/test_m3_gate.py": "18c05a680a67d9e6f383f5d33df4a04e82aae82e2338e74d4a52c04157e44e0d",
+    "tests/scenarios/test_m3_recovery.py": "eb49622115c8dcb69fa4c1e0a2d31b9782112ce22d5d48110792d2cb8cb23036",
+    "tests/scenarios/test_m3_recovery_controller.py": "32706281580442803cc608a965cd66537586bb99807ed194449592f890fb0878",
+    "tests/scenarios/test_m3_reset.py": "0c7f6600cd524c9b237e5f193717855815754249a25a70d00f092ea2bac90266",
+    "tests/scenarios/test_m3_semantics.py": "bc7816dc2c794469fd3bfa45e4b65a2d4dbbc3fa8fd96bb61fad0837bc35e2a2",
+    "tests/scenarios/test_project_gate.py": "627e2159b3d2353f71cbe8db295e99b2740daa0b9af649f38e712387b5302f9c",
+    "tests/scenarios/test_uart_transport.py": "d721ddff1770953e6b0d94115e346977760d8436bb0125c0325f56248f7cd841",
+    "tests/unit/fake_hal.c": "d0a3fa4b4a4ba0ac7a8c2d9b9e65909930699ae206591a4b8d346cd9371670d6",
+    "tests/unit/fake_hal.h": "84d5ff0ee1f16cc4ba50fe3c08df1cc32d58e3bee97d7dc203f282754ca585c3",
+    "tests/unit/test_core.c": "b22c9f086cfbcc201751ffddb45970fbc859525c130b4155386ebc97c6ea611d",
+    "tools/build_core.py": "4994401b550a7de1842ca8a85d70a871295aacf6ef857adef0d14c1874d16a34",
+    "tools/build_edk2.py": "92cb51d11d610818875214ab22f3e4146584ee799ff14067ca199aa16bf641ed",
+    "tools/build_handbook.py": "ff8ce79c3cacc608291ab7807c288ce331114bf15e86d394363c27a6b7738ec0",
+    "tools/build_initramfs.py": "f8f1cb11ff7a1ff5d2471e02bfb052c60f09b979923bafbde5e5e287f5889f63",
+    "tools/build_kernel.py": "a174ee045a9dde5c6cf316413044e92733ec277d84dac7eca55b6610d020bbb6",
+    "tools/build_qemu.py": "c41133f7651ed3c1834afeb4914b183d413d505286689c6be2e5e7dce0ef4633",
+    "tools/check_config.py": "72b62e88d5b0971d0fb20103cbc1200e5f9b066238d79799f76de7a313ec944d",
+    "tools/check_handbook.py": "5b756b74da68872f4f5c947e369bbd37c277284bc766c7976e9677ad2f78c285",
+    "tools/clean.py": "350ba5d8a96e68681093be2790d5422abed9d4347f5c326654e7c18c9cedd8bc",
+    "tools/create_qemu_patch.py": "56832b8b9deaf2e7c883470249c791a17583ef2afb0fa449f42b24a84af951f9",
+    "tools/env_check.py": "8a8e0979f04fc7c587bb85ce01a02a8bd1fea5bcec192f524337416eb8ea9249",
+    "tools/env_check_windows.ps1": "578447f19b3f1d7fecd4cc3d66b7b7c249f78459e24f9e47bc01e92a04e18e77",
+    "tools/fetch_sources.py": "441bca066bf574a594b36f7804fe0b8f738dfe6a2d9fdcc8b7fe78f0301f9274",
+    "tools/gen_abi.py": "f19196fb397042efc4750924563bc453cada0aea7729a7480256d6e0e0209b2a",
+    "tools/install_deps.py": "43a48ae79760a2b594566208c0dc5f4eca00e76e137a667612258d6079e56346",
+    "tools/kernel_source.py": "91e7491f70106310a5935545454a2bcb4a3ea24e6c031bf382e92d84e35a443e",
+    "tools/lab_common.py": "5b45817a87b90bc9d49fd7984ab54c6e0377750c82e6971c5938e2b316618ecc",
+    "tools/m3_controller.py": "ba3589e3b49f37a2bae05d522877f066c7455b40792781d09472a5914e62ec5c",
+    "tools/qmp.py": "6fe0e2b296c3ff113af161fc5df0a9abcf46f9d0006465458d029339ba57a6d4",
+    "tools/run_uefi.py": "9c1b0380ee8f13ff461e1569704ca700f95888ad0d7744a1a924c9d7e6ed32a6",
+    "tools/run_vm.py": "d0c7b0a0e17ea31e4d836c46fc40ed2c677bf7d66d9a61224e0019ed851803bf",
+    "tools/source_evidence.py": "ce89d56bf7e536b5f5a16f7e8c30e44ecddf02a223f613022838b21fea99dbf5",
+    "tools/validate_m3.py": "f3cc4b197b3c13a196016628c0c3453133ea1c467ebacbcbfb3b0847e7cd5ce1",
+    "tools/validate_recovery.py": "e31a5c41b0d99fe3968f34294970ef641639eeee4edeb9a259fcfcf8a2d6c424",
+    "tools/validate_t06.py": "0750630b4f6f1884d2877a906b625c3492588afb56b9f081d3530821fce8dc41",
+    "tools/verify_core.py": "3dbc18acfa66343764b77a362dadbfa4c62f6a72b98737a7b1fde5f93be1c8e6",
+    "tools/verify_guest_native.py": "57aa750e4a292566296ea02143e602390747831a471849b5891fe63a5da6b97c",
+    "tools/verify_m0.py": "7e467f6d494ed8f4729ae6d3c8aea65a837a5e0ee7938aca3b95712086cf6492",
+    "tools/verify_m2.py": "68c313d664ac86a596eaa0624c143f2baa5584c3dda37815184bd328572fc8ad",
+    "tools/verify_m3.py": "16452ffff43229ac7e74d46336dd8f15250985df7f68c90a8f296961906ef18a",
+    "tools/verify_m3_checkpoint.py": "e34126ace8f8bb48c8e2f0774b890c34d916b609b549cb8f194f9fc8eeb1f829",
+    "tools/verify_project.py": "f4f0f661efa7eae2bd2d7164990a9e72125de91ec3661869154c6c2754358f59",
+    "tools/verify_recovery.py": "4a58a9def206080474a5c895f07940dbc9de5ff7e7036684b3857684e65ef32f",
+    "tools/verify_recovery_deadlines.py": "3626483976260eaafb2b6add564fa1ac5a64c322b1f81764d115de43ede38219",
+    "tools/verify_t01.py": "fe4987273c282e1c30b2a35fe9b3557998db7668cad894d4bc15335da08df565",
+    "tools/verify_t02.py": "c9755c05db47ccf7353216e442068b74ce470a6187a7bdd9a658bbd1e6f1e0ff",
+    "tools/verify_t03.py": "60143b972190da30800afc8a7e56b282704154c87907ac7adc7ce19744a596b9",
+    "tools/verify_t04.py": "44b9263f3018e6302340a46cbeac2cf4174e71f3f43c8373d8e247d3a8ae1bf6",
+    "tools/verify_t05.py": "47dcec0e35f0124fc3472a455e0306e5fd98b77de36667bdf86a0d974df07944",
+    "tools/verify_t06.py": "26584bdef035f65a9ea7d21d5f6b64e96a614aef6dbb17a6d1a7157703320afd",
+    "tools/verify_t09.py": "8ebb1197e527195866a84e8feaf009305f018d2f7fb34678d27ed1d9b286d6b2",
+    "tools/vm_runtime.py": "adaaaf71b0889ae63dac921713a81addd2df3ec4e7560fb3eaa929c3bcc4c422",
+    "uefi/SriovFwPkg/CoreSelftest.c": "d6d90e8e028d0dc10c0b1d89062da31e1f75a66be81369ad59a6b88971c0f418",
+    "uefi/SriovFwPkg/Handoff.c": "d92b8820017e4915b2ef44f75e84736599bd169bd22007f9ed55513df2467403",
+    "uefi/SriovFwPkg/Probe.h": "4ad21572c578b69a2779aa5c6f2f2e5036e8f4408d488a76063e09fe911e1b1a",
+    "uefi/SriovFwPkg/ProbeSupport.c": "44ee3ba03828083c4ad5e084b5f3e4a356e513624d8971d883ee7bb9c8dc3f13",
+    "uefi/SriovFwPkg/SriovFwPkg.dec": "6d74f8785eb426c676f619883589210b609dfbc67edc1b3a92449bef0df7219e",
+    "uefi/SriovFwPkg/SriovFwPkg.dsc": "88379937e9d90f797269f066c9cf321e2a92b1ddc41deb4dfad0fc15257a9bbd",
+    "uefi/SriovFwPkg/SriovProbe.c": "a46c10b599255466626d5a05f0decacfe73de042e55adea367b2528803a3ebaf",
+    "uefi/SriovFwPkg/SriovProbe.inf": "f6e738f52e056852a043a184f7a25e1e645d88a9cec8db10d2d651c8b08d6472",
+    "uefi/patches/0001-nasm3-x64-push.patch": "ebb78166fb22f655dcaeb79db1a74335566bf3ecf932a320cf71f831807e03bd"
+  },
+  "input_files_matched_at_publication": 146,
+  "sources_lock_sha256": "6500a9086e1e33bc1caa6f2e082e2046b01d34afad7ff26c9cec46d77d93bbcb",
+  "steps": [
+    {
+      "id": "environment",
+      "status": "PASS"
+    },
+    {
+      "id": "m0",
+      "status": "PASS"
+    },
+    {
+      "id": "build-qemu",
+      "status": "PASS"
+    },
+    {
+      "id": "kernel-stress",
+      "status": "PASS"
+    },
+    {
+      "id": "kernel-kasan",
+      "status": "PASS"
+    },
+    {
+      "id": "initramfs-stress",
+      "status": "PASS"
+    },
+    {
+      "id": "initramfs-kasan",
+      "status": "PASS"
+    },
+    {
+      "id": "m3",
+      "status": "PASS"
+    },
+    {
+      "id": "validators",
+      "status": "PASS"
+    },
+    {
+      "id": "guest-native",
+      "status": "PASS"
+    }
+  ],
+  "m3_cases": [
+    {
+      "id": "T01",
+      "path": "artifacts/t01/20261017T180116Z-cnhc14_e/result.json",
+      "sha256": "34c4e2e6729d6f700adcedd7ae6eb48ae81ba1cd92d81aa6e94e0c3072df2d46",
+      "status": "PASS"
+    },
+    {
+      "id": "T02",
+      "path": "artifacts/t02/20261017T180705Z-fdi5uz_9/result.json",
+      "sha256": "90f1595ee0eac7c32051235ff8a135ef2639a821d7a9c8cc0508505a620fef93",
+      "status": "PASS"
+    },
+    {
+      "id": "T03",
+      "path": "artifacts/t03/20261017T181006Z-rav3v2ez/result.json",
+      "sha256": "db759b63b58b3b5d9a4d26e737228fd5429d60d2d026d14546603c64b725c0b5",
+      "status": "PASS"
+    },
+    {
+      "id": "T04",
+      "path": "artifacts/t04/20261017T181054Z-tory7w20/result.json",
+      "sha256": "6fb6a152b129bece8e2d71a9b7aae832ea6ae86080a82cd599c84cae3422a6fb",
+      "status": "PASS"
+    },
+    {
+      "id": "T05",
+      "path": "artifacts/t05/20261017T181144Z-s3smxqb4/result.json",
+      "sha256": "fb2f03e8b10c533c3171c28a629948b9a7323df2d071dfd659b209a13672f6fd",
+      "status": "PASS"
+    },
+    {
+      "id": "T06",
+      "path": "artifacts/t06/20261017T181320Z-090av71h/result.json",
+      "sha256": "53d51400e40622178be8c93e210fea7be04016f897da234b4009a83903dc4d4e",
+      "status": "PASS"
+    },
+    {
+      "id": "T07",
+      "path": "artifacts/t07/20261017T181339Z-iaw1h_of/result.json",
+      "sha256": "a1c6302a0fe51eb404ece45d2356e7740b5e6d75939cf621be84479eac30fc9c",
+      "status": "PASS"
+    },
+    {
+      "id": "T08",
+      "path": "artifacts/t08/20261017T181357Z-d37_5_vk/result.json",
+      "sha256": "ec732c2ee1b64527f824634511e4bc54366da53b01c3b6de4a4c897ef79ff81e",
+      "status": "PASS"
+    },
+    {
+      "id": "T09",
+      "path": "artifacts/t09/20261017T181415Z-awz6to9y/result.json",
+      "sha256": "dd5d95400dddf995c25c1214206bcd52db1f9f11c0677e9b94641bdde8d94496",
+      "status": "PASS"
+    },
+    {
+      "id": "T10",
+      "path": "artifacts/m3-case/20261017T181432Z-h5yxehkr/result.json",
+      "sha256": "c85382994973a5343fa26dc24bfbd36fa861dfa7ec1c7646e2aa028adcfa3a88",
+      "status": "PASS"
+    }
+  ],
+  "core": {
+    "status": "PASS",
+    "core_line_coverage_percent": 98.15668202764977,
+    "seeds": [
+      101,
+      202,
+      303,
+      404
+    ],
+    "operations_per_seed": 100000,
+    "fuzz_runs_per_target": 100000,
+    "fuzz_exploration_seconds_per_target": 300
+  },
+  "native_guest": {
+    "status": "PASS",
+    "scope": "wire_uapi_and_tenant_ring_cursors",
+    "driver_events": "NOT_RUN",
+    "vfio_owner_fault_unwind": "NOT_RUN"
+  },
+  "reproduce": "make verify-project JOBS=2",
+  "limitations": [
+    "Incremental build with existing source cache; not a completed uninterrupted empty-build run.",
+    "Summary does not include raw logs or binaries and cannot independently verify the runtime result.",
+    "Publication checks and past runtime validation are separate."
+  ]
+}

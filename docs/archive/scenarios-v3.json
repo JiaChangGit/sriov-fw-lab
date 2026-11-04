@@ -1,0 +1,1306 @@
+{
+  "schema_version": 1,
+  "kind": "scenario_requirements",
+  "specification": "sriov_fw_lab_v3_0_complete_build_spec.html",
+  "status": "NOT_RUN",
+  "notice": "This is a requirements manifest, not an execution report. Expected assertions do not constitute evidence.",
+  "valid_result_statuses": [
+    "PASS",
+    "FAIL",
+    "BLOCKED",
+    "NOT_RUN"
+  ],
+  "default_seeds": [
+    101,
+    202,
+    303,
+    404
+  ],
+  "gate_order": [
+    "m0",
+    "m1",
+    "m2",
+    "m3",
+    "m4",
+    "m5"
+  ],
+  "m0": {
+    "status": "NOT_RUN",
+    "legal_fsm_edges": 20,
+    "illegal_state_event_context_unchanged": true,
+    "property_operations_minimum": 100000,
+    "minimum_seeds": 4,
+    "minimum_line_coverage_percent": 90,
+    "sanitizers": [
+      "address",
+      "undefined"
+    ],
+    "each_fuzz_target_minimum_runs": 100000,
+    "additional_fuzz_exploration_seconds": 300,
+    "independent_python_oracle": true
+  },
+  "m1": {
+    "status": "NOT_RUN",
+    "accelerator": "tcg",
+    "vfs": 4,
+    "enable_disable_cycles": 100,
+    "require_viable_groups_and_separate_containers": true,
+    "require_type1_map_unmap": true,
+    "acs_override_forbidden": true,
+    "require_pci_bar_cap_rid_flr_msix_source_evidence": true
+  },
+  "m2": {
+    "status": "NOT_RUN",
+    "profiles": [
+      "uefi-probe",
+      "uefi-handoff",
+      "uefi-sriov-disabled"
+    ],
+    "same_boot_probe_then_linux": true,
+    "positive_vfs": 4,
+    "pci_realloc_forbidden": true,
+    "assign_busses_forbidden": true,
+    "matching_code_vars": true,
+    "fresh_nvram_each_run": true,
+    "negative_profile_assertion": "Record actual observation; do not assume Linux must fail."
+  },
+  "m4_load": {
+    "minimum_seeds": 4,
+    "management_operations_per_seed": 2000,
+    "fixed_io_load": true,
+    "minimum_reset_fault_repetitions": 20
+  },
+  "logical_deadlines_ticks": {
+    "quiesce": 100,
+    "reset": 100,
+    "ready": 1000,
+    "tick_milliseconds": 1,
+    "boundary_checks": [
+      99,
+      100,
+      101
+    ]
+  },
+  "host_timeout_seconds": {
+    "mailbox_default": 5,
+    "ready_default": 20,
+    "tcg_mailbox_profile": 30,
+    "tcg_ready_profile": 120,
+    "boot_tcg": 300,
+    "boot_kasan": 900
+  },
+  "required_run_metadata": [
+    "schema_version",
+    "gate",
+    "status",
+    "repo_commit",
+    "sources_lock_sha256",
+    "config_hashes",
+    "accelerator",
+    "profile",
+    "seed",
+    "command_argv",
+    "elapsed",
+    "host_metadata",
+    "cases",
+    "invariants",
+    "unexpected_kernel_reports",
+    "limitations"
+  ],
+  "pass_contract": {
+    "guest_debug_exit_status": 1,
+    "guest_marker": "LAB_RESULT=PASS",
+    "all_required_cases_pass": true,
+    "unexpected_kernel_reports_must_be_empty": true,
+    "reject_missing_logs_timeout_sigkill": true,
+    "uefi_probe_exit_zero_alone_is_not_pass": true,
+    "m5_intentional_powercut_is_not_a_normal_guest_pass": true
+  },
+  "fault_contract": {
+    "default": "off",
+    "vf_range": [
+      0,
+      7
+    ],
+    "trigger": "operation-count",
+    "delay": "device-virtual-ticks",
+    "qmp_capabilities_required": true,
+    "discover_schema_and_qom_path": true,
+    "require_ack": true,
+    "stale_completion_and_irq_attempts_must_execute_actual_gate": true
+  },
+  "cases": [
+    {
+      "id": "T01",
+      "title": "Repeated four-VF enable and disable",
+      "required": true,
+      "milestone": "m3",
+      "spec_sections": [
+        6,
+        10,
+        15
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "kasan"
+      ],
+      "invariants": [
+        "I1",
+        "I4",
+        "I5",
+        "I6"
+      ],
+      "parameters": {
+        "enabled_vfs": 4,
+        "cycles": 100,
+        "also_required_by": [
+          "m1"
+        ]
+      },
+      "actions": [
+        "Provision slots before pci_enable_sriov.",
+        "Open and close each VF only under coordinator leases.",
+        "Disable VFs, destroy slots and sample ownership counters after each cycle."
+      ],
+      "assertions": [
+        "All slots FREE with zero ledger after each completed cycle.",
+        "No VF PCI functions, VFIO fds, maps or pending events remain after owner close.",
+        "QEMU object counts and guest worker counts do not grow across cycles."
+      ],
+      "required_evidence": [
+        "serial.log",
+        "groups.json",
+        "lifecycle-counters.json",
+        "vfio-ownership.json"
+      ],
+      "faults": []
+    },
+    {
+      "id": "T02",
+      "title": "Provision and PCI enable failure unwind",
+      "required": true,
+      "milestone": "m3",
+      "spec_sections": [
+        9,
+        10,
+        11,
+        15
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "kasan"
+      ],
+      "invariants": [
+        "I1",
+        "I4",
+        "I6"
+      ],
+      "parameters": {
+        "failure_points": "every named provision, host-allocation and pci_enable_sriov stage",
+        "hit": "each configured nth hit, once"
+      },
+      "actions": [
+        "Inject each named failure point independently.",
+        "Exercise successful reverse unwind and a second failure during unwind."
+      ],
+      "assertions": [
+        "Successful unwind leaves slots FREE and resources fully released.",
+        "Unwind failure leaves FAILED and retained ledger for any possibly owned quota.",
+        "No capacity excess, hidden quota release or direct forced FREE transition."
+      ],
+      "required_evidence": [
+        "serial.log",
+        "failpoints.json",
+        "fault-ack.log",
+        "ledger-snapshots.json"
+      ],
+      "faults": [
+        "failpoint-name",
+        "failpoint-hit"
+      ]
+    },
+    {
+      "id": "T03",
+      "title": "FILL, CRC and ring wraps",
+      "required": true,
+      "milestone": "m3",
+      "spec_sections": [
+        8,
+        15
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "kasan"
+      ],
+      "invariants": [
+        "I2",
+        "I8",
+        "I9"
+      ],
+      "parameters": {
+        "entries": [
+          16,
+          32,
+          256
+        ],
+        "minimum_requests_per_size": 4096,
+        "crc_vector_ascii": "123456789",
+        "crc_vector_expected": "0xcbf43926",
+        "model_counter_start": "near UINT32_MAX"
+      },
+      "actions": [
+        "Run FILL and CRC at every ring size through multiple wraps.",
+        "Run independent counter and phase model near uint32 wrap.",
+        "Verify buffers and every completion before publishing CQ_HEAD."
+      ],
+      "assertions": [
+        "CRC polynomial 0xedb88320 with initial/final xor 0xffffffff matches the fixed vector.",
+        "Unread CQ is not overwritten and SQ indices remain within N.",
+        "Phase is published last and follows 1 ^ ((counter / N) & 1).",
+        "No duplicate outstanding ID in one epoch."
+      ],
+      "required_evidence": [
+        "serial.log",
+        "io-results.json",
+        "ring-wrap-model.json",
+        "buffer-digests.json"
+      ],
+      "faults": []
+    },
+    {
+      "id": "T04",
+      "title": "Same IOVA in independent VF domains",
+      "required": true,
+      "milestone": "m3",
+      "spec_sections": [
+        6,
+        8,
+        11,
+        15
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "kasan"
+      ],
+      "invariants": [
+        "I2",
+        "I5"
+      ],
+      "parameters": {
+        "vfs": 2,
+        "same_iova": true,
+        "distinct_guest_buffers": true
+      },
+      "actions": [
+        "Map the same numeric IOVA to distinct buffers in independent VF containers.",
+        "Have A and B write different patterns and then run CRC."
+      ],
+      "assertions": [
+        "A changes only its own buffer and B changes only its own buffer.",
+        "Both groups are independently viable and exclude PF and other VFs.",
+        "DMA source evidence shows the corresponding VF requester for SQ, payload and CQ."
+      ],
+      "required_evidence": [
+        "serial.log",
+        "groups.json",
+        "vfio-maps.json",
+        "buffer-digests.json",
+        "dma-requester-evidence.json"
+      ],
+      "faults": []
+    },
+    {
+      "id": "T05",
+      "title": "Unmapped address, guard page and permissions",
+      "required": true,
+      "milestone": "m3",
+      "spec_sections": [
+        6,
+        8,
+        15
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "kasan"
+      ],
+      "invariants": [
+        "I2",
+        "I5",
+        "I7"
+      ],
+      "parameters": {
+        "vfs": 2,
+        "variants": [
+          "A-unmapped-B-mapped",
+          "guard-page",
+          "read-only-payload",
+          "write-only-payload"
+        ]
+      },
+      "actions": [
+        "Map a target IOVA only in B and submit access from A.",
+        "Exercise guard-page and DMA permission failures.",
+        "Keep valid B traffic running and capture RID and fault counters."
+      ],
+      "assertions": [
+        "A DMA fails without changing the B guard.",
+        "B valid traffic continues.",
+        "Every DMA helper return is checked; no uninitialized decode or infinite retry.",
+        "SQ or CQ fault fences and fails A; payload error completes DMA_ERROR only if CQ remains safe, then fences.",
+        "Partial cross-page writes are reported without promising rollback."
+      ],
+      "required_evidence": [
+        "serial.log",
+        "iommu-faults.log",
+        "vf-rid-map.json",
+        "device-fault-counters.json",
+        "guard-digests.json"
+      ],
+      "faults": []
+    },
+    {
+      "id": "T06",
+      "title": "VFIO device reset and open/close FLR",
+      "required": true,
+      "milestone": "m3",
+      "spec_sections": [
+        7,
+        10,
+        11,
+        15
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "kasan"
+      ],
+      "invariants": [
+        "I2",
+        "I3",
+        "I7"
+      ],
+      "parameters": {
+        "reset_paths": [
+          "VFIO_DEVICE_RESET",
+          "VFIO-open",
+          "VFIO-close"
+        ]
+      },
+      "actions": [
+        "Observe each real function-reset event and latch epoch after each new device fd.",
+        "Invoke VFIO_DEVICE_RESET and attempt traffic before fresh configuration.",
+        "Reconfigure and rearm with live session, epoch and ready_gen."
+      ],
+      "assertions": [
+        "Standard FLR is advertised and VFIO reset works; mailbox reset is not substituted.",
+        "Each real reset increments epoch, cancels callbacks, clears old queue and pending vectors.",
+        "No DMA runs before new CONFIG_COMMIT and successful REARM.",
+        "Other VFs continue I/O."
+      ],
+      "required_evidence": [
+        "serial.log",
+        "vfio-reset-results.json",
+        "epoch-timeline.json",
+        "healthy-vf-progress.json"
+      ],
+      "faults": []
+    },
+    {
+      "id": "T07",
+      "title": "Reset under load with delayed tenant readiness",
+      "required": true,
+      "milestone": "m3",
+      "spec_sections": [
+        10,
+        15
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "kasan"
+      ],
+      "invariants": [
+        "I2",
+        "I3",
+        "I7",
+        "I9"
+      ],
+      "parameters": {
+        "logical_deadline_checks": [
+          99,
+          100,
+          101
+        ],
+        "slow_ready": true
+      },
+      "actions": [
+        "Run tenant load while coordinator performs fence, quiesce and reset.",
+        "Delay new tenant mapping and READY in RECOVERING.",
+        "Complete exact-size old UNMAP, new MAP/config/READY and PF REARM."
+      ],
+      "assertions": [
+        "RECOVERING remains fenced and does not change payload or CQ.",
+        "Quota remains allocated while old qcfg and indices clear.",
+        "Old buffers are freed only after owner UNMAP succeeds.",
+        "Traffic resumes only after new epoch/session and RUNNING readback."
+      ],
+      "required_evidence": [
+        "serial.log",
+        "reset-handshake.json",
+        "guard-digests.json",
+        "vfio-unmap-results.json"
+      ],
+      "faults": []
+    },
+    {
+      "id": "T08",
+      "title": "Delayed completion executes after reset",
+      "required": true,
+      "milestone": "m3",
+      "spec_sections": [
+        8,
+        10,
+        16
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "kasan"
+      ],
+      "invariants": [
+        "I2",
+        "I3",
+        "I7"
+      ],
+      "parameters": {
+        "maximum_retained_per_vf": 1
+      },
+      "actions": [
+        "Retain a real descriptor copy, token and CQ reservation using delay-cpl-ticks.",
+        "Reset the VF and configure a new ring.",
+        "Invoke the old completion callback through try-stale-cpl."
+      ],
+      "assertions": [
+        "STALE_CPL increases because the actual callback was rejected at its final gate.",
+        "Old and new payload/CQ guards remain unchanged by the stale callback.",
+        "No stale VF interrupt is sent.",
+        "STALE_DESC and STALE_CPL are independent counters."
+      ],
+      "required_evidence": [
+        "serial.log",
+        "qmp.log",
+        "fault-ack.log",
+        "callback-timeline.json",
+        "guard-digests.json"
+      ],
+      "faults": [
+        "delay-cpl-ticks",
+        "try-stale-cpl"
+      ]
+    },
+    {
+      "id": "T09",
+      "title": "Stale and malformed descriptors",
+      "required": true,
+      "milestone": "m3",
+      "spec_sections": [
+        8,
+        15
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "kasan"
+      ],
+      "invariants": [
+        "I2",
+        "I3",
+        "I8",
+        "I9"
+      ],
+      "parameters": {
+        "variants": [
+          "old-epoch",
+          "unknown-opcode",
+          "zero-length",
+          "length-over-4096",
+          "address-overflow",
+          "nonzero-flags"
+        ]
+      },
+      "actions": [
+        "Submit old-epoch descriptors and malformed descriptors separately.",
+        "Exercise bounded decoder and checked arithmetic model under ASan/UBSan."
+      ],
+      "assertions": [
+        "Old epoch only consumes SQ and increments STALE_DESC without payload/CQ DMA.",
+        "Invalid fields return BAD_DESC and never form an out-of-bounds access.",
+        "No undefined behavior, crash or stale completion is hidden by parser failure."
+      ],
+      "required_evidence": [
+        "serial.log",
+        "descriptor-vectors.json",
+        "sanitizer.log",
+        "counter-snapshots.json"
+      ],
+      "faults": []
+    },
+    {
+      "id": "T10",
+      "title": "Busy lease blocks disable and resize",
+      "required": true,
+      "milestone": "m3",
+      "spec_sections": [
+        10,
+        11,
+        15
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "kasan"
+      ],
+      "invariants": [
+        "I1",
+        "I4",
+        "I6"
+      ],
+      "parameters": {
+        "enabled_vfs": 4,
+        "attempted_nonzero_resize": 2
+      },
+      "actions": [
+        "Keep a lease and device fd alive while requesting sriov_numvfs=0.",
+        "Attempt nonzero-to-nonzero VF count change.",
+        "Close owner, revoke lease, unbind and disable."
+      ],
+      "assertions": [
+        "Busy operations return EBUSY or EPERM and preserve VF topology and quota.",
+        "Zero disable succeeds after the close protocol completes."
+      ],
+      "required_evidence": [
+        "serial.log",
+        "sysfs-operation-results.json",
+        "lease-snapshots.json",
+        "ledger-snapshots.json"
+      ],
+      "faults": []
+    },
+    {
+      "id": "T11",
+      "title": "Per-VF firmware hang and timeout containment",
+      "required": true,
+      "milestone": "m4",
+      "spec_sections": [
+        10,
+        16
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "kcsan"
+      ],
+      "invariants": [
+        "I1",
+        "I2",
+        "I3",
+        "I7"
+      ],
+      "parameters": {
+        "logical_deadline_checks": [
+          99,
+          100,
+          101
+        ],
+        "minimum_repetitions": 20
+      },
+      "actions": [
+        "Hang target VF firmware; separately ignore QUIESCE and RESET replies.",
+        "Issue hardware fence and wait the defined logical deadline.",
+        "Continue healthy VF traffic throughout."
+      ],
+      "assertions": [
+        "Timeout latches KILL and FAILED with retained quota.",
+        "Readback confirms fence and kill despite firmware hang.",
+        "Healthy VF progresses and no global PF reset occurs."
+      ],
+      "required_evidence": [
+        "serial.log",
+        "qmp.log",
+        "fault-ack.log",
+        "deadline-results.json",
+        "healthy-vf-progress.json"
+      ],
+      "faults": [
+        "fw-hang-vf",
+        "ignore-quiesce",
+        "ignore-reset"
+      ]
+    },
+    {
+      "id": "T12",
+      "title": "All firmware hung with hardware fence-all",
+      "required": true,
+      "milestone": "m4",
+      "spec_sections": [
+        10,
+        16
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "kcsan"
+      ],
+      "invariants": [
+        "I2",
+        "I6",
+        "I7"
+      ],
+      "parameters": {},
+      "actions": [
+        "Hang all firmware queues/mailbox.",
+        "Issue PF FENCE_ALL and attempt DMA and VF IRQ.",
+        "Let VFIO owners close under coordinator cleanup."
+      ],
+      "assertions": [
+        "Mailbox times out but hardware registers remain responsive.",
+        "No payload/CQ DMA or tenant IRQ occurs after fence readback.",
+        "Owners retain mapping responsibility; timeout alone does not authorize PF unmap."
+      ],
+      "required_evidence": [
+        "serial.log",
+        "qmp.log",
+        "fault-ack.log",
+        "hardware-readback.json",
+        "vfio-ownership.json"
+      ],
+      "faults": [
+        "fw-hang-all"
+      ]
+    },
+    {
+      "id": "T13",
+      "title": "Mailbox retry, acknowledgements and conflicts",
+      "required": true,
+      "milestone": "m4",
+      "spec_sections": [
+        9,
+        16
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "kcsan"
+      ],
+      "invariants": [
+        "I10"
+      ],
+      "parameters": {
+        "variants": [
+          "drop-once",
+          "duplicate-ack",
+          "stale-ack",
+          "same-key-same-content",
+          "same-key-different-content",
+          "stale-seq",
+          "unsupported-major"
+        ]
+      },
+      "actions": [
+        "Hide a reply only after its side effect and full reply cache commit.",
+        "Retry same request and inject duplicate/stale acknowledgements.",
+        "Send conflicts, old sequence and unsupported protocol requests."
+      ],
+      "assertions": [
+        "A retry returns the original reply and does not repeat a side effect.",
+        "Stale ACK_SEQ never completes a newer request.",
+        "Same-key content mismatch is SEQ_CONFLICT and older sequence is STALE_SEQ.",
+        "Unsupported protocol rejection preserves context."
+      ],
+      "required_evidence": [
+        "serial.log",
+        "qmp.log",
+        "fault-ack.log",
+        "mailbox-transcript.json",
+        "context-digests.json"
+      ],
+      "faults": [
+        "drop-mbx-reply-once"
+      ]
+    },
+    {
+      "id": "T14",
+      "title": "Malicious VF writes cannot bypass fence or kill",
+      "required": true,
+      "milestone": "m4",
+      "spec_sections": [
+        7,
+        10,
+        16
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "kcsan"
+      ],
+      "invariants": [
+        "I2",
+        "I3",
+        "I7"
+      ],
+      "parameters": {
+        "variants": [
+          "BME-toggle",
+          "doorbell-while-fenced",
+          "invalid-config",
+          "IRQ-while-fenced",
+          "attempt-kill-clear"
+        ]
+      },
+      "actions": [
+        "Fence or kill the target VF and read back state.",
+        "Re-enable BME through its VF config region and issue doorbells/config writes.",
+        "Invoke real IRQ gate through try-irq-fenced."
+      ],
+      "assertions": [
+        "No DMA runs after BME is re-enabled while fenced.",
+        "Invalid configuration is rejected with no gate bypass.",
+        "IRQ_SUPPRESSED records an actual rejected interrupt attempt.",
+        "VF BAR, mailbox ENABLE or DESTROY cannot clear KILL."
+      ],
+      "required_evidence": [
+        "serial.log",
+        "qmp.log",
+        "fault-ack.log",
+        "mmio-transcript.json",
+        "guard-digests.json",
+        "irq-counters.json"
+      ],
+      "faults": [
+        "try-irq-fenced"
+      ]
+    },
+    {
+      "id": "T15",
+      "title": "CQ full and invalid queue indices/configuration",
+      "required": true,
+      "milestone": "m4",
+      "spec_sections": [
+        7,
+        8,
+        15
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "kcsan"
+      ],
+      "invariants": [
+        "I2",
+        "I7",
+        "I9"
+      ],
+      "parameters": {
+        "variants": [
+          "CQ-full",
+          "SQ-tail-distance-over-N",
+          "CQ-head-ahead-of-tail",
+          "backward-head",
+          "unaligned-base",
+          "base-overflow",
+          "overlapping-rings"
+        ]
+      },
+      "actions": [
+        "Fill CQ without consuming it, then continue attempting submissions.",
+        "Run each invalid index/configuration independently.",
+        "Keep another VF active."
+      ],
+      "assertions": [
+        "Unread CQ remains unchanged and reserved CQ capacity is counted.",
+        "Queue protocol errors set an error and fence as required.",
+        "Other VF continues progress.",
+        "CONFIG_COMMIT is atomic and rejects RUNNING reconfiguration."
+      ],
+      "required_evidence": [
+        "serial.log",
+        "ring-snapshots.json",
+        "guard-digests.json",
+        "healthy-vf-progress.json"
+      ],
+      "faults": []
+    },
+    {
+      "id": "T16",
+      "title": "Concurrent reset, destroy, disable and tenant exit",
+      "required": true,
+      "milestone": "m4",
+      "spec_sections": [
+        10,
+        11,
+        15
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "kcsan"
+      ],
+      "invariants": [
+        "I1",
+        "I3",
+        "I4",
+        "I6"
+      ],
+      "parameters": {
+        "management_ops_per_seed": 2000,
+        "minimum_seeds": 4,
+        "fixed_io_load": true
+      },
+      "actions": [
+        "Race reset, destroy, disable and tenant exit through legitimate control interfaces.",
+        "Record admin transaction ordering and completion."
+      ],
+      "assertions": [
+        "Admin transactions serialize with admin-to-mailbox lock order.",
+        "No deadlock, UAF, KCSAN or lockdep report.",
+        "cancel_work_sync never waits while holding a lock required by the worker.",
+        "Ledger and ownership invariants hold after stable points."
+      ],
+      "required_evidence": [
+        "serial.log",
+        "management-history.json",
+        "operation-counts.json",
+        "kernel-reports.json"
+      ],
+      "faults": []
+    },
+    {
+      "id": "T17",
+      "title": "PF remove with live tenant I/O and control fd",
+      "required": true,
+      "milestone": "m4",
+      "spec_sections": [
+        10,
+        11,
+        15
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "kcsan"
+      ],
+      "invariants": [
+        "I2",
+        "I6",
+        "I7"
+      ],
+      "parameters": {
+        "isolated_vm": true,
+        "controller_driven": true
+      },
+      "actions": [
+        "Open a PF control fd and start tenant I/O.",
+        "Controller triggers PF unbind and concurrently asks VFIO owners to exit.",
+        "Exercise ioctl/read on the surviving PF fd and close it."
+      ],
+      "assertions": [
+        "remove is void and does not pretend to reject removal.",
+        "FENCE_ALL is first and remains active while any owner retains maps.",
+        "After remove, existing control read/ioctl returns ENODEV and close is safe.",
+        "Work, timers, IRQ, BAR and references are cleaned without premature freeing.",
+        "Assigned VF removal behavior follows pinned Linux source; no assumption of synchronous forced unassign."
+      ],
+      "required_evidence": [
+        "serial.log",
+        "remove-timeline.json",
+        "fd-results.json",
+        "kernel-reports.json",
+        "cleanup-counters.json"
+      ],
+      "faults": []
+    },
+    {
+      "id": "T18",
+      "title": "Tenant crash and fd ownership cleanup",
+      "required": true,
+      "milestone": "m4",
+      "spec_sections": [
+        10,
+        11,
+        15
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "kcsan"
+      ],
+      "invariants": [
+        "I2",
+        "I6",
+        "I7"
+      ],
+      "parameters": {
+        "termination_modes": [
+          "signal",
+          "unexpected-exit"
+        ],
+        "forbid_inherited_fds": true
+      },
+      "actions": [
+        "Terminate tenant while load runs.",
+        "Observe pidfd or child wait, fence VF and wait for all owner fds to close.",
+        "Revoke lease and inspect remaining children/fds/maps."
+      ],
+      "assertions": [
+        "VF is fenced before lease cleanup assumes DMA stopped.",
+        "VFIO owner close removes mappings; PF never steals mapping ownership.",
+        "No leaked child, eventfd, device/group/container fd or lease remains."
+      ],
+      "required_evidence": [
+        "serial.log",
+        "process-events.json",
+        "fd-map-counters.json",
+        "lease-snapshots.json"
+      ],
+      "faults": []
+    },
+    {
+      "id": "T19",
+      "title": "Logical QoS oracle and eligibility",
+      "required": true,
+      "milestone": "m4",
+      "spec_sections": [
+        12,
+        15
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "kcsan"
+      ],
+      "invariants": [
+        "I1",
+        "I2",
+        "I9"
+      ],
+      "parameters": {
+        "capacity": 64,
+        "rounds": 1000,
+        "equal_reserves": [
+          8,
+          8,
+          8,
+          8
+        ],
+        "weighted_reserves": [
+          4,
+          8,
+          12,
+          16
+        ],
+        "minimum_normalized_jain": 0.99,
+        "noisy_expected": [
+          40,
+          8,
+          8,
+          8
+        ]
+      },
+      "actions": [
+        "Compare every scheduler round with independent Python oracle.",
+        "Exercise equal saturation, weighted saturation, idle VF, noisy neighbor and CQ-full/fenced/hung eligibility.",
+        "Rotate ties and execution starting index."
+      ],
+      "assertions": [
+        "Equal saturation gives each of four VFs 16 services per round.",
+        "Weighted normalized Jain over sustained-backlog participants is at least 0.99.",
+        "Noisy neighbor gives B/C/D 8 every round and A 40.",
+        "Idle, CQ-full, fenced and retained-delay VFs have zero effective backlog.",
+        "Empty sample has Jain N/A, not 1; service<=backlog and total<=64."
+      ],
+      "required_evidence": [
+        "serial.log",
+        "scheduler-rounds.json",
+        "oracle-comparison.json",
+        "qos-report.json"
+      ],
+      "faults": []
+    },
+    {
+      "id": "T20",
+      "title": "Global recovery and slot reuse",
+      "required": true,
+      "milestone": "m4",
+      "spec_sections": [
+        9,
+        10,
+        15
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "kcsan"
+      ],
+      "invariants": [
+        "I1",
+        "I2",
+        "I3",
+        "I4",
+        "I6",
+        "I7"
+      ],
+      "parameters": {},
+      "actions": [
+        "Attempt GLOBAL_RESET while a lease exists and verify rejection.",
+        "Close every owner, disable VFs, recover globally and reprovision the same slot.",
+        "Attempt old callbacks, stale control context and old configuration."
+      ],
+      "assertions": [
+        "No global recovery proceeds before all leases close.",
+        "Session and every epoch increase without reset to zero; callbacks are canceled.",
+        "Ledger is zero, slots FREE, KILL is cleared only here and fence remains set.",
+        "Old callback or stale fd context cannot resume new generation traffic."
+      ],
+      "required_evidence": [
+        "serial.log",
+        "global-recovery-timeline.json",
+        "epoch-session-history.json",
+        "guard-digests.json"
+      ],
+      "faults": []
+    },
+    {
+      "id": "T21",
+      "title": "Generation, sequence and token exhaustion",
+      "required": true,
+      "milestone": "m4",
+      "spec_sections": [
+        7,
+        9,
+        10,
+        15
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "kcsan"
+      ],
+      "invariants": [
+        "I3",
+        "I7",
+        "I10"
+      ],
+      "parameters": {
+        "model_values": [
+          "UINT64_MAX-1",
+          "UINT64_MAX",
+          "UINT32_MAX-1",
+          "UINT32_MAX"
+        ],
+        "model_only_limits": true
+      },
+      "actions": [
+        "Initialize controlled model states near epoch/session/sequence/token limits.",
+        "Attempt increment, retry and reuse at exhaustion."
+      ],
+      "assertions": [
+        "No epoch, session, sequence or operation token wraps to zero.",
+        "Exhaustion fails safely with FAILED/quarantine/KILL as applicable.",
+        "A new safe session requires the documented all-owner-close transaction; u64 exhaustion requires cold start.",
+        "No 2^64-operation live test is required or claimed."
+      ],
+      "required_evidence": [
+        "limit-model.json",
+        "sanitizer.log",
+        "context-digests.json"
+      ],
+      "faults": []
+    },
+    {
+      "id": "T22",
+      "title": "Invalid capsule and format vectors",
+      "required": true,
+      "milestone": "m5",
+      "spec_sections": [
+        7,
+        17
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "stress"
+      ],
+      "invariants": [
+        "I8"
+      ],
+      "parameters": {
+        "variants": [
+          "bad-length",
+          "bad-header-CRC",
+          "bad-payload-CRC",
+          "bad-ABI",
+          "unknown-schema",
+          "nonzero-reserved",
+          "rollback-policy"
+        ],
+        "storage_bytes": 131072,
+        "slot_bytes": 32768,
+        "header_bytes": 64
+      },
+      "actions": [
+        "Validate fixed positive and negative capsule byte vectors.",
+        "Stage each invalid capsule to inactive slot and attempt validation/activation."
+      ],
+      "assertions": [
+        "Header CRC calculation clears only its own field and retains payload CRC.",
+        "Bounds and declared payload length are checked; padding is excluded from CRC.",
+        "Illegal capsule never replaces active image or becomes accepted inactive image.",
+        "Failure status and known CRC vectors match; no native code executes."
+      ],
+      "required_evidence": [
+        "capsule-vectors.json",
+        "serial.log",
+        "storage-digests.json",
+        "update-results.json"
+      ],
+      "faults": []
+    },
+    {
+      "id": "T23",
+      "title": "Unconfirmed activation and health rollback",
+      "required": true,
+      "milestone": "m5",
+      "spec_sections": [
+        17
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "stress"
+      ],
+      "invariants": [
+        "I3",
+        "I8"
+      ],
+      "parameters": {
+        "variants": [
+          "unconfirmed-reboot",
+          "health-failure"
+        ]
+      },
+      "actions": [
+        "Activate a valid new slot but omit CONFIRM, then restart on the same storage.",
+        "Separately fail the new slot boot health check."
+      ],
+      "assertions": [
+        "Recovery returns to last_good slot.",
+        "Generation increases and rollback reason identifies UNCONFIRMED_REBOOT or HEALTH_FAIL.",
+        "Last_good is changed only by a successful confirmed journal transaction."
+      ],
+      "required_evidence": [
+        "serial.log",
+        "restart-serial.log",
+        "journal-history.json",
+        "storage-digests.json"
+      ],
+      "faults": []
+    },
+    {
+      "id": "T24",
+      "title": "Journal power-cut process-crash recovery",
+      "required": true,
+      "milestone": "m5",
+      "spec_sections": [
+        16,
+        17
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "stress"
+      ],
+      "invariants": [
+        "I8"
+      ],
+      "parameters": {
+        "checkpoint_scope": "every journal persistence step",
+        "termination": "SIGKILL",
+        "reuse_same_storage": true,
+        "model_variants": [
+          "partial-write",
+          "torn-record",
+          "bad-record-CRC",
+          "both-records-invalid"
+        ]
+      },
+      "actions": [
+        "At each acknowledged write/sync/readback checkpoint, controller SIGKILLs only that QEMU PID.",
+        "Restart QEMU with the same explicit fw-storage regular file.",
+        "Run independent torn-write and corrupt-record model cases."
+      ],
+      "assertions": [
+        "Crash cases preserve at least one valid prior or new record.",
+        "Recovery chooses CRC-valid highest generation, never host mtime.",
+        "Recovered active slot is legal and consistent with confirmed/pending/rollback rules.",
+        "No valid journal produces read-only safe error, never arbitrary slot A boot.",
+        "Normal shutdown is not accepted as power-cut evidence; process-crash proof is not physical SSD power-loss proof."
+      ],
+      "required_evidence": [
+        "qmp.log",
+        "fault-ack.log",
+        "controller-signals.json",
+        "restart-serial.log",
+        "journal-history.json",
+        "storage-digests.json"
+      ],
+      "faults": [
+        "power-cut-at"
+      ]
+    },
+    {
+      "id": "T25",
+      "title": "Update operations concurrent with tenants",
+      "required": true,
+      "milestone": "m5",
+      "spec_sections": [
+        7,
+        17
+      ],
+      "status": "NOT_RUN",
+      "accelerator": "tcg",
+      "profiles": [
+        "stress"
+      ],
+      "invariants": [
+        "I1",
+        "I2",
+        "I6",
+        "I8"
+      ],
+      "parameters": {},
+      "actions": [
+        "Stage bounded inactive chunks while tenant traffic runs.",
+        "Attempt ACTIVATE while any lease or enabled VF remains.",
+        "Close owners, disable VFs, fence all, then activate/confirm."
+      ],
+      "assertions": [
+        "Stage is bounded and does not block MMIO handler on host I/O.",
+        "ACTIVATE returns EBUSY while leases exist or VFs remain enabled.",
+        "After valid prerequisites, activation journals pending and confirmation follows health/version/selftest checks.",
+        "Existing active slot is untouched by failed staging/activation."
+      ],
+      "required_evidence": [
+        "serial.log",
+        "update-timeline.json",
+        "lease-snapshots.json",
+        "journal-history.json"
+      ],
+      "faults": []
+    }
+  ]
+}

@@ -1,0 +1,541 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>guest/pf/toy_control.inc</title><style>
+:root{color-scheme:light;--ink:#18293c;--blue:#184d83;--line:#ced9e4;--muted:#526477}
+*{box-sizing:border-box}body{margin:0;background:#f2f5f8;color:var(--ink);font:17px/1.8 system-ui,'Microsoft JhengHei',sans-serif}
+a{color:var(--blue);overflow-wrap:anywhere}header{background:#102e4d;color:#fff;padding:48px max(24px,calc((100vw - 1100px)/2))}
+header p{max-width:850px}header a{color:#b8dcff}.label{letter-spacing:.15em;font-size:13px;color:#b8dcff}
+.layout{max-width:1420px;margin:auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:32px;padding:30px}
+nav{position:sticky;top:20px;align-self:start;max-height:95vh;overflow:auto;font-size:14px}nav a{display:block;margin:12px 0}
+main{min-width:0;background:white;padding:36px 44px;border:1px solid var(--line);border-radius:12px}
+h1{font-size:2rem;line-height:1.35}h2{font-size:1.5rem;margin-top:2em;border-bottom:1px solid var(--line);padding-bottom:10px}h3{font-size:1.1rem}
+p{max-width:95ch}section+section{margin-top:80px;border-top:4px solid var(--blue);padding-top:26px}
+pre{overflow:auto;background:#112c45;color:#eaf3fa;padding:20px;border-radius:8px;font-size:14px;line-height:1.6}
+code{font-family:Consolas,monospace;font-size:.88em}p code,li code,td code{background:#edf3f8;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}
+.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;margin:20px 0;font-size:15px}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf1f8}
+img,svg{max-width:100%;height:auto}.diagram{overflow:auto;margin:20px 0}.diagram svg{min-width:900px;width:100%;display:block}blockquote,.notice{border-left:5px solid #c4841b;background:#fff5df;padding:16px 20px;margin:24px 0}.muted{color:var(--muted)}
+.source-line{display:block;white-space:pre}.source-line:target{background:#355b79}.line-no{display:inline-block;width:5em;color:#9db8ce;text-decoration:none;user-select:none}
+@media(max-width:850px){.layout{display:block;padding:14px}nav{position:static;max-height:none}main{padding:24px 18px}header{padding:30px 20px}h1{font-size:1.65rem}}
+@media print{body{background:white;font-size:11pt}header{color:#18293c;background:white;padding:0}nav{display:none}.layout{display:block;padding:0}main{border:0;padding:0}section{break-before:page}pre{white-space:pre-wrap}a{color:inherit}}
+</style><main><a href="../handbook.html">回教材</a><h1>guest/pf/toy_control.inc</h1><p>SHA256 <code>e38d514a953b916fc4cc552e138b482c97395a56ed3b53b0eb3924b0e864543c</code></p><pre><span class="source-line" id="L1"><a class="line-no" href="#L1">1</a>/* 本檔由 toy_pf.c 納入；所有管理操作均使用同一 admin_mutex。 */</span>
+<span class="source-line" id="L2"><a class="line-no" href="#L2">2</a>static struct toy_uapi_header toy_header(size_t size)</span>
+<span class="source-line" id="L3"><a class="line-no" href="#L3">3</a>{</span>
+<span class="source-line" id="L4"><a class="line-no" href="#L4">4</a>    return (struct toy_uapi_header){ size, TOY_UAPI_MAJOR, TOY_UAPI_MINOR };</span>
+<span class="source-line" id="L5"><a class="line-no" href="#L5">5</a>}</span>
+<span class="source-line" id="L6"><a class="line-no" href="#L6">6</a></span>
+<span class="source-line" id="L7"><a class="line-no" href="#L7">7</a>static int toy_header_valid(const struct toy_uapi_header *hdr, size_t size)</span>
+<span class="source-line" id="L8"><a class="line-no" href="#L8">8</a>{</span>
+<span class="source-line" id="L9"><a class="line-no" href="#L9">9</a>    if (hdr-&gt;size != size)</span>
+<span class="source-line" id="L10"><a class="line-no" href="#L10">10</a>        return -EINVAL;</span>
+<span class="source-line" id="L11"><a class="line-no" href="#L11">11</a>    if (hdr-&gt;abi_major != TOY_UAPI_MAJOR || hdr-&gt;abi_minor != TOY_UAPI_MINOR)</span>
+<span class="source-line" id="L12"><a class="line-no" href="#L12">12</a>        return -EPROTONOSUPPORT;</span>
+<span class="source-line" id="L13"><a class="line-no" href="#L13">13</a>    return 0;</span>
+<span class="source-line" id="L14"><a class="line-no" href="#L14">14</a>}</span>
+<span class="source-line" id="L15"><a class="line-no" href="#L15">15</a></span>
+<span class="source-line" id="L16"><a class="line-no" href="#L16">16</a>static bool toy_reserved_zero(const u32 *reserved, size_t count)</span>
+<span class="source-line" id="L17"><a class="line-no" href="#L17">17</a>{</span>
+<span class="source-line" id="L18"><a class="line-no" href="#L18">18</a>    size_t i;</span>
+<span class="source-line" id="L19"><a class="line-no" href="#L19">19</a>    for (i = 0; i &lt; count; ++i)</span>
+<span class="source-line" id="L20"><a class="line-no" href="#L20">20</a>        if (reserved[i])</span>
+<span class="source-line" id="L21"><a class="line-no" href="#L21">21</a>            return false;</span>
+<span class="source-line" id="L22"><a class="line-no" href="#L22">22</a>    return true;</span>
+<span class="source-line" id="L23"><a class="line-no" href="#L23">23</a>}</span>
+<span class="source-line" id="L24"><a class="line-no" href="#L24">24</a></span>
+<span class="source-line" id="L25"><a class="line-no" href="#L25">25</a>static void toy_snapshot_vf(struct toy_pf *pf, struct toy_file *ctx,</span>
+<span class="source-line" id="L26"><a class="line-no" href="#L26">26</a>                            unsigned int vf, struct toy_vf_info *out)</span>
+<span class="source-line" id="L27"><a class="line-no" href="#L27">27</a>{</span>
+<span class="source-line" id="L28"><a class="line-no" href="#L28">28</a>    u32 off = TOY_VF_VIEW(vf, 0);</span>
+<span class="source-line" id="L29"><a class="line-no" href="#L29">29</a>    memset(out, 0, sizeof(*out));</span>
+<span class="source-line" id="L30"><a class="line-no" href="#L30">30</a>    out-&gt;hdr = toy_header(sizeof(*out));</span>
+<span class="source-line" id="L31"><a class="line-no" href="#L31">31</a>    out-&gt;vf = vf;</span>
+<span class="source-line" id="L32"><a class="line-no" href="#L32">32</a>    out-&gt;session = toy_read64(pf, TOY_PF_SESSION_LO);</span>
+<span class="source-line" id="L33"><a class="line-no" href="#L33">33</a>    out-&gt;epoch = toy_read64(pf, off + TOY_PF_VF_VIEW_EPOCH_LO);</span>
+<span class="source-line" id="L34"><a class="line-no" href="#L34">34</a>    out-&gt;state = toy_read(pf, off + TOY_PF_VF_VIEW_STATE);</span>
+<span class="source-line" id="L35"><a class="line-no" href="#L35">35</a>    out-&gt;hw_flags = toy_read(pf, off + TOY_PF_VF_VIEW_HW_STATUS);</span>
+<span class="source-line" id="L36"><a class="line-no" href="#L36">36</a>    out-&gt;reserve = toy_read(pf, off + TOY_PF_VF_VIEW_RESERVE);</span>
+<span class="source-line" id="L37"><a class="line-no" href="#L37">37</a>    out-&gt;outstanding = toy_read(pf, off + TOY_PF_VF_VIEW_OUTSTANDING);</span>
+<span class="source-line" id="L38"><a class="line-no" href="#L38">38</a>    out-&gt;ready_gen = toy_read(pf, off + TOY_PF_VF_VIEW_READY_GEN);</span>
+<span class="source-line" id="L39"><a class="line-no" href="#L39">39</a>    if (ctx &amp;&amp; pf-&gt;leases[vf].owner == ctx)</span>
+<span class="source-line" id="L40"><a class="line-no" href="#L40">40</a>        out-&gt;lease_token = pf-&gt;leases[vf].token;</span>
+<span class="source-line" id="L41"><a class="line-no" href="#L41">41</a>}</span>
+<span class="source-line" id="L42"><a class="line-no" href="#L42">42</a></span>
+<span class="source-line" id="L43"><a class="line-no" href="#L43">43</a>static bool toy_has_leases(struct toy_pf *pf)</span>
+<span class="source-line" id="L44"><a class="line-no" href="#L44">44</a>{</span>
+<span class="source-line" id="L45"><a class="line-no" href="#L45">45</a>    unsigned int i;</span>
+<span class="source-line" id="L46"><a class="line-no" href="#L46">46</a>    for (i = 0; i &lt; TOY_PCI_TOTAL_VFS; ++i)</span>
+<span class="source-line" id="L47"><a class="line-no" href="#L47">47</a>        if (pf-&gt;leases[i].token)</span>
+<span class="source-line" id="L48"><a class="line-no" href="#L48">48</a>            return true;</span>
+<span class="source-line" id="L49"><a class="line-no" href="#L49">49</a>    return false;</span>
+<span class="source-line" id="L50"><a class="line-no" href="#L50">50</a>}</span>
+<span class="source-line" id="L51"><a class="line-no" href="#L51">51</a></span>
+<span class="source-line" id="L52"><a class="line-no" href="#L52">52</a>/* fanout 只在 admin_mutex 下執行；IRQ 不接觸 context list。 */</span>
+<span class="source-line" id="L53"><a class="line-no" href="#L53">53</a>static void toy_publish(struct toy_pf *pf, u32 type, unsigned int vf, u32 detail,</span>
+<span class="source-line" id="L54"><a class="line-no" href="#L54">54</a>                        const struct toy_vf_info *snapshot)</span>
+<span class="source-line" id="L55"><a class="line-no" href="#L55">55</a>{</span>
+<span class="source-line" id="L56"><a class="line-no" href="#L56">56</a>    struct toy_file *ctx;</span>
+<span class="source-line" id="L57"><a class="line-no" href="#L57">57</a>    list_for_each_entry(ctx, &amp;pf-&gt;files, link) {</span>
+<span class="source-line" id="L58"><a class="line-no" href="#L58">58</a>        struct toy_event event = { .hdr = toy_header(sizeof(event)), .type = type,</span>
+<span class="source-line" id="L59"><a class="line-no" href="#L59">59</a>                                   .vf = vf, .detail = detail };</span>
+<span class="source-line" id="L60"><a class="line-no" href="#L60">60</a>        unsigned long flags;</span>
+<span class="source-line" id="L61"><a class="line-no" href="#L61">61</a>        if (snapshot) {</span>
+<span class="source-line" id="L62"><a class="line-no" href="#L62">62</a>            event.session = snapshot-&gt;session;</span>
+<span class="source-line" id="L63"><a class="line-no" href="#L63">63</a>            event.epoch = snapshot-&gt;epoch;</span>
+<span class="source-line" id="L64"><a class="line-no" href="#L64">64</a>            event.ready_gen = snapshot-&gt;ready_gen;</span>
+<span class="source-line" id="L65"><a class="line-no" href="#L65">65</a>            event.state = snapshot-&gt;state;</span>
+<span class="source-line" id="L66"><a class="line-no" href="#L66">66</a>            event.hw_flags = snapshot-&gt;hw_flags;</span>
+<span class="source-line" id="L67"><a class="line-no" href="#L67">67</a>        }</span>
+<span class="source-line" id="L68"><a class="line-no" href="#L68">68</a>        if (vf &lt; TOY_PCI_TOTAL_VFS &amp;&amp; pf-&gt;leases[vf].owner == ctx)</span>
+<span class="source-line" id="L69"><a class="line-no" href="#L69">69</a>            event.lease_token = pf-&gt;leases[vf].token;</span>
+<span class="source-line" id="L70"><a class="line-no" href="#L70">70</a>        spin_lock_irqsave(&amp;ctx-&gt;event_lock, flags);</span>
+<span class="source-line" id="L71"><a class="line-no" href="#L71">71</a>        if (ctx-&gt;count == TOY_EVENT_CAPACITY) {</span>
+<span class="source-line" id="L72"><a class="line-no" href="#L72">72</a>            ctx-&gt;head = (ctx-&gt;head + 1) % TOY_EVENT_CAPACITY;</span>
+<span class="source-line" id="L73"><a class="line-no" href="#L73">73</a>            --ctx-&gt;count;</span>
+<span class="source-line" id="L74"><a class="line-no" href="#L74">74</a>            if (ctx-&gt;lost != U32_MAX)</span>
+<span class="source-line" id="L75"><a class="line-no" href="#L75">75</a>                ++ctx-&gt;lost;</span>
+<span class="source-line" id="L76"><a class="line-no" href="#L76">76</a>        }</span>
+<span class="source-line" id="L77"><a class="line-no" href="#L77">77</a>        ctx-&gt;events[(ctx-&gt;head + ctx-&gt;count) % TOY_EVENT_CAPACITY] = event;</span>
+<span class="source-line" id="L78"><a class="line-no" href="#L78">78</a>        ++ctx-&gt;count;</span>
+<span class="source-line" id="L79"><a class="line-no" href="#L79">79</a>        spin_unlock_irqrestore(&amp;ctx-&gt;event_lock, flags);</span>
+<span class="source-line" id="L80"><a class="line-no" href="#L80">80</a>        wake_up_interruptible(&amp;ctx-&gt;event_wait);</span>
+<span class="source-line" id="L81"><a class="line-no" href="#L81">81</a>    }</span>
+<span class="source-line" id="L82"><a class="line-no" href="#L82">82</a>}</span>
+<span class="source-line" id="L83"><a class="line-no" href="#L83">83</a></span>
+<span class="source-line" id="L84"><a class="line-no" href="#L84">84</a>static void toy_notify_work(struct work_struct *work)</span>
+<span class="source-line" id="L85"><a class="line-no" href="#L85">85</a>{</span>
+<span class="source-line" id="L86"><a class="line-no" href="#L86">86</a>    struct toy_pf *pf = container_of(work, struct toy_pf, notify_work);</span>
+<span class="source-line" id="L87"><a class="line-no" href="#L87">87</a>    unsigned int i;</span>
+<span class="source-line" id="L88"><a class="line-no" href="#L88">88</a>    mutex_lock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L89"><a class="line-no" href="#L89">89</a>    if (pf-&gt;dying)</span>
+<span class="source-line" id="L90"><a class="line-no" href="#L90">90</a>        goto out;</span>
+<span class="source-line" id="L91"><a class="line-no" href="#L91">91</a>    /* 一次 coherent snapshot 覆蓋合併 IRQ；只報實際觀察到的 tuple 變化。 */</span>
+<span class="source-line" id="L92"><a class="line-no" href="#L92">92</a>    atomic_xchg(&amp;pf-&gt;pending_events, 0);</span>
+<span class="source-line" id="L93"><a class="line-no" href="#L93">93</a>    toy_write(pf, TOY_PF_SNAPSHOT, 1);</span>
+<span class="source-line" id="L94"><a class="line-no" href="#L94">94</a>    for (i = 0; i &lt; TOY_PCI_TOTAL_VFS; ++i) {</span>
+<span class="source-line" id="L95"><a class="line-no" href="#L95">95</a>        struct toy_vf_info now;</span>
+<span class="source-line" id="L96"><a class="line-no" href="#L96">96</a>        u32 fault;</span>
+<span class="source-line" id="L97"><a class="line-no" href="#L97">97</a>        toy_snapshot_vf(pf, NULL, i, &amp;now);</span>
+<span class="source-line" id="L98"><a class="line-no" href="#L98">98</a>        fault = toy_read(pf, TOY_VF_VIEW(i, TOY_PF_VF_VIEW_LAST_FAULT));</span>
+<span class="source-line" id="L99"><a class="line-no" href="#L99">99</a>        if (pf-&gt;leases[i].token) {</span>
+<span class="source-line" id="L100"><a class="line-no" href="#L100">100</a>            if (now.epoch != pf-&gt;observed[i].epoch ||</span>
+<span class="source-line" id="L101"><a class="line-no" href="#L101">101</a>                now.session != pf-&gt;observed[i].session) {</span>
+<span class="source-line" id="L102"><a class="line-no" href="#L102">102</a>                pf-&gt;leases[i].fence_valid = false;</span>
+<span class="source-line" id="L103"><a class="line-no" href="#L103">103</a>                toy_publish(pf, TOY_EVENT_FLR, i, 0, &amp;now);</span>
+<span class="source-line" id="L104"><a class="line-no" href="#L104">104</a>            }</span>
+<span class="source-line" id="L105"><a class="line-no" href="#L105">105</a>            if ((now.state == TOY_STATES_FAILED &amp;&amp; pf-&gt;observed[i].state != now.state) ||</span>
+<span class="source-line" id="L106"><a class="line-no" href="#L106">106</a>                fault != pf-&gt;observed_fault[i] ||</span>
+<span class="source-line" id="L107"><a class="line-no" href="#L107">107</a>                ((now.hw_flags ^ pf-&gt;observed[i].hw_flags) &amp; TOY_HW_FLAGS_KILLED))</span>
+<span class="source-line" id="L108"><a class="line-no" href="#L108">108</a>                toy_publish(pf, TOY_EVENT_FAULT, i, fault, &amp;now);</span>
+<span class="source-line" id="L109"><a class="line-no" href="#L109">109</a>        }</span>
+<span class="source-line" id="L110"><a class="line-no" href="#L110">110</a>        pf-&gt;observed[i] = now;</span>
+<span class="source-line" id="L111"><a class="line-no" href="#L111">111</a>        pf-&gt;observed_fault[i] = fault;</span>
+<span class="source-line" id="L112"><a class="line-no" href="#L112">112</a>    }</span>
+<span class="source-line" id="L113"><a class="line-no" href="#L113">113</a>out:</span>
+<span class="source-line" id="L114"><a class="line-no" href="#L114">114</a>    mutex_unlock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L115"><a class="line-no" href="#L115">115</a>}</span>
+<span class="source-line" id="L116"><a class="line-no" href="#L116">116</a></span>
+<span class="source-line" id="L117"><a class="line-no" href="#L117">117</a>/* 一次 open 建立一個 context；dup 共用同一 struct file，不會建立第二個 lease owner。 */</span>
+<span class="source-line" id="L118"><a class="line-no" href="#L118">118</a>static int toy_open(struct inode *inode, struct file *file)</span>
+<span class="source-line" id="L119"><a class="line-no" href="#L119">119</a>{</span>
+<span class="source-line" id="L120"><a class="line-no" href="#L120">120</a>    struct miscdevice *misc = file-&gt;private_data;</span>
+<span class="source-line" id="L121"><a class="line-no" href="#L121">121</a>    struct toy_pf *pf = container_of(misc, struct toy_pf, misc);</span>
+<span class="source-line" id="L122"><a class="line-no" href="#L122">122</a>    struct toy_file *ctx;</span>
+<span class="source-line" id="L123"><a class="line-no" href="#L123">123</a>    int ret = 0;</span>
+<span class="source-line" id="L124"><a class="line-no" href="#L124">124</a>    ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);</span>
+<span class="source-line" id="L125"><a class="line-no" href="#L125">125</a>    if (!ctx)</span>
+<span class="source-line" id="L126"><a class="line-no" href="#L126">126</a>        return -ENOMEM;</span>
+<span class="source-line" id="L127"><a class="line-no" href="#L127">127</a>    ctx-&gt;pf = pf;</span>
+<span class="source-line" id="L128"><a class="line-no" href="#L128">128</a>    spin_lock_init(&amp;ctx-&gt;event_lock);</span>
+<span class="source-line" id="L129"><a class="line-no" href="#L129">129</a>    init_waitqueue_head(&amp;ctx-&gt;event_wait);</span>
+<span class="source-line" id="L130"><a class="line-no" href="#L130">130</a>    mutex_init(&amp;ctx-&gt;read_mutex);</span>
+<span class="source-line" id="L131"><a class="line-no" href="#L131">131</a>    mutex_lock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L132"><a class="line-no" href="#L132">132</a>    if (!pf-&gt;accepting || pf-&gt;dying)</span>
+<span class="source-line" id="L133"><a class="line-no" href="#L133">133</a>        ret = -ENODEV;</span>
+<span class="source-line" id="L134"><a class="line-no" href="#L134">134</a>    else {</span>
+<span class="source-line" id="L135"><a class="line-no" href="#L135">135</a>        kref_get(&amp;pf-&gt;ref);</span>
+<span class="source-line" id="L136"><a class="line-no" href="#L136">136</a>        list_add_tail(&amp;ctx-&gt;link, &amp;pf-&gt;files);</span>
+<span class="source-line" id="L137"><a class="line-no" href="#L137">137</a>        file-&gt;private_data = ctx;</span>
+<span class="source-line" id="L138"><a class="line-no" href="#L138">138</a>        nonseekable_open(inode, file);</span>
+<span class="source-line" id="L139"><a class="line-no" href="#L139">139</a>    }</span>
+<span class="source-line" id="L140"><a class="line-no" href="#L140">140</a>    mutex_unlock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L141"><a class="line-no" href="#L141">141</a>    if (ret)</span>
+<span class="source-line" id="L142"><a class="line-no" href="#L142">142</a>        kfree(ctx);</span>
+<span class="source-line" id="L143"><a class="line-no" href="#L143">143</a>    return ret;</span>
+<span class="source-line" id="L144"><a class="line-no" href="#L144">144</a>}</span>
+<span class="source-line" id="L145"><a class="line-no" href="#L145">145</a></span>
+<span class="source-line" id="L146"><a class="line-no" href="#L146">146</a>/* 控制 fd 關閉不代表 VFIO owner 已退出；遺留 lease 標為 orphaned，不能直接當作已釋放。 */</span>
+<span class="source-line" id="L147"><a class="line-no" href="#L147">147</a>static int toy_release_file(struct inode *inode, struct file *file)</span>
+<span class="source-line" id="L148"><a class="line-no" href="#L148">148</a>{</span>
+<span class="source-line" id="L149"><a class="line-no" href="#L149">149</a>    struct toy_file *ctx = file-&gt;private_data;</span>
+<span class="source-line" id="L150"><a class="line-no" href="#L150">150</a>    struct toy_pf *pf = ctx-&gt;pf;</span>
+<span class="source-line" id="L151"><a class="line-no" href="#L151">151</a>    unsigned int i;</span>
+<span class="source-line" id="L152"><a class="line-no" href="#L152">152</a>    mutex_lock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L153"><a class="line-no" href="#L153">153</a>    list_del(&amp;ctx-&gt;link);</span>
+<span class="source-line" id="L154"><a class="line-no" href="#L154">154</a>    for (i = 0; i &lt; TOY_PCI_TOTAL_VFS; ++i)</span>
+<span class="source-line" id="L155"><a class="line-no" href="#L155">155</a>        if (pf-&gt;leases[i].owner == ctx) {</span>
+<span class="source-line" id="L156"><a class="line-no" href="#L156">156</a>            if (!pf-&gt;dying &amp;&amp; toy_fence(pf, i))</span>
+<span class="source-line" id="L157"><a class="line-no" href="#L157">157</a>                toy_kill(pf, i);</span>
+<span class="source-line" id="L158"><a class="line-no" href="#L158">158</a>            pf-&gt;leases[i].owner = NULL;</span>
+<span class="source-line" id="L159"><a class="line-no" href="#L159">159</a>            pf-&gt;leases[i].orphaned = true;</span>
+<span class="source-line" id="L160"><a class="line-no" href="#L160">160</a>            pf-&gt;leases[i].fence_valid = false;</span>
+<span class="source-line" id="L161"><a class="line-no" href="#L161">161</a>            pr_err(&quot;TOY_LEASE_ORPHAN vf=%u token=%llu\n&quot;, i, pf-&gt;leases[i].token);</span>
+<span class="source-line" id="L162"><a class="line-no" href="#L162">162</a>        }</span>
+<span class="source-line" id="L163"><a class="line-no" href="#L163">163</a>    mutex_unlock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L164"><a class="line-no" href="#L164">164</a>    kfree(ctx);</span>
+<span class="source-line" id="L165"><a class="line-no" href="#L165">165</a>    kref_put(&amp;pf-&gt;ref, toy_release_ref);</span>
+<span class="source-line" id="L166"><a class="line-no" href="#L166">166</a>    return 0;</span>
+<span class="source-line" id="L167"><a class="line-no" href="#L167">167</a>}</span>
+<span class="source-line" id="L168"><a class="line-no" href="#L168">168</a></span>
+<span class="source-line" id="L169"><a class="line-no" href="#L169">169</a>static void toy_ctl_snapshot(struct toy_pf *pf, struct toy_file *ctx,</span>
+<span class="source-line" id="L170"><a class="line-no" href="#L170">170</a>                              struct toy_vf_ctl *ctl)</span>
+<span class="source-line" id="L171"><a class="line-no" href="#L171">171</a>{</span>
+<span class="source-line" id="L172"><a class="line-no" href="#L172">172</a>    struct toy_vf_info snapshot;</span>
+<span class="source-line" id="L173"><a class="line-no" href="#L173">173</a>    toy_write(pf, TOY_PF_SNAPSHOT, 1);</span>
+<span class="source-line" id="L174"><a class="line-no" href="#L174">174</a>    ctl-&gt;session = toy_read64(pf, TOY_PF_SESSION_LO);</span>
+<span class="source-line" id="L175"><a class="line-no" href="#L175">175</a>    if (ctl-&gt;vf == TOY_CTL_GLOBAL)</span>
+<span class="source-line" id="L176"><a class="line-no" href="#L176">176</a>        return;</span>
+<span class="source-line" id="L177"><a class="line-no" href="#L177">177</a>    toy_snapshot_vf(pf, ctx, ctl-&gt;vf, &amp;snapshot);</span>
+<span class="source-line" id="L178"><a class="line-no" href="#L178">178</a>    ctl-&gt;epoch = snapshot.epoch;</span>
+<span class="source-line" id="L179"><a class="line-no" href="#L179">179</a>    ctl-&gt;lease_token = snapshot.lease_token;</span>
+<span class="source-line" id="L180"><a class="line-no" href="#L180">180</a>    ctl-&gt;ready_gen = snapshot.ready_gen;</span>
+<span class="source-line" id="L181"><a class="line-no" href="#L181">181</a>    ctl-&gt;state = snapshot.state;</span>
+<span class="source-line" id="L182"><a class="line-no" href="#L182">182</a>    ctl-&gt;hw_flags = snapshot.hw_flags;</span>
+<span class="source-line" id="L183"><a class="line-no" href="#L183">183</a>    ctl-&gt;outstanding = snapshot.outstanding;</span>
+<span class="source-line" id="L184"><a class="line-no" href="#L184">184</a>}</span>
+<span class="source-line" id="L185"><a class="line-no" href="#L185">185</a></span>
+<span class="source-line" id="L186"><a class="line-no" href="#L186">186</a>static int toy_ctl_shape(unsigned int cmd, const struct toy_vf_ctl *ctl)</span>
+<span class="source-line" id="L187"><a class="line-no" href="#L187">187</a>{</span>
+<span class="source-line" id="L188"><a class="line-no" href="#L188">188</a>    int ret = toy_header_valid(&amp;ctl-&gt;hdr, sizeof(*ctl));</span>
+<span class="source-line" id="L189"><a class="line-no" href="#L189">189</a>    if (ret)</span>
+<span class="source-line" id="L190"><a class="line-no" href="#L190">190</a>        return ret;</span>
+<span class="source-line" id="L191"><a class="line-no" href="#L191">191</a>    if (!ctl-&gt;operation || !toy_reserved_zero(ctl-&gt;reserved, 3) || ctl-&gt;state ||</span>
+<span class="source-line" id="L192"><a class="line-no" href="#L192">192</a>        ctl-&gt;hw_flags || ctl-&gt;outstanding || ctl-&gt;fw_status ||</span>
+<span class="source-line" id="L193"><a class="line-no" href="#L193">193</a>        (cmd != TOY_REARM_VF &amp;&amp; ctl-&gt;ready_gen))</span>
+<span class="source-line" id="L194"><a class="line-no" href="#L194">194</a>        return -EINVAL;</span>
+<span class="source-line" id="L195"><a class="line-no" href="#L195">195</a>    if (ctl-&gt;flags != (cmd == TOY_LEASE_RELEASE ? TOY_CTL_OWNER_CLOSED : 0))</span>
+<span class="source-line" id="L196"><a class="line-no" href="#L196">196</a>        return -EINVAL;</span>
+<span class="source-line" id="L197"><a class="line-no" href="#L197">197</a>    if (cmd == TOY_GLOBAL_RECOVER)</span>
+<span class="source-line" id="L198"><a class="line-no" href="#L198">198</a>        return ctl-&gt;vf == TOY_CTL_GLOBAL &amp;&amp; !ctl-&gt;epoch &amp;&amp; !ctl-&gt;lease_token ? 0 : -EINVAL;</span>
+<span class="source-line" id="L199"><a class="line-no" href="#L199">199</a>    if (ctl-&gt;vf &gt;= TOY_PCI_TOTAL_VFS || (cmd == TOY_LEASE_ACQUIRE &amp;&amp; ctl-&gt;lease_token))</span>
+<span class="source-line" id="L200"><a class="line-no" href="#L200">200</a>        return -EINVAL;</span>
+<span class="source-line" id="L201"><a class="line-no" href="#L201">201</a>    return 0;</span>
+<span class="source-line" id="L202"><a class="line-no" href="#L202">202</a>}</span>
+<span class="source-line" id="L203"><a class="line-no" href="#L203">203</a></span>
+<span class="source-line" id="L204"><a class="line-no" href="#L204">204</a>static int toy_global_recover(struct toy_pf *pf, u32 *fw_status)</span>
+<span class="source-line" id="L205"><a class="line-no" href="#L205">205</a>{</span>
+<span class="source-line" id="L206"><a class="line-no" href="#L206">206</a>    const u32 args[4] = { TOY_PROTOCOL_MAJOR, TOY_PROTOCOL_MINOR, TOY_PROTOCOL_MINOR, 0 };</span>
+<span class="source-line" id="L207"><a class="line-no" href="#L207">207</a>    struct toy_vf_info before[TOY_PCI_TOTAL_VFS], after;</span>
+<span class="source-line" id="L208"><a class="line-no" href="#L208">208</a>    u32 reply[4];</span>
+<span class="source-line" id="L209"><a class="line-no" href="#L209">209</a>    unsigned int i;</span>
+<span class="source-line" id="L210"><a class="line-no" href="#L210">210</a>    int ret;</span>
+<span class="source-line" id="L211"><a class="line-no" href="#L211">211</a>    if (toy_has_leases(pf) || pf-&gt;enabled || pci_num_vf(pf-&gt;pdev))</span>
+<span class="source-line" id="L212"><a class="line-no" href="#L212">212</a>        return -EBUSY;</span>
+<span class="source-line" id="L213"><a class="line-no" href="#L213">213</a>    toy_write(pf, TOY_PF_SNAPSHOT, 1);</span>
+<span class="source-line" id="L214"><a class="line-no" href="#L214">214</a>    for (i = 0; i &lt; TOY_PCI_TOTAL_VFS; ++i)</span>
+<span class="source-line" id="L215"><a class="line-no" href="#L215">215</a>        toy_snapshot_vf(pf, NULL, i, &amp;before[i]);</span>
+<span class="source-line" id="L216"><a class="line-no" href="#L216">216</a>    toy_fence_all(pf);</span>
+<span class="source-line" id="L217"><a class="line-no" href="#L217">217</a>    toy_write(pf, TOY_PF_CONTROL, TOY_PF_CONTROL_GLOBAL_RESET);</span>
+<span class="source-line" id="L218"><a class="line-no" href="#L218">218</a>    *fw_status = toy_read(pf, TOY_PF_HW_RESULT);</span>
+<span class="source-line" id="L219"><a class="line-no" href="#L219">219</a>    ret = toy_status_errno(*fw_status);</span>
+<span class="source-line" id="L220"><a class="line-no" href="#L220">220</a>    toy_write(pf, TOY_PF_SNAPSHOT, 1);</span>
+<span class="source-line" id="L221"><a class="line-no" href="#L221">221</a>    if (ret)</span>
+<span class="source-line" id="L222"><a class="line-no" href="#L222">222</a>        return ret;</span>
+<span class="source-line" id="L223"><a class="line-no" href="#L223">223</a>    for (i = 0; i &lt; TOY_PCI_TOTAL_VFS; ++i) {</span>
+<span class="source-line" id="L224"><a class="line-no" href="#L224">224</a>        toy_snapshot_vf(pf, NULL, i, &amp;after);</span>
+<span class="source-line" id="L225"><a class="line-no" href="#L225">225</a>        if (after.session &lt;= before[i].session || after.epoch &lt;= before[i].epoch ||</span>
+<span class="source-line" id="L226"><a class="line-no" href="#L226">226</a>            after.state != TOY_STATES_FREE || after.reserve || after.outstanding ||</span>
+<span class="source-line" id="L227"><a class="line-no" href="#L227">227</a>            after.hw_flags != TOY_HW_FLAGS_FENCED) {</span>
+<span class="source-line" id="L228"><a class="line-no" href="#L228">228</a>            toy_fence_all(pf);</span>
+<span class="source-line" id="L229"><a class="line-no" href="#L229">229</a>            return -EIO;</span>
+<span class="source-line" id="L230"><a class="line-no" href="#L230">230</a>        }</span>
+<span class="source-line" id="L231"><a class="line-no" href="#L231">231</a>        pf-&gt;observed[i] = after;</span>
+<span class="source-line" id="L232"><a class="line-no" href="#L232">232</a>        pf-&gt;observed_fault[i] = 0;</span>
+<span class="source-line" id="L233"><a class="line-no" href="#L233">233</a>    }</span>
+<span class="source-line" id="L234"><a class="line-no" href="#L234">234</a>    /* 新 session 的 mailbox seq 可重起；host lease/fence/operation 都不歸零。 */</span>
+<span class="source-line" id="L235"><a class="line-no" href="#L235">235</a>    pf-&gt;seq = 0;</span>
+<span class="source-line" id="L236"><a class="line-no" href="#L236">236</a>    ret = toy_mailbox_status(pf, TOY_OPCODES_VERSION_NEG, TOY_GLOBAL, args, reply, fw_status);</span>
+<span class="source-line" id="L237"><a class="line-no" href="#L237">237</a>    return !ret &amp;&amp; reply[0] != TOY_ABI_VERSION ? -EPROTO : ret;</span>
+<span class="source-line" id="L238"><a class="line-no" href="#L238">238</a>}</span>
+<span class="source-line" id="L239"><a class="line-no" href="#L239">239</a></span>
+<span class="source-line" id="L240"><a class="line-no" href="#L240">240</a>static int toy_execute_ctl(struct toy_file *ctx, unsigned int cmd,</span>
+<span class="source-line" id="L241"><a class="line-no" href="#L241">241</a>                           const struct toy_vf_ctl *input, struct toy_vf_ctl *result)</span>
+<span class="source-line" id="L242"><a class="line-no" href="#L242">242</a>{</span>
+<span class="source-line" id="L243"><a class="line-no" href="#L243">243</a>    struct toy_pf *pf = ctx-&gt;pf;</span>
+<span class="source-line" id="L244"><a class="line-no" href="#L244">244</a>    struct toy_lease *lease;</span>
+<span class="source-line" id="L245"><a class="line-no" href="#L245">245</a>    struct toy_vf_info now;</span>
+<span class="source-line" id="L246"><a class="line-no" href="#L246">246</a>    u32 args[4];</span>
+<span class="source-line" id="L247"><a class="line-no" href="#L247">247</a>    int ret;</span>
+<span class="source-line" id="L248"><a class="line-no" href="#L248">248</a>    *result = *input;</span>
+<span class="source-line" id="L249"><a class="line-no" href="#L249">249</a>    toy_ctl_snapshot(pf, ctx, result);</span>
+<span class="source-line" id="L250"><a class="line-no" href="#L250">250</a>    if (pf-&gt;transaction)</span>
+<span class="source-line" id="L251"><a class="line-no" href="#L251">251</a>        return -EBUSY;</span>
+<span class="source-line" id="L252"><a class="line-no" href="#L252">252</a>    if (input-&gt;session != result-&gt;session || input-&gt;epoch != result-&gt;epoch)</span>
+<span class="source-line" id="L253"><a class="line-no" href="#L253">253</a>        return -ESTALE;</span>
+<span class="source-line" id="L254"><a class="line-no" href="#L254">254</a>    if (cmd == TOY_GLOBAL_RECOVER) {</span>
+<span class="source-line" id="L255"><a class="line-no" href="#L255">255</a>        ret = toy_global_recover(pf, &amp;result-&gt;fw_status);</span>
+<span class="source-line" id="L256"><a class="line-no" href="#L256">256</a>        toy_ctl_snapshot(pf, ctx, result);</span>
+<span class="source-line" id="L257"><a class="line-no" href="#L257">257</a>        return ret;</span>
+<span class="source-line" id="L258"><a class="line-no" href="#L258">258</a>    }</span>
+<span class="source-line" id="L259"><a class="line-no" href="#L259">259</a>    lease = &amp;pf-&gt;leases[input-&gt;vf];</span>
+<span class="source-line" id="L260"><a class="line-no" href="#L260">260</a>    if (cmd == TOY_LEASE_ACQUIRE) {</span>
+<span class="source-line" id="L261"><a class="line-no" href="#L261">261</a>        if (lease-&gt;token || input-&gt;vf &gt;= pf-&gt;enabled ||</span>
+<span class="source-line" id="L262"><a class="line-no" href="#L262">262</a>            (result-&gt;hw_flags &amp; (TOY_HW_FLAGS_FENCED | TOY_HW_FLAGS_PCI_PRESENT |</span>
+<span class="source-line" id="L263"><a class="line-no" href="#L263">263</a>                                TOY_HW_FLAGS_KILLED)) !=</span>
+<span class="source-line" id="L264"><a class="line-no" href="#L264">264</a>                (TOY_HW_FLAGS_FENCED | TOY_HW_FLAGS_PCI_PRESENT) ||</span>
+<span class="source-line" id="L265"><a class="line-no" href="#L265">265</a>            result-&gt;state == TOY_STATES_FREE || result-&gt;state == TOY_STATES_FAILED)</span>
+<span class="source-line" id="L266"><a class="line-no" href="#L266">266</a>            return -EBUSY;</span>
+<span class="source-line" id="L267"><a class="line-no" href="#L267">267</a>        if (pf-&gt;next_lease == U64_MAX) {</span>
+<span class="source-line" id="L268"><a class="line-no" href="#L268">268</a>            toy_kill(pf, input-&gt;vf);</span>
+<span class="source-line" id="L269"><a class="line-no" href="#L269">269</a>            return -EOVERFLOW;</span>
+<span class="source-line" id="L270"><a class="line-no" href="#L270">270</a>        }</span>
+<span class="source-line" id="L271"><a class="line-no" href="#L271">271</a>        lease-&gt;owner = ctx;</span>
+<span class="source-line" id="L272"><a class="line-no" href="#L272">272</a>        lease-&gt;token = ++pf-&gt;next_lease;</span>
+<span class="source-line" id="L273"><a class="line-no" href="#L273">273</a>        lease-&gt;orphaned = false;</span>
+<span class="source-line" id="L274"><a class="line-no" href="#L274">274</a>        lease-&gt;fence_valid = false;</span>
+<span class="source-line" id="L275"><a class="line-no" href="#L275">275</a>        result-&gt;lease_token = lease-&gt;token;</span>
+<span class="source-line" id="L276"><a class="line-no" href="#L276">276</a>        toy_snapshot_vf(pf, NULL, input-&gt;vf, &amp;pf-&gt;observed[input-&gt;vf]);</span>
+<span class="source-line" id="L277"><a class="line-no" href="#L277">277</a>        pf-&gt;observed_fault[input-&gt;vf] = toy_read(pf,</span>
+<span class="source-line" id="L278"><a class="line-no" href="#L278">278</a>            TOY_VF_VIEW(input-&gt;vf, TOY_PF_VF_VIEW_LAST_FAULT));</span>
+<span class="source-line" id="L279"><a class="line-no" href="#L279">279</a>        return 0;</span>
+<span class="source-line" id="L280"><a class="line-no" href="#L280">280</a>    }</span>
+<span class="source-line" id="L281"><a class="line-no" href="#L281">281</a>    if (lease-&gt;owner != ctx || !input-&gt;lease_token || input-&gt;lease_token != lease-&gt;token)</span>
+<span class="source-line" id="L282"><a class="line-no" href="#L282">282</a>        return -EPERM;</span>
+<span class="source-line" id="L283"><a class="line-no" href="#L283">283</a>    switch (cmd) {</span>
+<span class="source-line" id="L284"><a class="line-no" href="#L284">284</a>    case TOY_LEASE_RELEASE:</span>
+<span class="source-line" id="L285"><a class="line-no" href="#L285">285</a>        if (!(result-&gt;hw_flags &amp; TOY_HW_FLAGS_FENCED) || result-&gt;outstanding)</span>
+<span class="source-line" id="L286"><a class="line-no" href="#L286">286</a>            return -EBUSY;</span>
+<span class="source-line" id="L287"><a class="line-no" href="#L287">287</a>        memset(lease, 0, sizeof(*lease));</span>
+<span class="source-line" id="L288"><a class="line-no" href="#L288">288</a>        result-&gt;lease_token = 0;</span>
+<span class="source-line" id="L289"><a class="line-no" href="#L289">289</a>        return 0;</span>
+<span class="source-line" id="L290"><a class="line-no" href="#L290">290</a>    case TOY_FENCE_VF:</span>
+<span class="source-line" id="L291"><a class="line-no" href="#L291">291</a>        lease-&gt;fence_valid = false;</span>
+<span class="source-line" id="L292"><a class="line-no" href="#L292">292</a>        ret = toy_fence_status(pf, input-&gt;vf, &amp;result-&gt;fw_status);</span>
+<span class="source-line" id="L293"><a class="line-no" href="#L293">293</a>        toy_ctl_snapshot(pf, ctx, result);</span>
+<span class="source-line" id="L294"><a class="line-no" href="#L294">294</a>        if (!ret &amp;&amp; (result-&gt;epoch &lt;= input-&gt;epoch || result-&gt;session != input-&gt;session))</span>
+<span class="source-line" id="L295"><a class="line-no" href="#L295">295</a>            ret = -EIO;</span>
+<span class="source-line" id="L296"><a class="line-no" href="#L296">296</a>        if (!ret) {</span>
+<span class="source-line" id="L297"><a class="line-no" href="#L297">297</a>            lease-&gt;fence_valid = true;</span>
+<span class="source-line" id="L298"><a class="line-no" href="#L298">298</a>            lease-&gt;fence_epoch = result-&gt;epoch;</span>
+<span class="source-line" id="L299"><a class="line-no" href="#L299">299</a>            lease-&gt;fence_session = result-&gt;session;</span>
+<span class="source-line" id="L300"><a class="line-no" href="#L300">300</a>        }</span>
+<span class="source-line" id="L301"><a class="line-no" href="#L301">301</a>        break;</span>
+<span class="source-line" id="L302"><a class="line-no" href="#L302">302</a>    case TOY_RESET_VF:</span>
+<span class="source-line" id="L303"><a class="line-no" href="#L303">303</a>        if (!lease-&gt;fence_valid || lease-&gt;fence_epoch != input-&gt;epoch ||</span>
+<span class="source-line" id="L304"><a class="line-no" href="#L304">304</a>            lease-&gt;fence_session != input-&gt;session)</span>
+<span class="source-line" id="L305"><a class="line-no" href="#L305">305</a>            return -ESTALE;</span>
+<span class="source-line" id="L306"><a class="line-no" href="#L306">306</a>        if (result-&gt;state != TOY_STATES_ACTIVE || !(result-&gt;hw_flags &amp; TOY_HW_FLAGS_FENCED))</span>
+<span class="source-line" id="L307"><a class="line-no" href="#L307">307</a>            return -EBUSY;</span>
+<span class="source-line" id="L308"><a class="line-no" href="#L308">308</a>        /* 即使 ACK 遺失也消耗 fence；重送由原請求 cache 處理。 */</span>
+<span class="source-line" id="L309"><a class="line-no" href="#L309">309</a>        lease-&gt;fence_valid = false;</span>
+<span class="source-line" id="L310"><a class="line-no" href="#L310">310</a>        ret = toy_mailbox_status(pf, TOY_OPCODES_QUIESCE, input-&gt;vf, NULL, NULL,</span>
+<span class="source-line" id="L311"><a class="line-no" href="#L311">311</a>                                 &amp;result-&gt;fw_status);</span>
+<span class="source-line" id="L312"><a class="line-no" href="#L312">312</a>        if (!ret)</span>
+<span class="source-line" id="L313"><a class="line-no" href="#L313">313</a>            ret = toy_mailbox_status(pf, TOY_OPCODES_RESET, input-&gt;vf, NULL, NULL,</span>
+<span class="source-line" id="L314"><a class="line-no" href="#L314">314</a>                                     &amp;result-&gt;fw_status);</span>
+<span class="source-line" id="L315"><a class="line-no" href="#L315">315</a>        if (ret)</span>
+<span class="source-line" id="L316"><a class="line-no" href="#L316">316</a>            toy_kill(pf, input-&gt;vf);</span>
+<span class="source-line" id="L317"><a class="line-no" href="#L317">317</a>        toy_ctl_snapshot(pf, ctx, result);</span>
+<span class="source-line" id="L318"><a class="line-no" href="#L318">318</a>        if (!ret &amp;&amp; (result-&gt;state != TOY_STATES_RECOVERING || result-&gt;outstanding ||</span>
+<span class="source-line" id="L319"><a class="line-no" href="#L319">319</a>            !(result-&gt;hw_flags &amp; TOY_HW_FLAGS_FENCED) ||</span>
+<span class="source-line" id="L320"><a class="line-no" href="#L320">320</a>            (result-&gt;hw_flags &amp; (TOY_HW_FLAGS_CONFIG_VALID | TOY_HW_FLAGS_KILLED)) ||</span>
+<span class="source-line" id="L321"><a class="line-no" href="#L321">321</a>            result-&gt;session != input-&gt;session || result-&gt;epoch != input-&gt;epoch))</span>
+<span class="source-line" id="L322"><a class="line-no" href="#L322">322</a>            ret = -EIO;</span>
+<span class="source-line" id="L323"><a class="line-no" href="#L323">323</a>        toy_snapshot_vf(pf, NULL, input-&gt;vf, &amp;now);</span>
+<span class="source-line" id="L324"><a class="line-no" href="#L324">324</a>        toy_publish(pf, ret ? TOY_EVENT_FAULT : TOY_EVENT_RESET, input-&gt;vf, -ret, &amp;now);</span>
+<span class="source-line" id="L325"><a class="line-no" href="#L325">325</a>        break;</span>
+<span class="source-line" id="L326"><a class="line-no" href="#L326">326</a>    case TOY_REARM_VF:</span>
+<span class="source-line" id="L327"><a class="line-no" href="#L327">327</a>        if (!input-&gt;ready_gen || input-&gt;ready_gen != result-&gt;ready_gen)</span>
+<span class="source-line" id="L328"><a class="line-no" href="#L328">328</a>            return -ESTALE;</span>
+<span class="source-line" id="L329"><a class="line-no" href="#L329">329</a>        if (result-&gt;outstanding ||</span>
+<span class="source-line" id="L330"><a class="line-no" href="#L330">330</a>            (result-&gt;state != TOY_STATES_ACTIVE &amp;&amp; result-&gt;state != TOY_STATES_RECOVERING) ||</span>
+<span class="source-line" id="L331"><a class="line-no" href="#L331">331</a>            (result-&gt;hw_flags &amp; (TOY_HW_FLAGS_READY_PENDING | TOY_HW_FLAGS_CONFIG_VALID |</span>
+<span class="source-line" id="L332"><a class="line-no" href="#L332">332</a>             TOY_HW_FLAGS_BME | TOY_HW_FLAGS_FENCED | TOY_HW_FLAGS_KILLED)) !=</span>
+<span class="source-line" id="L333"><a class="line-no" href="#L333">333</a>            (TOY_HW_FLAGS_READY_PENDING | TOY_HW_FLAGS_CONFIG_VALID |</span>
+<span class="source-line" id="L334"><a class="line-no" href="#L334">334</a>             TOY_HW_FLAGS_BME | TOY_HW_FLAGS_FENCED))</span>
+<span class="source-line" id="L335"><a class="line-no" href="#L335">335</a>            return -EBUSY;</span>
+<span class="source-line" id="L336"><a class="line-no" href="#L336">336</a>        args[0] = input-&gt;epoch;</span>
+<span class="source-line" id="L337"><a class="line-no" href="#L337">337</a>        args[1] = input-&gt;epoch &gt;&gt; 32;</span>
+<span class="source-line" id="L338"><a class="line-no" href="#L338">338</a>        args[2] = input-&gt;ready_gen;</span>
+<span class="source-line" id="L339"><a class="line-no" href="#L339">339</a>        args[3] = 0;</span>
+<span class="source-line" id="L340"><a class="line-no" href="#L340">340</a>        ret = toy_mailbox_status(pf, TOY_OPCODES_REARM, input-&gt;vf, args, NULL,</span>
+<span class="source-line" id="L341"><a class="line-no" href="#L341">341</a>                                 &amp;result-&gt;fw_status);</span>
+<span class="source-line" id="L342"><a class="line-no" href="#L342">342</a>        toy_ctl_snapshot(pf, ctx, result);</span>
+<span class="source-line" id="L343"><a class="line-no" href="#L343">343</a>        if (!ret &amp;&amp; (result-&gt;state != TOY_STATES_ACTIVE ||</span>
+<span class="source-line" id="L344"><a class="line-no" href="#L344">344</a>            (result-&gt;hw_flags &amp; (TOY_HW_FLAGS_FENCED | TOY_HW_FLAGS_KILLED)) ||</span>
+<span class="source-line" id="L345"><a class="line-no" href="#L345">345</a>            !(result-&gt;hw_flags &amp; TOY_HW_FLAGS_CONFIG_VALID) ||</span>
+<span class="source-line" id="L346"><a class="line-no" href="#L346">346</a>            result-&gt;epoch != input-&gt;epoch || result-&gt;session != input-&gt;session)) {</span>
+<span class="source-line" id="L347"><a class="line-no" href="#L347">347</a>            toy_kill(pf, input-&gt;vf);</span>
+<span class="source-line" id="L348"><a class="line-no" href="#L348">348</a>            toy_ctl_snapshot(pf, ctx, result);</span>
+<span class="source-line" id="L349"><a class="line-no" href="#L349">349</a>            ret = -EIO;</span>
+<span class="source-line" id="L350"><a class="line-no" href="#L350">350</a>        }</span>
+<span class="source-line" id="L351"><a class="line-no" href="#L351">351</a>        lease-&gt;fence_valid = false;</span>
+<span class="source-line" id="L352"><a class="line-no" href="#L352">352</a>        break;</span>
+<span class="source-line" id="L353"><a class="line-no" href="#L353">353</a>    default:</span>
+<span class="source-line" id="L354"><a class="line-no" href="#L354">354</a>        return -ENOTTY;</span>
+<span class="source-line" id="L355"><a class="line-no" href="#L355">355</a>    }</span>
+<span class="source-line" id="L356"><a class="line-no" href="#L356">356</a>    toy_snapshot_vf(pf, NULL, input-&gt;vf, &amp;pf-&gt;observed[input-&gt;vf]);</span>
+<span class="source-line" id="L357"><a class="line-no" href="#L357">357</a>    return ret;</span>
+<span class="source-line" id="L358"><a class="line-no" href="#L358">358</a>}</span>
+<span class="source-line" id="L359"><a class="line-no" href="#L359">359</a></span>
+<span class="source-line" id="L360"><a class="line-no" href="#L360">360</a>/* 先比對 operation/request 的重送，再執行 live-state 檢查；重試可取回已產生副作用的結果。 */</span>
+<span class="source-line" id="L361"><a class="line-no" href="#L361">361</a>static long toy_control_ioctl(struct toy_file *ctx, unsigned int cmd, void __user *user)</span>
+<span class="source-line" id="L362"><a class="line-no" href="#L362">362</a>{</span>
+<span class="source-line" id="L363"><a class="line-no" href="#L363">363</a>    struct toy_vf_ctl input;</span>
+<span class="source-line" id="L364"><a class="line-no" href="#L364">364</a>    int ret;</span>
+<span class="source-line" id="L365"><a class="line-no" href="#L365">365</a>    if (copy_from_user(&amp;input, user, sizeof(input)))</span>
+<span class="source-line" id="L366"><a class="line-no" href="#L366">366</a>        return -EFAULT;</span>
+<span class="source-line" id="L367"><a class="line-no" href="#L367">367</a>    ret = toy_ctl_shape(cmd, &amp;input);</span>
+<span class="source-line" id="L368"><a class="line-no" href="#L368">368</a>    if (ret)</span>
+<span class="source-line" id="L369"><a class="line-no" href="#L369">369</a>        return ret;</span>
+<span class="source-line" id="L370"><a class="line-no" href="#L370">370</a>    if (ctx-&gt;replay_valid &amp;&amp; input.operation &lt;= ctx-&gt;request.operation) {</span>
+<span class="source-line" id="L371"><a class="line-no" href="#L371">371</a>        if (input.operation &lt; ctx-&gt;request.operation)</span>
+<span class="source-line" id="L372"><a class="line-no" href="#L372">372</a>            return -ESTALE;</span>
+<span class="source-line" id="L373"><a class="line-no" href="#L373">373</a>        if (cmd != ctx-&gt;replay_cmd || memcmp(&amp;input, &amp;ctx-&gt;request, sizeof(input)))</span>
+<span class="source-line" id="L374"><a class="line-no" href="#L374">374</a>            return -EPROTO;</span>
+<span class="source-line" id="L375"><a class="line-no" href="#L375">375</a>    } else {</span>
+<span class="source-line" id="L376"><a class="line-no" href="#L376">376</a>        ctx-&gt;request = input;</span>
+<span class="source-line" id="L377"><a class="line-no" href="#L377">377</a>        ctx-&gt;replay_cmd = cmd;</span>
+<span class="source-line" id="L378"><a class="line-no" href="#L378">378</a>        ctx-&gt;result_errno = toy_execute_ctl(ctx, cmd, &amp;input, &amp;ctx-&gt;result);</span>
+<span class="source-line" id="L379"><a class="line-no" href="#L379">379</a>        ctx-&gt;replay_valid = true;</span>
+<span class="source-line" id="L380"><a class="line-no" href="#L380">380</a>        pr_info(&quot;TOY_CTL operation=%llu cmd=%u vf=%u errno=%d fw_status=%u session=%llu epoch=%llu flags=%#x\n&quot;,</span>
+<span class="source-line" id="L381"><a class="line-no" href="#L381">381</a>            input.operation, _IOC_NR(cmd), input.vf, ctx-&gt;result_errno,</span>
+<span class="source-line" id="L382"><a class="line-no" href="#L382">382</a>            ctx-&gt;result.fw_status, ctx-&gt;result.session, ctx-&gt;result.epoch, ctx-&gt;result.hw_flags);</span>
+<span class="source-line" id="L383"><a class="line-no" href="#L383">383</a>    }</span>
+<span class="source-line" id="L384"><a class="line-no" href="#L384">384</a>    /* 負 errno 也複製完整結果；EFAULT 不可取消已執行操作或清掉 cache。 */</span>
+<span class="source-line" id="L385"><a class="line-no" href="#L385">385</a>    if (copy_to_user(user, &amp;ctx-&gt;result, sizeof(ctx-&gt;result)))</span>
+<span class="source-line" id="L386"><a class="line-no" href="#L386">386</a>        return -EFAULT;</span>
+<span class="source-line" id="L387"><a class="line-no" href="#L387">387</a>    return ctx-&gt;result_errno;</span>
+<span class="source-line" id="L388"><a class="line-no" href="#L388">388</a>}</span>
+<span class="source-line" id="L389"><a class="line-no" href="#L389">389</a></span>
+<span class="source-line" id="L390"><a class="line-no" href="#L390">390</a>static long toy_ioctl(struct file *file, unsigned int cmd, unsigned long arg)</span>
+<span class="source-line" id="L391"><a class="line-no" href="#L391">391</a>{</span>
+<span class="source-line" id="L392"><a class="line-no" href="#L392">392</a>    struct toy_file *ctx = file-&gt;private_data;</span>
+<span class="source-line" id="L393"><a class="line-no" href="#L393">393</a>    struct toy_pf *pf = ctx-&gt;pf;</span>
+<span class="source-line" id="L394"><a class="line-no" href="#L394">394</a>    void __user *user = (void __user *)arg;</span>
+<span class="source-line" id="L395"><a class="line-no" href="#L395">395</a>    struct toy_info info;</span>
+<span class="source-line" id="L396"><a class="line-no" href="#L396">396</a>    struct toy_vf_info vf;</span>
+<span class="source-line" id="L397"><a class="line-no" href="#L397">397</a>    unsigned int index;</span>
+<span class="source-line" id="L398"><a class="line-no" href="#L398">398</a>    int ret = 0;</span>
+<span class="source-line" id="L399"><a class="line-no" href="#L399">399</a>    mutex_lock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L400"><a class="line-no" href="#L400">400</a>    if (pf-&gt;dying) {</span>
+<span class="source-line" id="L401"><a class="line-no" href="#L401">401</a>        ret = -ENODEV;</span>
+<span class="source-line" id="L402"><a class="line-no" href="#L402">402</a>        goto out;</span>
+<span class="source-line" id="L403"><a class="line-no" href="#L403">403</a>    }</span>
+<span class="source-line" id="L404"><a class="line-no" href="#L404">404</a>    switch (cmd) {</span>
+<span class="source-line" id="L405"><a class="line-no" href="#L405">405</a>    case TOY_GET_INFO:</span>
+<span class="source-line" id="L406"><a class="line-no" href="#L406">406</a>        if (copy_from_user(&amp;info, user, sizeof(info))) { ret = -EFAULT; break; }</span>
+<span class="source-line" id="L407"><a class="line-no" href="#L407">407</a>        ret = toy_header_valid(&amp;info.hdr, sizeof(info));</span>
+<span class="source-line" id="L408"><a class="line-no" href="#L408">408</a>        if (ret || !toy_reserved_zero(info.reserved, 4)) { ret = ret ?: -EINVAL; break; }</span>
+<span class="source-line" id="L409"><a class="line-no" href="#L409">409</a>        memset(&amp;info, 0, sizeof(info));</span>
+<span class="source-line" id="L410"><a class="line-no" href="#L410">410</a>        info.hdr = toy_header(sizeof(info));</span>
+<span class="source-line" id="L411"><a class="line-no" href="#L411">411</a>        toy_write(pf, TOY_PF_SNAPSHOT, 1);</span>
+<span class="source-line" id="L412"><a class="line-no" href="#L412">412</a>        info.session = toy_read64(pf, TOY_PF_SESSION_LO);</span>
+<span class="source-line" id="L413"><a class="line-no" href="#L413">413</a>        info.caps_vfs = toy_read(pf, TOY_PF_CAP_VFS);</span>
+<span class="source-line" id="L414"><a class="line-no" href="#L414">414</a>        info.caps_queues = toy_read(pf, TOY_PF_CAP_QUEUES);</span>
+<span class="source-line" id="L415"><a class="line-no" href="#L415">415</a>        info.caps_vectors = toy_read(pf, TOY_PF_CAP_VECTORS);</span>
+<span class="source-line" id="L416"><a class="line-no" href="#L416">416</a>        info.caps_credits = toy_read(pf, TOY_PF_CAP_CREDIT);</span>
+<span class="source-line" id="L417"><a class="line-no" href="#L417">417</a>        info.features = toy_read(pf, TOY_PF_CAP_FEATURES);</span>
+<span class="source-line" id="L418"><a class="line-no" href="#L418">418</a>        info.enabled_vfs = pf-&gt;enabled;</span>
+<span class="source-line" id="L419"><a class="line-no" href="#L419">419</a>        if (copy_to_user(user, &amp;info, sizeof(info))) ret = -EFAULT;</span>
+<span class="source-line" id="L420"><a class="line-no" href="#L420">420</a>        break;</span>
+<span class="source-line" id="L421"><a class="line-no" href="#L421">421</a>    case TOY_GET_VF:</span>
+<span class="source-line" id="L422"><a class="line-no" href="#L422">422</a>        if (copy_from_user(&amp;vf, user, sizeof(vf))) { ret = -EFAULT; break; }</span>
+<span class="source-line" id="L423"><a class="line-no" href="#L423">423</a>        ret = toy_header_valid(&amp;vf.hdr, sizeof(vf));</span>
+<span class="source-line" id="L424"><a class="line-no" href="#L424">424</a>        if (ret || !toy_reserved_zero(vf.reserved, 4) || vf.vf &gt;= TOY_PCI_TOTAL_VFS) {</span>
+<span class="source-line" id="L425"><a class="line-no" href="#L425">425</a>            ret = ret ?: -EINVAL; break;</span>
+<span class="source-line" id="L426"><a class="line-no" href="#L426">426</a>        }</span>
+<span class="source-line" id="L427"><a class="line-no" href="#L427">427</a>        index = vf.vf;</span>
+<span class="source-line" id="L428"><a class="line-no" href="#L428">428</a>        toy_write(pf, TOY_PF_SNAPSHOT, 1);</span>
+<span class="source-line" id="L429"><a class="line-no" href="#L429">429</a>        toy_snapshot_vf(pf, ctx, index, &amp;vf);</span>
+<span class="source-line" id="L430"><a class="line-no" href="#L430">430</a>        if (copy_to_user(user, &amp;vf, sizeof(vf))) ret = -EFAULT;</span>
+<span class="source-line" id="L431"><a class="line-no" href="#L431">431</a>        break;</span>
+<span class="source-line" id="L432"><a class="line-no" href="#L432">432</a>    case TOY_LEASE_ACQUIRE: case TOY_LEASE_RELEASE: case TOY_FENCE_VF:</span>
+<span class="source-line" id="L433"><a class="line-no" href="#L433">433</a>    case TOY_RESET_VF: case TOY_REARM_VF: case TOY_GLOBAL_RECOVER:</span>
+<span class="source-line" id="L434"><a class="line-no" href="#L434">434</a>        ret = toy_control_ioctl(ctx, cmd, user);</span>
+<span class="source-line" id="L435"><a class="line-no" href="#L435">435</a>        break;</span>
+<span class="source-line" id="L436"><a class="line-no" href="#L436">436</a>    default:</span>
+<span class="source-line" id="L437"><a class="line-no" href="#L437">437</a>        ret = -ENOTTY;</span>
+<span class="source-line" id="L438"><a class="line-no" href="#L438">438</a>    }</span>
+<span class="source-line" id="L439"><a class="line-no" href="#L439">439</a>out:</span>
+<span class="source-line" id="L440"><a class="line-no" href="#L440">440</a>    mutex_unlock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L441"><a class="line-no" href="#L441">441</a>    return ret;</span>
+<span class="source-line" id="L442"><a class="line-no" href="#L442">442</a>}</span>
+<span class="source-line" id="L443"><a class="line-no" href="#L443">443</a></span>
+<span class="source-line" id="L444"><a class="line-no" href="#L444">444</a>static bool toy_event_available(struct toy_file *ctx)</span>
+<span class="source-line" id="L445"><a class="line-no" href="#L445">445</a>{</span>
+<span class="source-line" id="L446"><a class="line-no" href="#L446">446</a>    return READ_ONCE(ctx-&gt;stash_valid) || READ_ONCE(ctx-&gt;lost) || READ_ONCE(ctx-&gt;count);</span>
+<span class="source-line" id="L447"><a class="line-no" href="#L447">447</a>}</span>
+<span class="source-line" id="L448"><a class="line-no" href="#L448">448</a></span>
+<span class="source-line" id="L449"><a class="line-no" href="#L449">449</a>/* read_mutex 序列化讀者；event_lock 只保護 queue/stash，copy_to_user 必須在 spinlock 外執行。 */</span>
+<span class="source-line" id="L450"><a class="line-no" href="#L450">450</a>static ssize_t toy_read_file(struct file *file, char __user *buffer,</span>
+<span class="source-line" id="L451"><a class="line-no" href="#L451">451</a>                             size_t length, loff_t *offset)</span>
+<span class="source-line" id="L452"><a class="line-no" href="#L452">452</a>{</span>
+<span class="source-line" id="L453"><a class="line-no" href="#L453">453</a>    struct toy_file *ctx = file-&gt;private_data;</span>
+<span class="source-line" id="L454"><a class="line-no" href="#L454">454</a>    unsigned long flags;</span>
+<span class="source-line" id="L455"><a class="line-no" href="#L455">455</a>    int ret;</span>
+<span class="source-line" id="L456"><a class="line-no" href="#L456">456</a>    if (READ_ONCE(ctx-&gt;pf-&gt;dying))</span>
+<span class="source-line" id="L457"><a class="line-no" href="#L457">457</a>        return -ENODEV;</span>
+<span class="source-line" id="L458"><a class="line-no" href="#L458">458</a>    if (length &lt; sizeof(struct toy_event))</span>
+<span class="source-line" id="L459"><a class="line-no" href="#L459">459</a>        return -EINVAL;</span>
+<span class="source-line" id="L460"><a class="line-no" href="#L460">460</a>    ret = mutex_lock_interruptible(&amp;ctx-&gt;read_mutex);</span>
+<span class="source-line" id="L461"><a class="line-no" href="#L461">461</a>    if (ret)</span>
+<span class="source-line" id="L462"><a class="line-no" href="#L462">462</a>        return ret;</span>
+<span class="source-line" id="L463"><a class="line-no" href="#L463">463</a>    while (!toy_event_available(ctx)) {</span>
+<span class="source-line" id="L464"><a class="line-no" href="#L464">464</a>        if (READ_ONCE(ctx-&gt;pf-&gt;dying)) { ret = -ENODEV; goto out; }</span>
+<span class="source-line" id="L465"><a class="line-no" href="#L465">465</a>        if (file-&gt;f_flags &amp; O_NONBLOCK) { ret = -EAGAIN; goto out; }</span>
+<span class="source-line" id="L466"><a class="line-no" href="#L466">466</a>        ret = wait_event_interruptible(ctx-&gt;event_wait,</span>
+<span class="source-line" id="L467"><a class="line-no" href="#L467">467</a>            READ_ONCE(ctx-&gt;pf-&gt;dying) || toy_event_available(ctx));</span>
+<span class="source-line" id="L468"><a class="line-no" href="#L468">468</a>        if (ret)</span>
+<span class="source-line" id="L469"><a class="line-no" href="#L469">469</a>            goto out;</span>
+<span class="source-line" id="L470"><a class="line-no" href="#L470">470</a>    }</span>
+<span class="source-line" id="L471"><a class="line-no" href="#L471">471</a>    if (READ_ONCE(ctx-&gt;pf-&gt;dying)) { ret = -ENODEV; goto out; }</span>
+<span class="source-line" id="L472"><a class="line-no" href="#L472">472</a>    spin_lock_irqsave(&amp;ctx-&gt;event_lock, flags);</span>
+<span class="source-line" id="L473"><a class="line-no" href="#L473">473</a>    if (!ctx-&gt;stash_valid) {</span>
+<span class="source-line" id="L474"><a class="line-no" href="#L474">474</a>        if (ctx-&gt;event_seq == U64_MAX) {</span>
+<span class="source-line" id="L475"><a class="line-no" href="#L475">475</a>            spin_unlock_irqrestore(&amp;ctx-&gt;event_lock, flags);</span>
+<span class="source-line" id="L476"><a class="line-no" href="#L476">476</a>            ret = -EOVERFLOW;</span>
+<span class="source-line" id="L477"><a class="line-no" href="#L477">477</a>            goto out;</span>
+<span class="source-line" id="L478"><a class="line-no" href="#L478">478</a>        }</span>
+<span class="source-line" id="L479"><a class="line-no" href="#L479">479</a>        if (ctx-&gt;lost) {</span>
+<span class="source-line" id="L480"><a class="line-no" href="#L480">480</a>            memset(&amp;ctx-&gt;stash, 0, sizeof(ctx-&gt;stash));</span>
+<span class="source-line" id="L481"><a class="line-no" href="#L481">481</a>            ctx-&gt;stash.hdr = toy_header(sizeof(ctx-&gt;stash));</span>
+<span class="source-line" id="L482"><a class="line-no" href="#L482">482</a>            ctx-&gt;stash.type = TOY_EVENT_LOST_EVENTS;</span>
+<span class="source-line" id="L483"><a class="line-no" href="#L483">483</a>            ctx-&gt;stash.vf = TOY_CTL_GLOBAL;</span>
+<span class="source-line" id="L484"><a class="line-no" href="#L484">484</a>            ctx-&gt;stash.detail = ctx-&gt;lost;</span>
+<span class="source-line" id="L485"><a class="line-no" href="#L485">485</a>            ctx-&gt;lost = 0;</span>
+<span class="source-line" id="L486"><a class="line-no" href="#L486">486</a>        } else {</span>
+<span class="source-line" id="L487"><a class="line-no" href="#L487">487</a>            ctx-&gt;stash = ctx-&gt;events[ctx-&gt;head];</span>
+<span class="source-line" id="L488"><a class="line-no" href="#L488">488</a>            ctx-&gt;head = (ctx-&gt;head + 1) % TOY_EVENT_CAPACITY;</span>
+<span class="source-line" id="L489"><a class="line-no" href="#L489">489</a>            --ctx-&gt;count;</span>
+<span class="source-line" id="L490"><a class="line-no" href="#L490">490</a>        }</span>
+<span class="source-line" id="L491"><a class="line-no" href="#L491">491</a>        ctx-&gt;stash.event_seq = ++ctx-&gt;event_seq;</span>
+<span class="source-line" id="L492"><a class="line-no" href="#L492">492</a>        ctx-&gt;stash_valid = true;</span>
+<span class="source-line" id="L493"><a class="line-no" href="#L493">493</a>    }</span>
+<span class="source-line" id="L494"><a class="line-no" href="#L494">494</a>    spin_unlock_irqrestore(&amp;ctx-&gt;event_lock, flags);</span>
+<span class="source-line" id="L495"><a class="line-no" href="#L495">495</a>    ret = copy_to_user(buffer, &amp;ctx-&gt;stash, sizeof(ctx-&gt;stash)) ? -EFAULT : sizeof(ctx-&gt;stash);</span>
+<span class="source-line" id="L496"><a class="line-no" href="#L496">496</a>    if (ret &gt; 0) {</span>
+<span class="source-line" id="L497"><a class="line-no" href="#L497">497</a>        spin_lock_irqsave(&amp;ctx-&gt;event_lock, flags);</span>
+<span class="source-line" id="L498"><a class="line-no" href="#L498">498</a>        ctx-&gt;stash_valid = false;</span>
+<span class="source-line" id="L499"><a class="line-no" href="#L499">499</a>        spin_unlock_irqrestore(&amp;ctx-&gt;event_lock, flags);</span>
+<span class="source-line" id="L500"><a class="line-no" href="#L500">500</a>    }</span>
+<span class="source-line" id="L501"><a class="line-no" href="#L501">501</a>    if (READ_ONCE(ctx-&gt;pf-&gt;dying))</span>
+<span class="source-line" id="L502"><a class="line-no" href="#L502">502</a>        ret = -ENODEV;</span>
+<span class="source-line" id="L503"><a class="line-no" href="#L503">503</a>out:</span>
+<span class="source-line" id="L504"><a class="line-no" href="#L504">504</a>    mutex_unlock(&amp;ctx-&gt;read_mutex);</span>
+<span class="source-line" id="L505"><a class="line-no" href="#L505">505</a>    return ret;</span>
+<span class="source-line" id="L506"><a class="line-no" href="#L506">506</a>}</span>
+<span class="source-line" id="L507"><a class="line-no" href="#L507">507</a></span>
+<span class="source-line" id="L508"><a class="line-no" href="#L508">508</a>static __poll_t toy_poll(struct file *file, poll_table *wait)</span>
+<span class="source-line" id="L509"><a class="line-no" href="#L509">509</a>{</span>
+<span class="source-line" id="L510"><a class="line-no" href="#L510">510</a>    struct toy_file *ctx = file-&gt;private_data;</span>
+<span class="source-line" id="L511"><a class="line-no" href="#L511">511</a>    poll_wait(file, &amp;ctx-&gt;event_wait, wait);</span>
+<span class="source-line" id="L512"><a class="line-no" href="#L512">512</a>    if (READ_ONCE(ctx-&gt;pf-&gt;dying))</span>
+<span class="source-line" id="L513"><a class="line-no" href="#L513">513</a>        return EPOLLHUP | EPOLLERR;</span>
+<span class="source-line" id="L514"><a class="line-no" href="#L514">514</a>    return toy_event_available(ctx) ? EPOLLIN | EPOLLRDNORM : 0;</span>
+<span class="source-line" id="L515"><a class="line-no" href="#L515">515</a>}</span>
+<span class="source-line" id="L516"><a class="line-no" href="#L516">516</a></span>
+<span class="source-line" id="L517"><a class="line-no" href="#L517">517</a>static const struct file_operations toy_fops = {</span>
+<span class="source-line" id="L518"><a class="line-no" href="#L518">518</a>    .owner = THIS_MODULE, .open = toy_open, .release = toy_release_file,</span>
+<span class="source-line" id="L519"><a class="line-no" href="#L519">519</a>    .unlocked_ioctl = toy_ioctl,</span>
+<span class="source-line" id="L520"><a class="line-no" href="#L520">520</a>#ifdef CONFIG_COMPAT</span>
+<span class="source-line" id="L521"><a class="line-no" href="#L521">521</a>    .compat_ioctl = compat_ptr_ioctl,</span>
+<span class="source-line" id="L522"><a class="line-no" href="#L522">522</a>#endif</span>
+<span class="source-line" id="L523"><a class="line-no" href="#L523">523</a>    .read = toy_read_file, .poll = toy_poll,</span>
+<span class="source-line" id="L524"><a class="line-no" href="#L524">524</a>};</span></pre></main></html>

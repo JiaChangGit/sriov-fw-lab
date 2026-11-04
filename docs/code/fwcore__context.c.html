@@ -1,0 +1,180 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>fwcore/context.c</title><style>
+:root{color-scheme:light;--ink:#18293c;--blue:#184d83;--line:#ced9e4;--muted:#526477}
+*{box-sizing:border-box}body{margin:0;background:#f2f5f8;color:var(--ink);font:17px/1.8 system-ui,'Microsoft JhengHei',sans-serif}
+a{color:var(--blue);overflow-wrap:anywhere}header{background:#102e4d;color:#fff;padding:48px max(24px,calc((100vw - 1100px)/2))}
+header p{max-width:850px}header a{color:#b8dcff}.label{letter-spacing:.15em;font-size:13px;color:#b8dcff}
+.layout{max-width:1420px;margin:auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:32px;padding:30px}
+nav{position:sticky;top:20px;align-self:start;max-height:95vh;overflow:auto;font-size:14px}nav a{display:block;margin:12px 0}
+main{min-width:0;background:white;padding:36px 44px;border:1px solid var(--line);border-radius:12px}
+h1{font-size:2rem;line-height:1.35}h2{font-size:1.5rem;margin-top:2em;border-bottom:1px solid var(--line);padding-bottom:10px}h3{font-size:1.1rem}
+p{max-width:95ch}section+section{margin-top:80px;border-top:4px solid var(--blue);padding-top:26px}
+pre{overflow:auto;background:#112c45;color:#eaf3fa;padding:20px;border-radius:8px;font-size:14px;line-height:1.6}
+code{font-family:Consolas,monospace;font-size:.88em}p code,li code,td code{background:#edf3f8;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}
+.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;margin:20px 0;font-size:15px}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf1f8}
+img,svg{max-width:100%;height:auto}.diagram{overflow:auto;margin:20px 0}.diagram svg{min-width:900px;width:100%;display:block}blockquote,.notice{border-left:5px solid #c4841b;background:#fff5df;padding:16px 20px;margin:24px 0}.muted{color:var(--muted)}
+.source-line{display:block;white-space:pre}.source-line:target{background:#355b79}.line-no{display:inline-block;width:5em;color:#9db8ce;text-decoration:none;user-select:none}
+@media(max-width:850px){.layout{display:block;padding:14px}nav{position:static;max-height:none}main{padding:24px 18px}header{padding:30px 20px}h1{font-size:1.65rem}}
+@media print{body{background:white;font-size:11pt}header{color:#18293c;background:white;padding:0}nav{display:none}.layout{display:block;padding:0}main{border:0;padding:0}section{break-before:page}pre{white-space:pre-wrap}a{color:inherit}}
+</style><main><a href="../handbook.html">回教材</a><h1>fwcore/context.c</h1><p>SHA256 <code>64513bef101451ac95378c28a368233448ae63b3a77d47c4a5635dea6891f543</code></p><pre><span class="source-line" id="L1"><a class="line-no" href="#L1">1</a>/* Core context 不持有 OS 資源；時間、裝置快照與 gate 操作都由呼叫者提供的 HAL 執行。 */</span>
+<span class="source-line" id="L2"><a class="line-no" href="#L2">2</a>#include &quot;fw_internal.h&quot;</span>
+<span class="source-line" id="L3"><a class="line-no" href="#L3">3</a></span>
+<span class="source-line" id="L4"><a class="line-no" href="#L4">4</a>void fw_zero(void *ptr, fw_size size)</span>
+<span class="source-line" id="L5"><a class="line-no" href="#L5">5</a>{</span>
+<span class="source-line" id="L6"><a class="line-no" href="#L6">6</a>    fw_u8 *p = (fw_u8 *)ptr;</span>
+<span class="source-line" id="L7"><a class="line-no" href="#L7">7</a>    fw_size i;</span>
+<span class="source-line" id="L8"><a class="line-no" href="#L8">8</a>    for (i = 0; i &lt; size; ++i) p[i] = 0;</span>
+<span class="source-line" id="L9"><a class="line-no" href="#L9">9</a>}</span>
+<span class="source-line" id="L10"><a class="line-no" href="#L10">10</a></span>
+<span class="source-line" id="L11"><a class="line-no" href="#L11">11</a>void fw_copy(void *dst, const void *src, fw_size size)</span>
+<span class="source-line" id="L12"><a class="line-no" href="#L12">12</a>{</span>
+<span class="source-line" id="L13"><a class="line-no" href="#L13">13</a>    fw_u8 *d = (fw_u8 *)dst;</span>
+<span class="source-line" id="L14"><a class="line-no" href="#L14">14</a>    const fw_u8 *s = (const fw_u8 *)src;</span>
+<span class="source-line" id="L15"><a class="line-no" href="#L15">15</a>    fw_size i;</span>
+<span class="source-line" id="L16"><a class="line-no" href="#L16">16</a>    for (i = 0; i &lt; size; ++i) d[i] = s[i];</span>
+<span class="source-line" id="L17"><a class="line-no" href="#L17">17</a>}</span>
+<span class="source-line" id="L18"><a class="line-no" href="#L18">18</a></span>
+<span class="source-line" id="L19"><a class="line-no" href="#L19">19</a>fw_status fw_hw(const struct fw_context *ctx, fw_u16 vf, struct fw_hw_snapshot *out)</span>
+<span class="source-line" id="L20"><a class="line-no" href="#L20">20</a>{</span>
+<span class="source-line" id="L21"><a class="line-no" href="#L21">21</a>    fw_status rc;</span>
+<span class="source-line" id="L22"><a class="line-no" href="#L22">22</a>    if (!ctx || !out || vf &gt;= FW_VFS || !ctx-&gt;hal.read_hw) return FW_INVAL;</span>
+<span class="source-line" id="L23"><a class="line-no" href="#L23">23</a>    fw_zero(out, sizeof(*out));</span>
+<span class="source-line" id="L24"><a class="line-no" href="#L24">24</a>    rc = ctx-&gt;hal.read_hw(ctx-&gt;hal.opaque, vf, out);</span>
+<span class="source-line" id="L25"><a class="line-no" href="#L25">25</a>    if (rc != FW_OK) return rc;</span>
+<span class="source-line" id="L26"><a class="line-no" href="#L26">26</a>    if (out-&gt;session != ctx-&gt;session || out-&gt;epoch &lt; ctx-&gt;vf[vf].epoch) return FW_STATE;</span>
+<span class="source-line" id="L27"><a class="line-no" href="#L27">27</a>    return FW_OK;</span>
+<span class="source-line" id="L28"><a class="line-no" href="#L28">28</a>}</span>
+<span class="source-line" id="L29"><a class="line-no" href="#L29">29</a></span>
+<span class="source-line" id="L30"><a class="line-no" href="#L30">30</a>void fw_note(struct fw_context *ctx, const char *message, fw_u16 vf, fw_u64 value)</span>
+<span class="source-line" id="L31"><a class="line-no" href="#L31">31</a>{</span>
+<span class="source-line" id="L32"><a class="line-no" href="#L32">32</a>    if (ctx-&gt;hal.log) ctx-&gt;hal.log(ctx-&gt;hal.opaque, message, vf, value);</span>
+<span class="source-line" id="L33"><a class="line-no" href="#L33">33</a>}</span>
+<span class="source-line" id="L34"><a class="line-no" href="#L34">34</a></span>
+<span class="source-line" id="L35"><a class="line-no" href="#L35">35</a>fw_status fw_deadline(const struct fw_context *ctx, fw_u64 delta, fw_u64 *out)</span>
+<span class="source-line" id="L36"><a class="line-no" href="#L36">36</a>{</span>
+<span class="source-line" id="L37"><a class="line-no" href="#L37">37</a>    fw_u64 now = ctx-&gt;hal.now_tick(ctx-&gt;hal.opaque);</span>
+<span class="source-line" id="L38"><a class="line-no" href="#L38">38</a>    if (now &gt; FW_U64_MAX - delta) return FW_OVERFLOW;</span>
+<span class="source-line" id="L39"><a class="line-no" href="#L39">39</a>    *out = now + delta;</span>
+<span class="source-line" id="L40"><a class="line-no" href="#L40">40</a>    return FW_OK;</span>
+<span class="source-line" id="L41"><a class="line-no" href="#L41">41</a>}</span>
+<span class="source-line" id="L42"><a class="line-no" href="#L42">42</a></span>
+<span class="source-line" id="L43"><a class="line-no" href="#L43">43</a>/* 先在區域變數建立完整 context；任一 VF 快照不符時，不覆寫呼叫者的舊 context。 */</span>
+<span class="source-line" id="L44"><a class="line-no" href="#L44">44</a>fw_status fw_init(struct fw_context *ctx, const struct fw_hal *hal)</span>
+<span class="source-line" id="L45"><a class="line-no" href="#L45">45</a>{</span>
+<span class="source-line" id="L46"><a class="line-no" href="#L46">46</a>    struct fw_context fresh;</span>
+<span class="source-line" id="L47"><a class="line-no" href="#L47">47</a>    struct fw_hw_snapshot hw;</span>
+<span class="source-line" id="L48"><a class="line-no" href="#L48">48</a>    fw_u16 i;</span>
+<span class="source-line" id="L49"><a class="line-no" href="#L49">49</a>    fw_status rc;</span>
+<span class="source-line" id="L50"><a class="line-no" href="#L50">50</a>    if (!ctx || !hal || !hal-&gt;now_tick || !hal-&gt;read_hw || !hal-&gt;cancel_io ||</span>
+<span class="source-line" id="L51"><a class="line-no" href="#L51">51</a>        !hal-&gt;clear_queue || !hal-&gt;set_gate || !hal-&gt;kill || !hal-&gt;owners_closed) return FW_INVAL;</span>
+<span class="source-line" id="L52"><a class="line-no" href="#L52">52</a>    fw_zero(&amp;fresh, sizeof(fresh));</span>
+<span class="source-line" id="L53"><a class="line-no" href="#L53">53</a>    fresh.hal = *hal;</span>
+<span class="source-line" id="L54"><a class="line-no" href="#L54">54</a>    for (i = 0; i &lt; FW_VFS; ++i) {</span>
+<span class="source-line" id="L55"><a class="line-no" href="#L55">55</a>        fw_zero(&amp;hw, sizeof(hw));</span>
+<span class="source-line" id="L56"><a class="line-no" href="#L56">56</a>        rc = hal-&gt;read_hw(hal-&gt;opaque, i, &amp;hw);</span>
+<span class="source-line" id="L57"><a class="line-no" href="#L57">57</a>        if (rc != FW_OK) return rc;</span>
+<span class="source-line" id="L58"><a class="line-no" href="#L58">58</a>        if (!hw.session || !hw.epoch || !hw.fenced || hw.config_valid || hw.outstanding)</span>
+<span class="source-line" id="L59"><a class="line-no" href="#L59">59</a>            return FW_STATE;</span>
+<span class="source-line" id="L60"><a class="line-no" href="#L60">60</a>        if (i == 0) fresh.session = hw.session;</span>
+<span class="source-line" id="L61"><a class="line-no" href="#L61">61</a>        if (hw.session != fresh.session) return FW_STATE;</span>
+<span class="source-line" id="L62"><a class="line-no" href="#L62">62</a>        fresh.vf[i].epoch = hw.epoch;</span>
+<span class="source-line" id="L63"><a class="line-no" href="#L63">63</a>    }</span>
+<span class="source-line" id="L64"><a class="line-no" href="#L64">64</a>    *ctx = fresh;</span>
+<span class="source-line" id="L65"><a class="line-no" href="#L65">65</a>    return FW_OK;</span>
+<span class="source-line" id="L66"><a class="line-no" href="#L66">66</a>}</span>
+<span class="source-line" id="L67"><a class="line-no" href="#L67">67</a></span>
+<span class="source-line" id="L68"><a class="line-no" href="#L68">68</a>/* 讀完所有 VF 才複製到 out，讓呼叫者不會收到半份成功的 snapshot。 */</span>
+<span class="source-line" id="L69"><a class="line-no" href="#L69">69</a>fw_status fw_snapshot(const struct fw_context *ctx, struct fw_snapshot *out)</span>
+<span class="source-line" id="L70"><a class="line-no" href="#L70">70</a>{</span>
+<span class="source-line" id="L71"><a class="line-no" href="#L71">71</a>    struct fw_snapshot snap;</span>
+<span class="source-line" id="L72"><a class="line-no" href="#L72">72</a>    fw_u16 i;</span>
+<span class="source-line" id="L73"><a class="line-no" href="#L73">73</a>    fw_status rc;</span>
+<span class="source-line" id="L74"><a class="line-no" href="#L74">74</a>    if (!ctx || !out) return FW_INVAL;</span>
+<span class="source-line" id="L75"><a class="line-no" href="#L75">75</a>    fw_zero(&amp;snap, sizeof(snap));</span>
+<span class="source-line" id="L76"><a class="line-no" href="#L76">76</a>    snap.session=ctx-&gt;session; snap.round=ctx-&gt;round;</span>
+<span class="source-line" id="L77"><a class="line-no" href="#L77">77</a>    snap.used_queues=ctx-&gt;used_queues; snap.used_vectors=ctx-&gt;used_vectors;</span>
+<span class="source-line" id="L78"><a class="line-no" href="#L78">78</a>    snap.used_credit=ctx-&gt;used_credit; snap.last_seq=ctx-&gt;last_seq;</span>
+<span class="source-line" id="L79"><a class="line-no" href="#L79">79</a>    snap.negotiated=ctx-&gt;negotiated; snap.cache_valid=ctx-&gt;cache_valid;</span>
+<span class="source-line" id="L80"><a class="line-no" href="#L80">80</a>    for (i=0; i&lt;FW_VFS; ++i) {</span>
+<span class="source-line" id="L81"><a class="line-no" href="#L81">81</a>        snap.vf[i]=ctx-&gt;vf[i];</span>
+<span class="source-line" id="L82"><a class="line-no" href="#L82">82</a>        rc=fw_hw(ctx,i,&amp;snap.hw[i]);</span>
+<span class="source-line" id="L83"><a class="line-no" href="#L83">83</a>        if (rc!=FW_OK) return rc;</span>
+<span class="source-line" id="L84"><a class="line-no" href="#L84">84</a>    }</span>
+<span class="source-line" id="L85"><a class="line-no" href="#L85">85</a>    *out=snap;</span>
+<span class="source-line" id="L86"><a class="line-no" href="#L86">86</a>    return FW_OK;</span>
+<span class="source-line" id="L87"><a class="line-no" href="#L87">87</a>}</span>
+<span class="source-line" id="L88"><a class="line-no" href="#L88">88</a></span>
+<span class="source-line" id="L89"><a class="line-no" href="#L89">89</a>/* 由各 VF 重新加總 ledger，並檢查 FREE/open-gate 等跨欄位條件。 */</span>
+<span class="source-line" id="L90"><a class="line-no" href="#L90">90</a>fw_status fw_check_invariants(const struct fw_context *ctx)</span>
+<span class="source-line" id="L91"><a class="line-no" href="#L91">91</a>{</span>
+<span class="source-line" id="L92"><a class="line-no" href="#L92">92</a>    fw_u32 queues=0, credit=0;</span>
+<span class="source-line" id="L93"><a class="line-no" href="#L93">93</a>    fw_u16 i;</span>
+<span class="source-line" id="L94"><a class="line-no" href="#L94">94</a>    struct fw_hw_snapshot hw;</span>
+<span class="source-line" id="L95"><a class="line-no" href="#L95">95</a>    fw_status rc;</span>
+<span class="source-line" id="L96"><a class="line-no" href="#L96">96</a>    if (!ctx || !ctx-&gt;session) return FW_INVAL;</span>
+<span class="source-line" id="L97"><a class="line-no" href="#L97">97</a>    for (i=0; i&lt;FW_VFS; ++i) {</span>
+<span class="source-line" id="L98"><a class="line-no" href="#L98">98</a>        if (ctx-&gt;vf[i].state &gt;= FW_STATE_COUNT || ctx-&gt;vf[i].reserve &gt; FW_CAP_CREDIT) return FW_STATE;</span>
+<span class="source-line" id="L99"><a class="line-no" href="#L99">99</a>        rc=fw_hw(ctx,i,&amp;hw);</span>
+<span class="source-line" id="L100"><a class="line-no" href="#L100">100</a>        if (rc!=FW_OK) return rc;</span>
+<span class="source-line" id="L101"><a class="line-no" href="#L101">101</a>        if (hw.outstanding&gt;1) return FW_STATE;</span>
+<span class="source-line" id="L102"><a class="line-no" href="#L102">102</a>        if (ctx-&gt;vf[i].state==FW_FREE &amp;&amp; (ctx-&gt;vf[i].reserve || hw.config_valid || hw.outstanding)) return FW_STATE;</span>
+<span class="source-line" id="L103"><a class="line-no" href="#L103">103</a>        if (ctx-&gt;vf[i].reserve) { ++queues; credit+=ctx-&gt;vf[i].reserve; }</span>
+<span class="source-line" id="L104"><a class="line-no" href="#L104">104</a>        if (!hw.fenced &amp;&amp; (hw.killed || !hw.config_valid || !hw.bme || ctx-&gt;vf[i].state!=FW_ACTIVE)) return FW_STATE;</span>
+<span class="source-line" id="L105"><a class="line-no" href="#L105">105</a>    }</span>
+<span class="source-line" id="L106"><a class="line-no" href="#L106">106</a>    if (credit&gt;FW_CAP_CREDIT || queues!=ctx-&gt;used_queues || 2U*queues!=ctx-&gt;used_vectors || credit!=ctx-&gt;used_credit)</span>
+<span class="source-line" id="L107"><a class="line-no" href="#L107">107</a>        return FW_STATE;</span>
+<span class="source-line" id="L108"><a class="line-no" href="#L108">108</a>    return FW_OK;</span>
+<span class="source-line" id="L109"><a class="line-no" href="#L109">109</a>}</span>
+<span class="source-line" id="L110"><a class="line-no" href="#L110">110</a></span>
+<span class="source-line" id="L111"><a class="line-no" href="#L111">111</a>fw_status fw_global_recover(struct fw_context *ctx, fw_u64 new_session, const fw_u64 epochs[FW_VFS])</span>
+<span class="source-line" id="L112"><a class="line-no" href="#L112">112</a>{</span>
+<span class="source-line" id="L113"><a class="line-no" href="#L113">113</a>    struct fw_hw_snapshot hw;</span>
+<span class="source-line" id="L114"><a class="line-no" href="#L114">114</a>    fw_u16 i;</span>
+<span class="source-line" id="L115"><a class="line-no" href="#L115">115</a>    fw_status rc;</span>
+<span class="source-line" id="L116"><a class="line-no" href="#L116">116</a>    if (!ctx || !epochs || !new_session) return FW_INVAL;</span>
+<span class="source-line" id="L117"><a class="line-no" href="#L117">117</a>    if (ctx-&gt;session==FW_U64_MAX) return FW_OVERFLOW;</span>
+<span class="source-line" id="L118"><a class="line-no" href="#L118">118</a>    if (new_session&lt;=ctx-&gt;session || !ctx-&gt;hal.owners_closed(ctx-&gt;hal.opaque, FW_GLOBAL)) return FW_STATE;</span>
+<span class="source-line" id="L119"><a class="line-no" href="#L119">119</a>    for (i=0; i&lt;FW_VFS; ++i) {</span>
+<span class="source-line" id="L120"><a class="line-no" href="#L120">120</a>        if (ctx-&gt;vf[i].epoch==FW_U64_MAX) return FW_OVERFLOW;</span>
+<span class="source-line" id="L121"><a class="line-no" href="#L121">121</a>        rc=ctx-&gt;hal.read_hw(ctx-&gt;hal.opaque,i,&amp;hw);</span>
+<span class="source-line" id="L122"><a class="line-no" href="#L122">122</a>        if (rc!=FW_OK) return rc;</span>
+<span class="source-line" id="L123"><a class="line-no" href="#L123">123</a>        if (epochs[i]&lt;=ctx-&gt;vf[i].epoch || hw.epoch!=epochs[i] || hw.session!=new_session ||</span>
+<span class="source-line" id="L124"><a class="line-no" href="#L124">124</a>            !hw.fenced || hw.config_valid || hw.outstanding || hw.pci_present) return FW_STATE;</span>
+<span class="source-line" id="L125"><a class="line-no" href="#L125">125</a>    }</span>
+<span class="source-line" id="L126"><a class="line-no" href="#L126">126</a>    /* 只有完成全部前置驗證後才提交，kill 仍由硬體保留到 end_global。 */</span>
+<span class="source-line" id="L127"><a class="line-no" href="#L127">127</a>    for (i=0; i&lt;FW_VFS; ++i) {</span>
+<span class="source-line" id="L128"><a class="line-no" href="#L128">128</a>        fw_zero(&amp;ctx-&gt;vf[i],sizeof(ctx-&gt;vf[i]));</span>
+<span class="source-line" id="L129"><a class="line-no" href="#L129">129</a>        ctx-&gt;vf[i].epoch=epochs[i];</span>
+<span class="source-line" id="L130"><a class="line-no" href="#L130">130</a>    }</span>
+<span class="source-line" id="L131"><a class="line-no" href="#L131">131</a>    ctx-&gt;session=new_session; ctx-&gt;round=0;</span>
+<span class="source-line" id="L132"><a class="line-no" href="#L132">132</a>    ctx-&gt;used_queues=0; ctx-&gt;used_vectors=0; ctx-&gt;used_credit=0;</span>
+<span class="source-line" id="L133"><a class="line-no" href="#L133">133</a>    ctx-&gt;last_seq=0; ctx-&gt;negotiated=0; ctx-&gt;cache_valid=0;</span>
+<span class="source-line" id="L134"><a class="line-no" href="#L134">134</a>    ctx-&gt;mailbox_pending=0; ctx-&gt;pending_epoch=0; ctx-&gt;pending_deadline=0;</span>
+<span class="source-line" id="L135"><a class="line-no" href="#L135">135</a>    fw_zero(&amp;ctx-&gt;cached_request,sizeof(ctx-&gt;cached_request));</span>
+<span class="source-line" id="L136"><a class="line-no" href="#L136">136</a>    fw_zero(&amp;ctx-&gt;cached_reply,sizeof(ctx-&gt;cached_reply));</span>
+<span class="source-line" id="L137"><a class="line-no" href="#L137">137</a>    fw_note(ctx,&quot;global_recovered&quot;,FW_GLOBAL,new_session);</span>
+<span class="source-line" id="L138"><a class="line-no" href="#L138">138</a>    return FW_OK;</span>
+<span class="source-line" id="L139"><a class="line-no" href="#L139">139</a>}</span>
+<span class="source-line" id="L140"><a class="line-no" href="#L140">140</a></span>
+<span class="source-line" id="L141"><a class="line-no" href="#L141">141</a>fw_status fw_poll_deadlines(struct fw_context *ctx)</span>
+<span class="source-line" id="L142"><a class="line-no" href="#L142">142</a>{</span>
+<span class="source-line" id="L143"><a class="line-no" href="#L143">143</a>    fw_u16 i;</span>
+<span class="source-line" id="L144"><a class="line-no" href="#L144">144</a>    fw_u64 now;</span>
+<span class="source-line" id="L145"><a class="line-no" href="#L145">145</a>    fw_status rc=FW_OK, one;</span>
+<span class="source-line" id="L146"><a class="line-no" href="#L146">146</a>    struct fw_hw_snapshot hw;</span>
+<span class="source-line" id="L147"><a class="line-no" href="#L147">147</a>    if (!ctx) return FW_INVAL;</span>
+<span class="source-line" id="L148"><a class="line-no" href="#L148">148</a>    now=ctx-&gt;hal.now_tick(ctx-&gt;hal.opaque);</span>
+<span class="source-line" id="L149"><a class="line-no" href="#L149">149</a>    for (i=0; i&lt;FW_VFS; ++i) {</span>
+<span class="source-line" id="L150"><a class="line-no" href="#L150">150</a>        enum fw_state s=ctx-&gt;vf[i].state;</span>
+<span class="source-line" id="L151"><a class="line-no" href="#L151">151</a>        if ((s==FW_QUIESCING || s==FW_RESETTING || s==FW_RECOVERING) &amp;&amp; now&gt;=ctx-&gt;vf[i].deadline) {</span>
+<span class="source-line" id="L152"><a class="line-no" href="#L152">152</a>            /* PCI 移除後已無 READY 端點；等待 DESTROY，保留 quota 與 fence。 */</span>
+<span class="source-line" id="L153"><a class="line-no" href="#L153">153</a>            if (s==FW_RECOVERING) {</span>
+<span class="source-line" id="L154"><a class="line-no" href="#L154">154</a>                one=fw_hw(ctx,i,&amp;hw);</span>
+<span class="source-line" id="L155"><a class="line-no" href="#L155">155</a>                if (one!=FW_OK) { rc=one; continue; }</span>
+<span class="source-line" id="L156"><a class="line-no" href="#L156">156</a>                if (!hw.pci_present) continue;</span>
+<span class="source-line" id="L157"><a class="line-no" href="#L157">157</a>            }</span>
+<span class="source-line" id="L158"><a class="line-no" href="#L158">158</a>            one=fw_vf_event(ctx,i,s==FW_RECOVERING?FW_VERIFY_FAIL:FW_EV_TIMEOUT);</span>
+<span class="source-line" id="L159"><a class="line-no" href="#L159">159</a>            if (one!=FW_OK) rc=one;</span>
+<span class="source-line" id="L160"><a class="line-no" href="#L160">160</a>        }</span>
+<span class="source-line" id="L161"><a class="line-no" href="#L161">161</a>    }</span>
+<span class="source-line" id="L162"><a class="line-no" href="#L162">162</a>    return rc;</span>
+<span class="source-line" id="L163"><a class="line-no" href="#L163">163</a>}</span></pre></main></html>

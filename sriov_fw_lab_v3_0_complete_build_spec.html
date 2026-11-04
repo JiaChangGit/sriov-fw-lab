@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SR-IOV Lab 專案規格</title>
+<style>body{max-width:900px;margin:48px auto;padding:0 24px;font:18px/1.9 system-ui,sans-serif;color:#18344e}a{color:#184d83}</style>
+</head><body><h1>SR-IOV Controller Firmware &amp; Platform Lab</h1>
+<p>本版範圍為 M0–M3／T01–T10，以 16 GB RAM 筆電、WSL2 Ubuntu 26.04 與 QEMU TCG 執行。</p>
+<p>可攜 C core 管理 VF 狀態、資源與 mailbox；QEMU 提供 PF/VF、DMA、MSI-X 與 reset 模型。
+Linux guest 透過 PF driver、VFIO tenant 及 vIOMMU 驗證隔離與生命週期；UEFI probe 驗證開機交接。</p>
+<ul>
+<li><a href="docs/REQUIREMENTS.md">功能範圍與驗收條件</a></li>
+<li><a href="docs/REGMAP.md">暫存器與 ABI</a></li>
+<li><a href="docs/M3_CONTRACT.md">控制協定與資料路徑</a></li>
+<li><a href="docs/VALIDATION.md">實測結果與限制</a></li>
+<li><a href="docs/handbook.html">建置、系統分析與面試教材</a></li>
+</ul>
+<p>不提供 M4/M5、KVM、KCSAN、實體 passthrough、刷寫或硬體效能驗證。
+reserved update opcode 回覆 UNSUP，不表示已實作更新功能。</p>
+<p>檔名保留供既有驗證工具記錄規格雜湊；現行要求以連結的文件為準。</p>
+</body></html>

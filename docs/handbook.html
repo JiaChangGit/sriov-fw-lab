@@ -1,0 +1,2646 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SR-IOV 系統分析、面試與建置教材</title><style>
+:root{color-scheme:light;--ink:#18293c;--blue:#184d83;--line:#ced9e4;--muted:#526477}
+*{box-sizing:border-box}body{margin:0;background:#f2f5f8;color:var(--ink);font:17px/1.8 system-ui,'Microsoft JhengHei',sans-serif}
+a{color:var(--blue);overflow-wrap:anywhere}header{background:#102e4d;color:#fff;padding:48px max(24px,calc((100vw - 1100px)/2))}
+header p{max-width:850px}header a{color:#b8dcff}.label{letter-spacing:.15em;font-size:13px;color:#b8dcff}
+.layout{max-width:1420px;margin:auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:32px;padding:30px}
+nav{position:sticky;top:20px;align-self:start;max-height:95vh;overflow:auto;font-size:14px}nav a{display:block;margin:12px 0}
+main{min-width:0;background:white;padding:36px 44px;border:1px solid var(--line);border-radius:12px}
+h1{font-size:2rem;line-height:1.35}h2{font-size:1.5rem;margin-top:2em;border-bottom:1px solid var(--line);padding-bottom:10px}h3{font-size:1.1rem}
+p{max-width:95ch}section+section{margin-top:80px;border-top:4px solid var(--blue);padding-top:26px}
+pre{overflow:auto;background:#112c45;color:#eaf3fa;padding:20px;border-radius:8px;font-size:14px;line-height:1.6}
+code{font-family:Consolas,monospace;font-size:.88em}p code,li code,td code{background:#edf3f8;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}
+.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;margin:20px 0;font-size:15px}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf1f8}
+img,svg{max-width:100%;height:auto}.diagram{overflow:auto;margin:20px 0}.diagram svg{min-width:900px;width:100%;display:block}blockquote,.notice{border-left:5px solid #c4841b;background:#fff5df;padding:16px 20px;margin:24px 0}.muted{color:var(--muted)}
+.source-line{display:block;white-space:pre}.source-line:target{background:#355b79}.line-no{display:inline-block;width:5em;color:#9db8ce;text-decoration:none;user-select:none}
+@media(max-width:850px){.layout{display:block;padding:14px}nav{position:static;max-height:none}main{padding:24px 18px}header{padding:30px 20px}h1{font-size:1.65rem}}
+@media print{body{background:white;font-size:11pt}header{color:#18293c;background:white;padding:0}nav{display:none}.layout{display:block;padding:0}main{border:0;padding:0}section{break-before:page}pre{white-space:pre-wrap}a{color:inherit}}
+</style><header><div class="label">SR-IOV FIRMWARE & PLATFORM LAB</div><h1>從一筆 DMA，看懂隔離與生命週期</h1><p>Linux driver／虛擬化工程師面試與新手實作教材 · 繁體中文 · 六張離線圖表</p><p>16 GB 筆電 · WSL2 · QEMU TCG · 交付範圍 M0–M3／T01–T10。實測結果與限制請見驗證紀錄。</p></header><div class="layout"><nav><a href="#chapter-0">01 · 新手建置與除錯手冊</a><a href="#chapter-1">02 · 系統分析與圖解</a><a href="#chapter-2">03 · Linux kernel 導讀：從 PCI probe 到最後一次 close</a><a href="#chapter-3">04 · 從一筆請求理解 VFIO、IOMMU 與裝置生命週期</a><a href="#chapter-4">05 · DEMO 操作手冊：隔離、reset 與測試證據</a><a href="#chapter-5">06 · 面試介紹：用證據解釋 SR-IOV 的隔離與生命週期</a><a href="#chapter-6">07 · 實際失敗與修正紀錄</a><a href="#chapter-7">08 · 驗證紀錄</a><a href="handbook-manifest.json">版本與檔案雜湊</a></nav><main><section id="chapter-0"><h1 id="chapter-0-新手建置與除錯手冊">新手建置與除錯手冊</h1>
+<p>適用環境：Lenovo R7000P 2024、實體 RAM 16 GB、Windows 11、WSL2 Ubuntu 26.04。
+專案內容是 <strong>M0–M3：portable core、QEMU SR-IOV 裝置、guest PF driver、VFIO tenant、
+UEFI handoff 與 T01–T10 隔離／生命週期驗證</strong>。以下從相依套件與來源開始建置，
+每一階段都列出命令、輸出位置和成功判斷。實際驗收版本及建置方式見 <a href="#chapter-7">VALIDATION.md</a>。</p>
+<p>第一次閱讀的順序是：本章完成環境與建置 → <a href="#chapter-1">系統分析</a> 看責任和圖 →
+<a href="#chapter-2">Kernel 導讀</a> 認識 driver → <a href="#chapter-3">逐函式追蹤</a> 跑過一筆請求 →
+<a href="#chapter-4">DEMO 手冊</a> 實際操作 → <a href="#chapter-5">面試稿</a> 練習說明。
+遇到問題，先找本章最後的症狀表，再看 <a href="#chapter-6">真實 BUG 紀錄</a>。</p>
+<h2 id="chapter-0-開始前要建立什麼">開始前：要建立什麼</h2>
+<p>你不需要購買支援 SR-IOV 的網卡，也不需要把筆電 GPU passthrough 給 VM。
+WSL 裡的 QEMU 用 TCG 模擬 x86 CPU 與 toy PCIe device；QEMU 內的 Linux 執行真正的
+PF driver、VFIO ioctl 和 IOMMU 路徑。資料工作只有 FILL（寫固定 byte）與 CRC32（讀資料計算 checksum）。
+簡單工作負載讓隔離、錯誤處理與 reset 更容易逐 byte 驗證。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>名稱</th>
+<th>新手先記住的意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PF / VF</td>
+<td>PF 是管理 function；VF 是分配給 tenant 的資料 function；此模型最多八個 VF</td>
+</tr>
+<tr>
+<td>Driver / module</td>
+<td>Linux 核心程式；本專案的 <code>toy_pf.ko</code> 只載入 QEMU 裡的 Linux</td>
+</tr>
+<tr>
+<td>VFIO</td>
+<td>guest kernel 提供的介面，讓 userspace 擁有 VF、配置 DMA mappings 與中斷</td>
+</tr>
+<tr>
+<td>IOMMU / IOVA</td>
+<td>依裝置 requester 身分轉譯 DMA 位址；IOVA 不是 C pointer</td>
+</tr>
+<tr>
+<td>SQ / CQ</td>
+<td>Submission Queue 存請求；Completion Queue 存完成結果</td>
+</tr>
+<tr>
+<td>Gate</td>
+<td>程式要求通過的驗收關卡；另有硬體 DMA gate，兩者要依上下文區分</td>
+</tr>
+<tr>
+<td>Artifact</td>
+<td>一次建置或測試留下的 command、log、result、hash；不是只截一張 PASS 圖</td>
+</tr>
+</tbody>
+</table></div>
+<p>首次下載和編譯需要網路與足夠磁碟；guest 測試不需要外部網路。整套流程包含 Linux、QEMU、
+EDK2 建置與多輪 VM，應安排數小時的工作窗口；實際時間依 CPU、磁碟、快取與熱節流而變。
+不要把其他機器的耗時當成 timeout 標準。全程保持筆電供電，關閉佔用大量 RAM 的其他 VM。</p>
+<h2 id="chapter-0-0-先辨認終端機在哪一層">0. 先辨認終端機在哪一層</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>提示</th>
+<th>所在層</th>
+<th>工作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Windows PowerShell</td>
+<td>L0</td>
+<td>查看 WSL、Windows RAM、磁碟、啟動 Ubuntu</td>
+</tr>
+<tr>
+<td>WSL bash，路徑 <code>$HOME/src/sriov-fw-lab</code></td>
+<td>L1</td>
+<td>編譯、啟動 QEMU、保存 artifacts</td>
+</tr>
+<tr>
+<td>QEMU serial log</td>
+<td>L2 guest</td>
+<td>執行 init、toy_pf driver、labd、tenant</td>
+</tr>
+</tbody>
+</table></div>
+<p>除本章明列為 PowerShell 的命令外，其餘都在 L1 的 repository 根目錄執行。
+在 WSL 的專案目錄執行 <code>explorer.exe .</code>，可以用檔案總管開啟同一份檔案。
+真正編譯應由 WSL 在原生 Linux 檔案系統執行；不要搬到 <code>/mnt/c</code> 後照抄命令。</p>
+<h2 id="chapter-0-1-windows-與-wsl-檢查">1. Windows 與 WSL 檢查</h2>
+<p>PowerShell：</p>
+<pre><code class="language-powershell">wsl --version
+wsl --status
+wsl --list --verbose
+Get-CimInstance Win32_ComputerSystem | Select-Object Model, TotalPhysicalMemory
+Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors
+Get-PSDrive C, D
+Get-Content &quot;$env:USERPROFILE\.wslconfig&quot; -ErrorAction SilentlyContinue
+wsl -d Ubuntu-26.04
+</code></pre>
+<p>確認 Ubuntu-26.04 的 VERSION 是 2。<code>wsl --status</code> 的預設發行版不一定就是這個專案使用的發行版，
+因此明確使用 <code>-d Ubuntu-26.04</code>。缺 <code>.wslconfig</code> 表示使用 WSL 預設，不是本身就有錯。</p>
+<p>既有實測記錄位於 <code>artifacts/environment/windows.json</code>，包含 Ryzen 7 7840H、8 核心/16 threads、
+Windows 可見約 16 GB RAM，以及原本 <code>memory=9319743488</code> 的設定。
+這是當時的機器觀測，不據機型名稱猜 KVM 能力；以重新檢查結果為準。</p>
+<p>16 GB 機器的操作預算是 JOBS=2、一次一項大型建置、一次一個 guest。
+一般 guest 1536 MiB，KASAN guest 2048 MiB。Swap 只能緩解壓力，不代替可用 RAM。
+建置預算建議 8 GiB WSL RAM、6 processors、4 GiB swap；已存在的設定若可完成驗收，無須僅為配合範例而修改。
+若自行調整 <code>.wslconfig</code>，先備份並合併其他設定，再於所有工作停止後重啟 WSL。
+執行中的 build/VM 期間不要 <code>wsl --shutdown</code>，它會中斷測試與保存程序。
+設定檔的作用範圍與重新啟動規則可對照 <a href="https://learn.microsoft.com/en-us/windows/wsl/wsl-config">Microsoft WSL 設定文件</a>。
+這裡的 8 GiB／JOBS=2 是本專案工作預算，不是 Microsoft 對所有工作負載的保證。</p>
+<h2 id="chapter-0-2-進入專案並檢查-linux-環境">2. 進入專案並檢查 Linux 環境</h2>
+<p>先取得公開儲存庫的 Git URL，在 WSL 建立工作目錄。下列第一行請填入實際網址；
+已經有專案時，直接進入現有目錄即可。</p>
+<pre><code class="language-sh">LAB_REPO_URL='填入儲存庫的 Git URL'
+mkdir -p &quot;$HOME/src&quot;
+git clone &quot;$LAB_REPO_URL&quot; &quot;$HOME/src/sriov-fw-lab&quot;
+</code></pre>
+<p>如果取得的是 ZIP，先解壓縮到 WSL 的 Linux 檔案系統，再於專案根目錄執行：</p>
+<pre><code class="language-sh">git init -b main
+</code></pre>
+<p>並設定自己的 Git 顯示名稱與公開用信箱，再建立首次 commit。建置工具需要 Git 工作目錄，
+不會替你設定身分；公開提交可使用 GitHub 帳號提供的 noreply 信箱。
+以下以 <code>$HOME/src/sriov-fw-lab</code> 為例，<code>$HOME</code> 會展開為目前 WSL 使用者的家目錄。</p>
+<p>原始碼應包含 <code>Makefile</code>、<code>sources.lock.json</code>、<code>fwcore/</code>、<code>device/</code>、<code>guest/</code>、<code>tools/</code>、
+<code>tests/</code>、<code>patches/</code> 與 <code>uefi/</code>。Linux upstream 由 fetch-sources 取得，不是頂層 <code>kernel/</code>。
+下載的 upstream、編譯產物和歷史 artifacts 不是替代原始碼的方式。</p>
+<pre><code class="language-sh">cd &quot;$HOME/src/sriov-fw-lab&quot;
+pwd -P
+findmnt -T .
+free -h
+df -h .
+git status --short
+git rev-parse HEAD
+test -f Makefile &amp;&amp; test -f sources.lock.json
+make env-check
+</code></pre>
+<p>成功判斷：最後 JSON 的 status 是 PASS，<code>artifacts/environment/wsl.json</code> 沒有 blockers，
+filesystem semantics 的大小寫、symlink、executable 都成立。至少預留 60 GiB，建議 80–100 GiB。
+還要檢查 Windows 的實體 backing disk 可用空間；WSL 的稀疏 VHD 顯示大容量不代表 Windows 磁碟未滿。</p>
+<p><code>/dev/kvm</code> 存在仍不代表巢狀 KVM 可初始化。本專案必要路徑是 TCG，所有主驗收明確用 <code>ACCEL=tcg</code>。
+KVM 不在本版交付範圍，CLI 只接受 TCG；不能改成 KVM 來跳過失敗。</p>
+<p>若工具缺失，環境檢查會列出缺項。首次安裝套件，在一般使用者的 WSL 終端機進入專案根目錄後執行：</p>
+<pre><code class="language-sh">sudo python3 tools/install_deps.py
+</code></pre>
+<p>它安裝系統 apt dependencies，保存 apt-cache、apt-get 和 dpkg-query log 到
+<code>artifacts/dependencies/</code>。這不是每次 build 都要做的步驟，也不使用 sudo pip。
+完成後回到一般 user 的 WSL shell 重跑 <code>make env-check</code>。</p>
+<p>若依賴安裝因網路失敗，先看 <code>artifacts/dependencies/</code> 最新一輪的 <code>00.log</code>～<code>03.log</code> 和
+<code>result.json</code>。修正網路／套件來源後重跑同一支 bootstrap；不要把缺少套件造成的後續編譯錯誤
+當成 C 程式問題。<code>make env-check</code> 回 BLOCKED 時，先處理 JSON 的 blockers，再往下走。</p>
+<h2 id="chapter-0-3-釘選來源與工具鏈">3. 釘選來源與工具鏈</h2>
+<pre><code class="language-sh">make fetch-sources
+python3 -m json.tool sources.lock.json
+</code></pre>
+<p>唯一來源下載入口是 <code>fetch-sources</code>。<code>downloads/</code> 保存 pinned upstream checkout，
+<code>build/</code> 裡建立可套 patch 的建置工作樹；不要直接修改 immutable upstream 來修專案。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>元件</th>
+<th>Ref</th>
+<th>精確 commit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>QEMU</td>
+<td>v9.2.0</td>
+<td>ae35f033b874c627d81d51070187fbf55f0bf1a7</td>
+</tr>
+<tr>
+<td>Linux</td>
+<td>v6.12</td>
+<td>adc218676eef25575469234709c2d87185ca223a</td>
+</tr>
+<tr>
+<td>EDK2</td>
+<td>edk2-stable202411</td>
+<td>0f3867fa6ef0553e26c42f7d71ff6bdb98429742</td>
+</tr>
+<tr>
+<td>BusyBox</td>
+<td>1_36_1</td>
+<td>1a64f6a20aaf6ea4dbba68bbfa8cc1ab7e5c57c4</td>
+</tr>
+</tbody>
+</table></div>
+<p>Lock 還保存 recursive submodules、patch SHA256 與工具鏈。FETCHED 只證明取得來源；
+不代表編譯、開機、隔離測試成功。完整依賴背景見 <a href="DEPENDENCIES.md">DEPENDENCIES.md</a>。</p>
+<p>目前 QEMU/guest userspace 使用 GCC 15；pinned Linux 與 EDK2 使用已實測的 GCC 14，
+EDK2 的工具鏈 tag 名稱仍是 GCC5。這個 tag 不代表實際執行 gcc 5。
+Kernel builder 明確指定 CC/HOSTCC，不用修改全機 compiler alternatives。</p>
+<p>來源目錄與工作目錄的用途如下。<code>downloads/</code> 與 <code>build/</code> 是兩層，是為了讓原始 upstream
+保持可比對，也讓 patch 只進入可重建的工作樹。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>路徑</th>
+<th>內容</th>
+<th>能否手動改了就繼續驗收</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fwcore/</code>、<code>device/</code>、<code>guest/</code></td>
+<td>本專案實作</td>
+<td>修改後重建並重驗受影響 gate</td>
+</tr>
+<tr>
+<td><code>sources.lock.json</code></td>
+<td>commit、submodule、patch、toolchain 記錄</td>
+<td>修改代表換了驗證輸入，必須重新驗證</td>
+</tr>
+<tr>
+<td><code>downloads/</code></td>
+<td>釘選 upstream checkout</td>
+<td>不可直接修；應建立有 hash 的專案 patch</td>
+</tr>
+<tr>
+<td><code>build/</code></td>
+<td>可丟棄的 binary、worktree、stamp</td>
+<td>不用手改 stamp 讓舊 binary 冒充新版本</td>
+</tr>
+<tr>
+<td><code>artifacts/</code></td>
+<td>每一次真實執行的證據</td>
+<td>保存原 FAIL；新結果放新目錄</td>
+</tr>
+</tbody>
+</table></div>
+<p>若 fetch 因網路中斷，修復連線後重跑 <code>make fetch-sources</code>；若是 commit/hash 不符，
+先保存錯誤與 <code>git status</code>，確認 checkout 是否被修改。不要隨手改 lock 配合手上的檔案。</p>
+<h2 id="chapter-0-4-m0先驗-portable-core">4. M0：先驗 portable core</h2>
+<pre><code class="language-sh">make build-core
+make verify-m0
+</code></pre>
+<p>成功判斷：<code>artifacts/m0-latest.json</code> status PASS，指向的 result 也 PASS；
+core 證據涵蓋 FSM、非法轉移 context 不變、獨立 Python oracle、ASan/UBSan、coverage 與 fuzz。
+目前完整 core 基線有四個 seeds 各十萬操作、每個 fuzz target 十萬次加額外 300 秒探索。
+這一步可能數分鐘，不因一段時間沒有終端輸出就判定卡死；詳細輸出寫入各步驟 log。</p>
+<p>若 native unit 失敗，先修 core 再進 VM，因為同一 core 會連進 QEMU。
+不要只看 coverage 百分比：有執行過某一行，不等於獨立 oracle 認可其結果。</p>
+<h2 id="chapter-0-5-m1qemuguest-kernel-與真實-vfio">5. M1：QEMU、guest kernel 與真實 VFIO</h2>
+<pre><code class="language-sh">make build-qemu JOBS=2
+make build-kernel PROFILE=stress JOBS=2
+make build-initramfs PROFILE=stress JOBS=2
+make verify-m1 PROFILE=stress ACCEL=tcg JOBS=2
+</code></pre>
+<p>每條命令成功才執行下一條。<code>verify-m1</code> 本身包含 build prerequisites，已完成的工作會使用
+建置系統的增量處理；stamp 不符時不能只因 binary 存在就當成可用。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>輸出</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>build/qemu/qemu-system-x86_64</code></td>
+<td>含 toy device 的 host QEMU</td>
+</tr>
+<tr>
+<td><code>build/kernel-stress/arch/x86/boot/bzImage</code></td>
+<td>L2 Linux kernel，不是 WSL kernel</td>
+</tr>
+<tr>
+<td><code>build/initramfs-stress/initramfs.cpio.gz</code></td>
+<td>BusyBox、driver module、guest programs 和實際 ELF dependencies</td>
+</tr>
+<tr>
+<td><code>artifacts/m1-latest.json</code></td>
+<td>指向本次 M1 結構化報告</td>
+</tr>
+</tbody>
+</table></div>
+<p>M1 不是只看 <code>lspci</code> 出現四個 VF。它檢查 PCI BAR/capabilities、實際 group viability、
+每個 VF 的獨立 container、TYPE1 MAP/UNMAP、反覆 enable/disable 和資源回收。
+Guest 不需要外部網路。PF module 只放入 L2 initramfs，不要在 WSL 執行 <code>insmod toy_pf.ko</code>。</p>
+<h2 id="chapter-0-6-m2uefi-probe-與同次開機交接">6. M2：UEFI probe 與同次開機交接</h2>
+<pre><code class="language-sh">make verify-m2 PROFILE=stress ACCEL=tcg JOBS=2
+</code></pre>
+<p>工具會編譯 EDK2/BaseTools、positive/disabled OVMF variants 與 SriovFwPkg，
+先做 probe-only，再測 UEFI probe → Linux 的同次開機 handoff，最後跑 disabled PCD 對照。
+每次都複製該 build 配套的新 VARS；不要拿舊 NVRAM 或另一版 CODE 拼在一起。</p>
+<p>成功判斷：<code>artifacts/m2-latest.json</code> 和其 result PASS，三個 mode 都有 raw serial、QMP、
+CODE/VARS provenance、ESP files 和結果。UEFI application exit 0 本身不足以宣稱 Linux handoff 成功。</p>
+<p>Negative variant 關閉 PCD 後，Linux 仍可能在既有 bridge window 中成功配置 VF。
+這是本機實測觀察，測試不硬寫「必須失敗」來迎合名稱。
+更多細節與 source anchors 見 <a href="UEFI.md">UEFI.md</a>。</p>
+<h2 id="chapter-0-7-m3kasan-與隔離生命週期驗證">7. M3：KASAN 與隔離／生命週期驗證</h2>
+<pre><code class="language-sh">make build-kernel PROFILE=kasan JOBS=2
+make build-initramfs PROFILE=kasan JOBS=2
+make verify-m3 ACCEL=tcg
+</code></pre>
+<p>完整 M3 gate 會重驗目前 M0 來源、重建 stress archive，依序執行 KASAN/stress M1、
+三次 M2 boot、T01–T10 及 M3 controller/validator 測試。T07 包含精確 native deadline 測試。
+修正後版本的完整 aggregate 證據見 <a href="#chapter-7">VALIDATION.md</a> 首節；
+<code>artifacts/m3/20261013T074512Z-64uwugjd/</code> 是較早的開發基線，不能替代目前版本的驗收。
+舊的 <code>tools/verify_m3_checkpoint.py</code> 只跑 T01–T06/T09/T10，仍可用來定位回歸，但不能當作完整 M3。
+執行時不要修改 device、guest、kernel patch 或 validator，以免測試中的來源與報告不一致。</p>
+<p>單獨定位問題時可執行：</p>
+<pre><code class="language-sh">make verify-t01
+make verify-t02
+make verify-t03
+make verify-t04
+make verify-t05
+make verify-t06
+make verify-t07
+make verify-t08
+make verify-t09
+python3 tools/run_vm.py --gate m3-case --profile kasan --accel tcg --case T10
+</code></pre>
+<p>這些工具要求目前 binary 的 M1/M2 前提已通過。若先更動 guest 或 QEMU，重新建置後要重跑受影響
+前提，不能沿用另一組 binary 的 PASS。T01 的完整生命週期與 M1 的 enumeration loop 是不同覆蓋。</p>
+<p>T05 的六個 DMA fault 變體使用已釘選的 toy-only strict WRITE-only guest kernel patch。
+Boot marker 與真實 fault 皆要成立。Stock Linux 的 WRITE-only read rejection 曾實跑 FAIL；
+原因與限制見 <a href="#chapter-6-b002%E8%A6%81%E6%B1%82-write-only-%E4%B8%8D%E4%BB%A3%E8%A1%A8-pinned-linux-%E6%9C%83%E7%A6%81%E6%AD%A2%E8%AE%80%E5%8F%96">BUG_LOG B002</a>。</p>
+<p>T07/T08 的單一 VM 診斷入口如下。它不重建前提，也不取代 aggregate：</p>
+<pre><code class="language-sh">python3 tools/run_vm.py --gate m3-case --profile kasan --accel tcg --case T07
+python3 tools/run_vm.py --gate m3-case --profile kasan --accel tcg --case T08
+</code></pre>
+<p>成功後查看 <code>artifacts/m3-case-latest.json</code> 指向的目錄。用 Python 讀取指標可以避免抄錯 timestamp：</p>
+<pre><code class="language-sh">python3 - &lt;&lt;'PY'
+import json
+from pathlib import Path
+p = json.loads(Path('artifacts/m3-case-latest.json').read_text())
+directory = Path(p['path'])
+r = json.loads((directory / 'result.json').read_text())
+print('run:', directory)
+print('status:', r['status'])
+print('error:', r.get('error', 'none'))
+print('kernel reports:', r.get('unexpected_kernel_reports'))
+print('evidence:', *r.get('evidence_hashes', {}), sep='\n  ')
+PY
+</code></pre>
+<p>不要在進行中的 run 檢查舊 latest 指標並誤認本次通過；先等 command 返回，再核對時間、case、
+command.json 與 build hashes。缺 result 或未跑的 case 仍是 NOT_RUN。</p>
+<h2 id="chapter-0-8-從乾淨-build-重新建立面試版">8. 從乾淨 build 重新建立面試版</h2>
+<p>完整建置包含 M0–M3。Capsule 更新、持久化模型及實體板卡操作不屬於本專案。
+部分底層程式有防禦性處理，但可主張的測試覆蓋仍以 T01–T10 的實際結果為準。</p>
+<p>第一次建置時 <code>build/</code> 不存在，直接依序執行下列命令。若要驗證已有環境的乾淨重建，先等所有
+build 和 QEMU 停止、保存需要的輸出，再單獨執行 <code>make clean-build</code>。
+它會刪除已檢查邊界內的整個 <code>build/</code>；原始碼、upstream downloads 與歷史 logs 保留。
+不要在另一個終端機仍在測試時清理。</p>
+<pre><code class="language-sh">cd &quot;$HOME/src/sriov-fw-lab&quot;
+make env-check
+make fetch-sources
+make verify-project JOBS=2
+make build-handbook
+</code></pre>
+<p><code>verify-project</code> 會先跑完整 M0（包括兩個 300 秒 fuzz exploration），建立 QEMU、兩個 kernel 與
+initramfs，再跑 M3 aggregate；其中會建立 EDK2，執行兩個 M1 profile 與三條 UEFI boot path。
+最後跑全部 Python validators 和 native guest regression。每一步失敗就停止；這個入口不下載來源，
+也不會自動刪除 build。第 4–7 節則是拆開定位問題時的逐步版本，不必在完整入口前再重複整輪。</p>
+<p>完整入口的進度與結果：</p>
+<pre><code class="language-sh">python3 - &lt;&lt;'PY'
+import json
+from pathlib import Path
+pointer = json.loads(Path('artifacts/project-latest.json').read_text())
+result = json.loads((Path(pointer['path']) / 'result.json').read_text())
+print(pointer['path'], result['status'])
+print('空 build 起跑:', result['build_started_empty'])
+for step in result['steps']:
+    print(step['id'], step['status'])
+print(result.get('error', '無錯誤'))
+PY
+</code></pre>
+<p>這段要等命令結束後執行，首次 run 未結束可能尚無 latest。執行中可在另一個 WSL terminal 看
+<code>ls -td artifacts/project/*/ | head -1</code> 找本次執行目錄，讀其中 <code>result.json</code> 和當前 stage 的 <code>.log</code>。
+不要只依 timestamp 猜測完成，需核對程序與 step。</p>
+<h3 id="chapter-0-面試現場展示">面試現場展示</h3>
+<p>完整入口已 PASS 後，先讀 <a href="#chapter-5">面試講稿</a>，再執行：</p>
+<pre><code class="language-sh">make demo
+make demo-reset
+</code></pre>
+<p>前者展示 M1 的四 VF／domain 與 100 次生命週期；後者展示 T07 的 outstanding-work reset 和健康 VF。
+逐步操作、結果讀取程式及現場講解順序見 <a href="#chapter-4">DEMO 手冊</a>。
+兩者各自產生新的 artifacts；它們不是完整測試的捷徑。若要展示同 IOVA 隔離，使用 <code>make verify-t04</code>；
+要展示舊 callback 跨 reset 被擋，使用 <code>make verify-t08</code>。面試時間短時先展示已保存的結果，再跑一個案例。</p>
+<p>逐條執行，前一條 exit code 非零就停止並除錯。不要用分號串起整批命令後只看最後一條。
+M3 aggregate 會再次檢查當前 M0/M1/M2 prerequisites，前面的拆解仍有教學與提早定位錯誤的用途。
+這是可重建程序；它是否在指定版本實際從乾淨 build 跑完，仍由 VALIDATION 的當次紀錄回答。</p>
+<p>要確認目前歷史指標而不啟動 VM，可執行以下唯讀命令。它不等於重新測試：</p>
+<pre><code class="language-sh">python3 - &lt;&lt;'PY'
+import json
+from pathlib import Path
+for gate in ('m0', 'm1', 'm2', 'm3'):
+    pointer = Path('artifacts') / f'{gate}-latest.json'
+    if not pointer.exists():
+        print(gate, 'NOT_RUN')
+        continue
+    latest = json.loads(pointer.read_text())
+    report = Path(latest['path']) / 'result.json'
+    result = json.loads(report.read_text()) if report.exists() else {}
+    print(gate, latest.get('status'), result.get('status', 'MISSING_RESULT'), report)
+PY
+</code></pre>
+<p>如果已通過的 binary 被修改，latest 檔案仍可能存在；必須再核對 result 中的輸入與建置 hash。
+歷史資料不能自動替現在的 source tree 背書。</p>
+<h2 id="chapter-0-9-讀懂一次測試的證據">9. 讀懂一次測試的證據</h2>
+<p>先看 aggregate result 的 status，再追 <code>path</code>，不要只看某段 log 的 PASS 字串。
+例如 M3 一次 run 通常有以下檔案：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>檔案</th>
+<th>回答的問題</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>result.json</code></td>
+<td>exit code、timeout、cases、build/evidence hashes、unexpected reports 是否成立？</td>
+</tr>
+<tr>
+<td><code>command.json</code></td>
+<td>真正執行了哪個 QEMU、kernel、initramfs、profile、accelerator？</td>
+</tr>
+<tr>
+<td><code>kernel.log</code></td>
+<td>Linux boot、driver、IOMMU fault、KASAN/lockdep 等是否異常？</td>
+</tr>
+<tr>
+<td><code>serial.log</code></td>
+<td>哪個 owner、VF、epoch、lease、request、MAP/UNMAP 在何處失敗？</td>
+</tr>
+<tr>
+<td><code>qemu.log</code></td>
+<td>實際 VF requester、FLR、fence、core transition、DMA/callback 在何處？</td>
+</tr>
+<tr>
+<td><code>m3-barriers.json</code> / <code>qmp.jsonl</code></td>
+<td>fault 是否真正 ACK？觀測是否由裝置回覆？</td>
+</tr>
+</tbody>
+</table></div>
+<p>所有 Linux gate 都使用雙 UART：UART0 的 <code>kernel.log</code> 保存核心診斷，UART1 的 <code>serial.log</code>
+保存測試 JSON 與雙向 checkpoint。UEFI handoff 的 <code>kernel.log</code> 還包含前面的 firmware probe，
+因此從該檔追 <code>PROBE_PASS</code> → <code>HANDOFF_START</code> → <code>Linux version</code>；Linux 測試事件再看 <code>serial.log</code>。
+Probe-only 不啟動 Linux，仍把 firmware 輸出放在 <code>serial.log</code>。這項差別由 runner 處理，不需手改 QEMU 命令。
+只看 guest 最後的 PASS 不夠：B020 的 guest PASS 曾因 raw JSON 被切斷而被 host 正確拒收。</p>
+<p>不同 run 不混用證據。程式修正後開新目錄重跑，原始 FAIL 保留。
+aggregate 尚未完成時，result 可能仍是 provisional FAIL、後續 steps NOT_RUN；
+程序被中斷後不能把 prefix 的 PASS 自動當成全輪 PASS。</p>
+<h2 id="chapter-0-10-常見症狀的定位順序">10. 常見症狀的定位順序</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>症狀</th>
+<th>先檢查</th>
+<th>原因與處理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PowerShell 找不到 make / gcc</td>
+<td>所在層、<code>wsl -d Ubuntu-26.04</code></td>
+<td>建置命令應在 WSL；不要另裝 Windows compiler 替代</td>
+</tr>
+<tr>
+<td>Git 或 shell script 出現 CRLF 問題</td>
+<td>source checkout、<code>.gitattributes</code>、configure log</td>
+<td>fetch 固定 LF；不要全域更改 Git 後盲目重試</td>
+</tr>
+<tr>
+<td>Kernel EFI stub 編譯失敗</td>
+<td>build argv 的 CC/HOSTCC、D007</td>
+<td>pinned Linux 與 GCC 15 相容性已見失敗；使用 lock 中 GCC 14</td>
+</tr>
+<tr>
+<td>EDK2 assembly 失敗</td>
+<td>BaseTools/NASM 版本、D009 原始決策</td>
+<td>保留工具版本與原始錯誤，套用已記錄 compatibility 處理</td>
+</tr>
+<tr>
+<td>guest 找不到已打包的執行檔</td>
+<td>ELF interpreter 與 recursive shared libraries</td>
+<td>路徑存在但 loader 缺失也會像找不到檔案；檢查 initramfs manifest</td>
+</tr>
+<tr>
+<td>VFIO group 不 viable</td>
+<td>group members、driver binding、拓樸</td>
+<td>不用 ACS override 冒充隔離；修 actual topology/binding</td>
+</tr>
+<tr>
+<td>沒 completion</td>
+<td>SQ_HEAD、CQ_TAIL、flags、epoch、QEMU DMA log</td>
+<td>先區分沒 fetch、payload fault、CQ fault、IRQ 通知問題</td>
+</tr>
+<tr>
+<td>reset 後 ESTALE</td>
+<td>實際 FLR、session/epoch、ready_gen</td>
+<td>open/close 可能 FLR；新 queue 必須重新 latch/config/rearm</td>
+</tr>
+<tr>
+<td>JSON parse failure</td>
+<td>kernel.log 與 serial.log 是否混流</td>
+<td>已採雙 UART；不要刪掉壞行後算 PASS</td>
+</tr>
+<tr>
+<td>UNMAP 回傳 size 太小</td>
+<td>requested/returned extent、owner maps</td>
+<td>不可 free 尚可能 pinned 的 allocation，先保留到 VFIO fd close</td>
+</tr>
+<tr>
+<td>長時間無終端輸出</td>
+<td>當前 step log、QEMU process、timeout</td>
+<td>輸出可能被收進 artifact；不要啟動第二個大型 run 搶資源</td>
+</tr>
+<tr>
+<td>最新 result 不見了</td>
+<td>程序是否中斷、各 step JSON 是否存在</td>
+<td>保存中斷事實，重跑；沒有 final result 就沒有完整驗收</td>
+</tr>
+</tbody>
+</table></div>
+<p>這張表包含一般診斷策略，不表示每一項都在本機重現。已重現的 BUG、原始失敗、修正及回歸
+另列於 <a href="#chapter-6">BUG_LOG.md</a>，平台決策另列於 <a href="DECISIONS.md">DECISIONS.md</a>。</p>
+<h3 id="chapter-0-一次失敗要保存哪些內容">一次失敗要保存哪些內容</h3>
+<ol>
+<li>命令與所在層：是在 PowerShell、WSL 還是 guest；保存真正的 argv 和 exit code。</li>
+<li>最早的錯誤：compiler 第一個 error、kernel 第一個 warning、或第一筆不符合契約的 event。
+最後的 <code>make Error 2</code> 通常只是上游失敗的結果。</li>
+<li>當時的輸入：Git commit/dirty state、source/patch hash、kernel profile、accelerator 與 case。</li>
+<li>raw logs：保留整個 run 目錄；不要先手工刪行再把清理過的 log 丟給 validator。</li>
+<li>修正後的新 run：小範圍重現先通過，再跑受影響 gate；新結果連到原 FAIL，兩者都保留。</li>
+</ol>
+<p>記憶體不足時，<code>cc1: fatal error: Killed signal</code> 或 exit 137 只是一個線索。
+在 WSL 查 <code>free -h</code>、<code>dmesg</code>／可取得的核心紀錄，再對照 Windows RAM 壓力；確定是 OOM 才調整工作量。
+先停掉其他大型工作並保持 <code>JOBS=2</code>；必要時用 <code>JOBS=1</code> 重建。
+不要用關閉 sanitizer、忽略 warning 或加大所有 timeout 來掩蓋原因。</p>
+<h2 id="chapter-0-11-離線教材如何重建">11. 離線教材如何重建</h2>
+<p>讀教材直接開啟 <code>docs/handbook.html</code>；圖表和樣式內嵌，無需啟動 web server。
+保留 <code>docs/code/</code>、其他 Markdown 和原本 artifacts，才能繼續點進原始碼與證據。
+若修改教材來源，於 WSL 執行 <code>make build-handbook</code>，同時生成與檢查教材。
+Renderer 使用 Ubuntu 的 <code>python3-markdown-it</code>；重建時所用版本會記錄在
+<code>docs/handbook-manifest.json</code>。缺少時透過 apt 安裝該套件，再執行 renderer；不會在 build 過程偷偷下載。
+HTML 產生成功只代表文件生成成功，與專案 gate PASS 分開記錄。</p>
+<h2>來源中的完整 FSM 轉移表</h2><p>由當前 fwcore/fsm.c 抽取；前置條件仍須閱讀函式內的 guard。</p><table><thead><tr><th>From</th><th>Event</th><th>To</th></tr></thead><tbody><tr><td><code>FREE</code></td><td><code>CREATE</code></td><td><code>PROVISIONING</code></td></tr><tr><td><code>PROVISIONING</code></td><td><code>COMMIT</code></td><td><code>ACTIVE</code></td></tr><tr><td><code>PROVISIONING</code></td><td><code>ABORT_OK</code></td><td><code>FREE</code></td></tr><tr><td><code>PROVISIONING</code></td><td><code>ABORT_FAIL</code></td><td><code>FAILED</code></td></tr><tr><td><code>ACTIVE</code></td><td><code>FENCE</code></td><td><code>QUIESCING</code></td></tr><tr><td><code>QUIESCING</code></td><td><code>DRAIN_OK</code></td><td><code>RESETTING</code></td></tr><tr><td><code>QUIESCING</code></td><td><code>EV_TIMEOUT</code></td><td><code>FAILED</code></td></tr><tr><td><code>RESETTING</code></td><td><code>RESET_DONE</code></td><td><code>RECOVERING</code></td></tr><tr><td><code>RESETTING</code></td><td><code>EV_TIMEOUT</code></td><td><code>FAILED</code></td></tr><tr><td><code>RECOVERING</code></td><td><code>READY_REARM</code></td><td><code>ACTIVE</code></td></tr><tr><td><code>RECOVERING</code></td><td><code>VERIFY_FAIL</code></td><td><code>FAILED</code></td></tr><tr><td><code>ACTIVE</code></td><td><code>FLR</code></td><td><code>RECOVERING</code></td></tr><tr><td><code>QUIESCING</code></td><td><code>FLR</code></td><td><code>RECOVERING</code></td></tr><tr><td><code>RESETTING</code></td><td><code>FLR</code></td><td><code>RECOVERING</code></td></tr><tr><td><code>RECOVERING</code></td><td><code>FLR</code></td><td><code>RECOVERING</code></td></tr><tr><td><code>ACTIVE</code></td><td><code>DESTROY</code></td><td><code>DESTROYING</code></td></tr><tr><td><code>FAILED</code></td><td><code>DESTROY</code></td><td><code>DESTROYING</code></td></tr><tr><td><code>RECOVERING</code></td><td><code>DESTROY</code></td><td><code>DESTROYING</code></td></tr><tr><td><code>DESTROYING</code></td><td><code>RELEASE_OK</code></td><td><code>FREE</code></td></tr><tr><td><code>DESTROYING</code></td><td><code>RELEASE_FAIL</code></td><td><code>FAILED</code></td></tr></tbody></table></section><section id="chapter-1"><h1 id="chapter-1-系統分析與圖解">系統分析與圖解</h1>
+<p>本章描述本版 M0–M3 的責任分工與設計契約。每張圖都要搭配 guard 與測試證據閱讀，不能把示意圖當成無條件保證。
+離線教材由 <code>tools/build_handbook.py</code> 產生，SVG 不需要網路、JavaScript 或外部字型。</p>
+<h2 id="chapter-1-架構與所有權">架構與所有權</h2>
+<p>新手先用一個情境理解需求：兩個程式各自使用一個 VF，都把 payload IOVA 設成 <code>0x400000</code>。
+A reset 時，B 必須繼續工作；A 的舊 callback 不能寫進重新配置後的新 buffer。
+因此系統同時需要「位址歸誰」「何時能存取」「工作是否過期」三種判斷。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>需求</th>
+<th>可檢查的不變條件</th>
+<th>主要證據</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A 不能寫到 B</td>
+<td>每次 DMA 用 A 的 VF requester／domain；B 的整個 buffer 不變或只發生自己的預期變化</td>
+<td>T04 同 IOVA、T05 fault 與 healthy VF</td>
+</tr>
+<tr>
+<td>reset 不留下舊工作</td>
+<td>fence 生效後 epoch/token 改變，callback 執行前的世代檢查拒絕舊 tuple</td>
+<td>T07/T08、retired/new buffers、eventfd</td>
+</tr>
+<tr>
+<td>owner 失敗不能漏資源</td>
+<td>mapping、fd、child、lease、PCI function、ledger 各自回收；失敗時保留 quarantine</td>
+<td>T01 100 輪、T02 unwind</td>
+</tr>
+<tr>
+<td>queue 可重用</td>
+<td>u32 差值有界、phase 區分世代、CQ_HEAD 在讀完後更新</td>
+<td>T03、native ring oracle</td>
+</tr>
+<tr>
+<td>管理重送不重複扣 quota</td>
+<td>session/sequence 加完整 request 比較、cached reply</td>
+<td>M0 mailbox oracle/unit</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="chapter-1-六張圖的閱讀順序">六張圖的閱讀順序</h2>
+<p>架構圖回答「在哪裡執行」，資料流回答「資料去哪裡」，控制流回答「誰決定下一步」，
+正常 I/O 與 reset 時序回答「何時發生」，FSM 回答「這個事件現在是否合法」。
+面試時先選一條正常路徑，再指出一個失敗分支，避免一次展示所有細節。</p>
+<p><div class="diagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 660" role="img" aria-labelledby="architecture-title"><title id="architecture-title">系統架構與各層所有權</title><defs><marker id="architecture-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="#2b628f"/></marker></defs><rect width="100%" height="100%" fill="#fafcfe"/><g font-family="system-ui,Microsoft JhengHei,sans-serif"><text x="25" y="34" font-size="23" fill="#18344e" text-anchor="start"><tspan x="25" dy="0">執行位置與責任：Windows → WSL / QEMU → guest Linux</tspan></text><rect x="25" y="65" width="1030" height="75" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="43" y="96" font-size="19" fill="#18344e" text-anchor="start"><tspan x="43" dy="0">L0 · Windows 11 / Lenovo / 16 GB</tspan></text><text x="43" y="125" font-size="15" fill="#18344e" text-anchor="start"><tspan x="43" dy="0">WSL 管理與實體 RAM / SSD；不載入 toy PF driver</tspan></text><rect x="25" y="165" width="1030" height="470" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="43" y="196" font-size="19" fill="#18344e" text-anchor="start"><tspan x="43" dy="0">L1 · WSL2 Ubuntu 26.04</tspan></text><text x="43" y="225" font-size="15" fill="#18344e" text-anchor="start"><tspan x="43" dy="0">建置工具、Python controller、artifacts；一次一個 QEMU guest</tspan></text><rect x="55" y="255" width="360" height="140" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="73" y="286" font-size="19" fill="#18344e" text-anchor="start"><tspan x="73" dy="0">QEMU process / toy PCIe device</tspan></text><text x="73" y="315" font-size="15" fill="#18344e" text-anchor="start"><tspan x="73" dy="0">PF + 最多 8 VF / vIOMMU</tspan><tspan x="73" dy="22.5">VF requester DMA / fence / MSI-X</tspan><tspan x="73" dy="22.5">fwcore：VF 狀態機與 ledger</tspan></text><rect x="490" y="255" width="530" height="340" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="508" y="286" font-size="19" fill="#18344e" text-anchor="start"><tspan x="508" dy="0">L2 · 自建 Linux guest</tspan></text><text x="508" y="315" font-size="15" fill="#18344e" text-anchor="start"><tspan x="508" dy="0">guest kernel / Intel vIOMMU / VFIO</tspan></text><rect x="510" y="330" width="225" height="105" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="528" y="361" font-size="19" fill="#18344e" text-anchor="start"><tspan x="528" dy="0">PF driver + labd</tspan></text><text x="528" y="390" font-size="15" fill="#18344e" text-anchor="start"><tspan x="528" dy="0">管理交易、lease、pidfd</tspan><tspan x="528" dy="22.5">mailbox / READY / REARM</tspan></text><rect x="755" y="330" width="245" height="105" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="773" y="361" font-size="19" fill="#18344e" text-anchor="start"><tspan x="773" dy="0">tenant A / tenant B</tspan></text><text x="773" y="390" font-size="15" fill="#18344e" text-anchor="start"><tspan x="773" dy="0">獨立 VFIO fd + domain</tspan><tspan x="773" dy="22.5">SQ / CQ / payload / IRQ</tspan></text><path d="M735 390 L755 390" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#architecture-arrow)"/><path d="M490 485 L415 485" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#architecture-arrow)"/><text x="448" y="465" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="448" dy="0">PCI MMIO</tspan></text><path d="M415 520 L490 520" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#architecture-arrow)"/><text x="448" y="552" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="448" dy="0">DMA / IRQ</tspan></text><path d="M235 395 L235 520 L415 520 M235 485 L415 485" stroke="#2b628f" stroke-width="2" fill="none"/><text x="520" y="490" font-size="17" fill="#18344e" text-anchor="start"><tspan x="520" dy="0">CPU VA → guest physical pages</tspan><tspan x="520" dy="25.5">VF RID + IOVA → domain translation</tspan><tspan x="520" dy="25.5">PF 管理入口與 tenant 資料入口分離</tspan></text></g></svg>
+</div></p>
+<p>QEMU process 在 WSL 執行；guest 的 PCI config/MMIO 操作會進入 QEMU 的裝置 callback。
+圖中的「firmware」是連進 QEMU process 的 portable core。L2 driver 在 guest CPU 上執行，
+不能直接呼叫 host QEMU process 裡的 fwcore 函式，必須透過 register/mailbox 介面控制裝置。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>元件</th>
+<th>負責內容</th>
+<th>不應擅自代做的事</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fwcore</code></td>
+<td>authoritative FSM、quota/queue/vector ledger、mailbox protocol、logical scheduler</td>
+<td>不配置 Linux fd，不直接呼叫 VFIO</td>
+</tr>
+<tr>
+<td>QEMU toy device</td>
+<td>PCI presentation、registers、模擬硬體 gate、VF requester DMA、virtual clock</td>
+<td>不因 Linux 枚舉了 VF 就私自修改 ledger</td>
+</tr>
+<tr>
+<td>PF driver</td>
+<td>host 管理交易、mailbox adapter、lease、event、driver lifetime</td>
+<td>不由 PF 替 tenant UNMAP，不另建矛盾 FSM</td>
+</tr>
+<tr>
+<td>labd</td>
+<td>owner 啟停、SO_PEERCRED/pidfd、tuple 驗證、reset handshake</td>
+<td>不把文字 READY 當作硬體已 RUNNING</td>
+</tr>
+<tr>
+<td>tenant</td>
+<td>自身 VFIO container/group/device、eventfd、SQ/CQ/payload allocation/mapping</td>
+<td>不操作 PF BAR 或另一 tenant 的 fd</td>
+</tr>
+<tr>
+<td>L1 test controller</td>
+<td>啟動一台 VM、ACK fault、保存原始輸出、獨立檢查</td>
+<td>不直接改 guest buffer 偽造裝置結果</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="chapter-1-資料流隔離在每次-dma-都必須成立">資料流：隔離在每次 DMA 都必須成立</h2>
+<p><div class="diagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 560" role="img" aria-labelledby="data-flow-title"><title id="data-flow-title">提交佇列、VF DMA、完成佇列與通知的資料流</title><defs><marker id="data-flow-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="#2b628f"/></marker></defs><rect width="100%" height="100%" fill="#fafcfe"/><g font-family="system-ui,Microsoft JhengHei,sans-serif"><text x="25" y="36" font-size="23" fill="#18344e" text-anchor="start"><tspan x="25" dy="0">資料流：一筆 FILL / CRC32 的完整路徑</tspan></text><rect x="25" y="85" width="310" height="150" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="43" y="116" font-size="19" fill="#18344e" text-anchor="start"><tspan x="43" dy="0">1 · Tenant 發布 SQ</tspan></text><text x="43" y="145" font-size="15" fill="#18344e" text-anchor="start"><tspan x="43" dy="0">CPU 寫 32-byte LE descriptor</tspan><tspan x="43" dy="22.5">release → SQ_TAIL → DOORBELL</tspan><tspan x="43" dy="22.5">payload IOVA = 0x400000</tspan></text><rect x="395" y="85" width="310" height="150" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="413" y="116" font-size="19" fill="#18344e" text-anchor="start"><tspan x="413" dy="0">2 · Device fetch / validate</tspan></text><text x="413" y="145" font-size="15" fill="#18344e" text-anchor="start"><tspan x="413" dy="0">ACTIVE + config + BME + gate</tspan><tspan x="413" dy="22.5">保存 descriptor / generation</tspan><tspan x="413" dy="22.5">保留 CQ capacity，最多一筆 delay</tspan></text><rect x="765" y="85" width="310" height="150" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="783" y="116" font-size="19" fill="#18344e" text-anchor="start"><tspan x="783" dy="0">3 · VF requester + IOMMU</tspan></text><text x="783" y="145" font-size="15" fill="#18344e" text-anchor="start"><tspan x="783" dy="0">PCI_DEVICE(對應 VF)</tspan><tspan x="783" dy="22.5">RID 0101 / 0102 → 各自 domain</tspan><tspan x="783" dy="22.5">每次 helper 檢查 MemTxResult</tspan></text><path d="M335 160 L395 160" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#data-flow-arrow)"/><path d="M705 160 L765 160" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#data-flow-arrow)"/><rect x="765" y="305" width="310" height="155" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="783" y="336" font-size="19" fill="#18344e" text-anchor="start"><tspan x="783" dy="0">4 · Payload DMA</tspan></text><text x="783" y="365" font-size="15" fill="#18344e" text-anchor="start"><tspan x="783" dy="0">FILL 寫 / CRC32 讀</tspan><tspan x="783" dy="22.5">每 chunk 核對 gate / generation</tspan><tspan x="783" dy="22.5">跨頁失敗不保證回滾已寫 bytes</tspan></text><rect x="395" y="305" width="310" height="155" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="413" y="336" font-size="19" fill="#18344e" text-anchor="start"><tspan x="413" dy="0">5 · CQ 發布</tspan></text><text x="413" y="365" font-size="15" fill="#18344e" text-anchor="start"><tspan x="413" dy="0">內容與 reserved bytes → phase</tspan><tspan x="413" dy="22.5">phase 最後成功才更新 CQ_TAIL</tspan><tspan x="413" dy="22.5">再檢查 IRQ gate → MSI-X</tspan></text><rect x="25" y="305" width="310" height="155" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="43" y="336" font-size="19" fill="#18344e" text-anchor="start"><tspan x="43" dy="0">6 · Tenant 消費</tspan></text><text x="43" y="365" font-size="15" fill="#18344e" text-anchor="start"><tspan x="43" dy="0">eventfd 提醒 → acquire CQ phase</tspan><tspan x="43" dy="22.5">核 id / epoch / status / payload</tspan><tspan x="43" dy="22.5">完成檢查才更新 CQ_HEAD</tspan></text><path d="M920 235 L920 305" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#data-flow-arrow)"/><path d="M765 380 L705 380" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#data-flow-arrow)"/><path d="M395 380 L335 380" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#data-flow-arrow)"/><text x="35" y="520" font-size="18" fill="#18344e" text-anchor="start"><tspan x="35" dy="0">位址隔離：RID + domain + IOVA　　時間隔離：PF fence　　世代隔離：session / epoch / cancel token</tspan></text></g></svg>
+</div></p>
+<p>相同 IOVA 並不表示同一塊記憶體。IOMMU translation 還取決於 requester 及其 domain。
+SQ 是裝置讀，CQ 是裝置寫，payload 依 opcode 決定方向。每次 helper 的錯誤回傳都要處理；
+成功 fetch descriptor 不保證稍後的 payload 或 CQ 也能存取。</p>
+<p>CQ phase 是最後發布的 byte。Tenant 先檢查 phase/acquire，再讀 CQ 其他欄位及 payload，
+最後更新 CQ_HEAD。IRQ 只通知「可能有新進度」，不代替 CQ 的有效性檢查。</p>
+<h2 id="chapter-1-控制時序正常配置">控制時序：正常配置</h2>
+<p><div class="diagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1090 800" role="img" aria-labelledby="control-flow-title"><title id="control-flow-title">管理控制流程及錯誤反向回收</title><defs><marker id="control-flow-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="#2b628f"/></marker></defs><rect width="100%" height="100%" fill="#fafcfe"/><g font-family="system-ui,Microsoft JhengHei,sans-serif"><text x="25" y="36" font-size="22" fill="#18344e" text-anchor="start"><tspan x="25" dy="0">控制流程：先保留資源，再公開 PCI VF；失敗反向收斂</tspan></text><rect x="25" y="85" width="605" height="100" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="43" y="116" font-size="19" fill="#18344e" text-anchor="start"><tspan x="43" dy="0">1 · 管理入口與 guard</tspan></text><text x="43" y="145" font-size="15" fill="#18344e" text-anchor="start"><tspan x="43" dy="0">labd → sriov_numvfs；admin mutex 序列化</tspan><tspan x="43" dy="22.5">拒絕 live lease / 改變非零 VF 數 / 超過 8 VF</tspan></text><path d="M325 185 L325 215" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#control-flow-arrow)"/><rect x="25" y="215" width="605" height="100" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="43" y="246" font-size="19" fill="#18344e" text-anchor="start"><tspan x="43" dy="0">2 · fwcore CREATE / COMMIT</tspan></text><text x="43" y="275" font-size="15" fill="#18344e" text-anchor="start"><tspan x="43" dy="0">先驗 slot / reserve / 資源上限</tspan><tspan x="43" dy="22.5">FREE → PROVISIONING → ACTIVE；先建立 ledger</tspan></text><path d="M325 315 L325 345" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#control-flow-arrow)"/><rect x="25" y="345" width="605" height="100" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="43" y="376" font-size="19" fill="#18344e" text-anchor="start"><tspan x="43" dy="0">3 · pci_enable_sriov</tspan></text><text x="43" y="405" font-size="15" fill="#18344e" text-anchor="start"><tspan x="43" dy="0">Linux 枚舉實際 PCI VF</tspan><tspan x="43" dy="22.5">建立 sysfs / IOMMU group；此時資料 gate 仍 fenced</tspan></text><path d="M325 445 L325 475" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#control-flow-arrow)"/><rect x="25" y="475" width="605" height="100" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="43" y="506" font-size="19" fill="#18344e" text-anchor="start"><tspan x="43" dy="0">4 · lease → VFIO owner</tspan></text><text x="43" y="535" font-size="15" fill="#18344e" text-anchor="start"><tspan x="43" dy="0">獨立 container、MAP SQ/CQ/payload</tspan><tspan x="43" dy="22.5">latch epoch → CONFIG_COMMIT → READY tuple</tspan></text><path d="M325 575 L325 605" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#control-flow-arrow)"/><rect x="25" y="605" width="605" height="100" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="43" y="636" font-size="19" fill="#18344e" text-anchor="start"><tspan x="43" dy="0">5 · PF REARM</tspan></text><text x="43" y="665" font-size="15" fill="#18344e" text-anchor="start"><tspan x="43" dy="0">核 lease / session / epoch / ready_gen</tspan><tspan x="43" dy="22.5">確認 RUNNING readback 才允許 tenant 提交</tspan></text><rect x="705" y="215" width="355" height="145" rx="12" fill="#fff2e5" stroke="#7792ae"/><text x="723" y="246" font-size="19" fill="#18344e" text-anchor="start"><tspan x="723" dy="0">失敗 unwind</tspan></text><text x="723" y="275" font-size="15" fill="#18344e" text-anchor="start"><tspan x="723" dy="0">移除已公開 VF（如有）</tspan><tspan x="723" dy="22.5">反向 destroy 已 provision slots</tspan><tspan x="723" dy="22.5">release 失敗仍保留 quota</tspan></text><path d="M630 265 L705 265" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#control-flow-arrow)"/><text x="668" y="248" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="668" dy="0">FAIL</tspan></text><path d="M630 395 L705 320" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#control-flow-arrow)"/><rect x="705" y="475" width="355" height="150" rx="12" fill="#fff2e5" stroke="#7792ae"/><text x="723" y="506" font-size="19" fill="#18344e" text-anchor="start"><tspan x="723" dy="0">owner 失敗 cleanup</tspan></text><text x="723" y="535" font-size="15" fill="#18344e" text-anchor="start"><tspan x="723" dy="0">先 fence / drain</tspan><tspan x="723" dy="22.5">exact UNMAP → close fds → lease release</tspan><tspan x="723" dy="22.5">短 UNMAP 保留 buffer 到 fd 關閉</tspan></text><path d="M630 525 L705 525" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#control-flow-arrow)"/><text x="668" y="507" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="668" dy="0">FAIL</tspan></text><text x="35" y="760" font-size="16" fill="#18344e" text-anchor="start"><tspan x="35" dy="0">T02 在真實 probe / provision / PCI 部分枚舉 / owner 階段注入故障，再驗證 cleanup 與 retry。</tspan></text></g></svg>
+</div></p>
+<ol>
+<li>labd 透過 PF driver PROVISION，再由 Linux enable SR-IOV。</li>
+<li>PF lease 成立後啟動 owner；VFIO open 可能引發 FLR，owner 重新讀 session/epoch。</li>
+<li>owner MAP 自己的 buffers、建立 MSI-X eventfd、寫 staging registers 與 CONFIG_COMMIT。</li>
+<li>owner 發 READY，labd 核對 peer、lease、operation、session/epoch/ready_gen。</li>
+<li>PF REARM 核對 live hardware state，確認 RUNNING，再讓 owner 開始提交。</li>
+</ol>
+<p>若步驟 3 失敗，不能直接把 lease 當成沒發生；仍要確認 fence、mapping、fd 和 child 的清理。
+若步驟 5 拒絕，owner 保持停止，不能重送 descriptor 試運氣。</p>
+<h2 id="chapter-1-正常-io-的時間與可見性">正常 I/O 的時間與可見性</h2>
+<p><div class="diagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1170 880" role="img" aria-labelledby="io-sequence-title"><title id="io-sequence-title">單筆 DMA 與 completion 的發布時序</title><defs><marker id="io-sequence-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="#2b628f"/></marker></defs><rect width="100%" height="100%" fill="#fafcfe"/><g font-family="system-ui,Microsoft JhengHei,sans-serif"><text x="25" y="36" font-size="22" fill="#18344e" text-anchor="start"><tspan x="25" dy="0">正常請求時序：資料完成、completion 可見與 IRQ 是不同事件</tspan></text><text x="120" y="86" font-size="17" fill="#18344e" text-anchor="middle"><tspan x="120" dy="0">tenant CPU</tspan></text><path d="M120 105 V805" stroke="#9cadbe" stroke-dasharray="5 5"/><text x="430" y="86" font-size="17" fill="#18344e" text-anchor="middle"><tspan x="430" dy="0">SQ / CQ memory</tspan></text><path d="M430 105 V805" stroke="#9cadbe" stroke-dasharray="5 5"/><text x="760" y="86" font-size="17" fill="#18344e" text-anchor="middle"><tspan x="760" dy="0">QEMU device</tspan></text><path d="M760 105 V805" stroke="#9cadbe" stroke-dasharray="5 5"/><text x="1040" y="86" font-size="17" fill="#18344e" text-anchor="middle"><tspan x="1040" dy="0">VF IOMMU</tspan></text><path d="M1040 105 V805" stroke="#9cadbe" stroke-dasharray="5 5"/><path d="M120 155 L430 155" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#io-sequence-arrow)"/><text x="275.0" y="143" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="275.0" dy="0">寫 descriptor / payload；release</tspan></text><path d="M120 225 L760 225" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#io-sequence-arrow)"/><text x="440.0" y="213" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="440.0" dy="0">SQ_TAIL → DOORBELL</tspan></text><path d="M760 295 L1040 295" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#io-sequence-arrow)"/><text x="900.0" y="283" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="900.0" dy="0">以 VF requester fetch SQ / payload</tspan></text><path d="M1040 365 L760 365" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#io-sequence-arrow)"/><text x="900.0" y="353" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="900.0" dy="0">translation + MemTxResult</tspan></text><path d="M760 435 L430 435" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#io-sequence-arrow)"/><text x="595.0" y="423" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="595.0" dy="0">CQ 內容與 reserved bytes</tspan></text><path d="M760 505 L430 505" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#io-sequence-arrow)"/><text x="595.0" y="493" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="595.0" dy="0">phase 最後發布 → CQ_TAIL</tspan></text><path d="M760 575 L120 575" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#io-sequence-arrow)"/><text x="440.0" y="563" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="440.0" dy="0">MSI-X → eventfd 通知</tspan></text><path d="M120 645 L430 645" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#io-sequence-arrow)"/><text x="275.0" y="633" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="275.0" dy="0">acquire phase → 核 id / epoch / status</tspan></text><path d="M120 715 L760 715" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#io-sequence-arrow)"/><text x="440.0" y="703" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="440.0" dy="0">更新 CQ_HEAD；允許重用 slot</tspan></text><text x="30" y="840" font-size="16" fill="#18344e" text-anchor="start"><tspan x="30" dy="0">eventfd counter 不是 completion 數量；以 CQ phase 判斷可見性，SQ slot 與 CQ slot 也不保證相同。</tspan></text></g></svg>
+</div></p>
+<p>圖中的 fetch 是 SQ 與 CRC payload 的讀取路徑；FILL 的 payload 操作是以相同 VF requester 寫入，
+兩種 opcode 都經 IOMMU 並檢查每次 DMA 回傳值。
+Doorbell 表示「SQ 有新工作」，不表示工作已完成。DMA payload 成功，也不表示 CQ phase 已發布。
+IRQ 發生後，tenant 仍以 phase/acquire 讀取 completion；eventfd counter 不能拿來當 CQ entry 數。
+本版限定 x86_64 QEMU/VFIO MMIO 路徑；換到 non-coherent 實體平台時，cache maintenance 與 DMA barriers
+需要平台專屬實作和重新驗證，不能只複製 C11 fence。
+即使 coherent DMA memory 也仍需要正確 ordering；參見
+<a href="https://docs.kernel.org/6.12/core-api/dma-api-howto.html">Linux 6.12 DMA mapping guide</a>。
+該文件說明 kernel DMA API；本專案 userspace VFIO 的具體存取順序仍應追 <code>owner_workload()</code>。</p>
+<h2 id="chapter-1-控制時序有未完成請求的-reset">控制時序：有未完成請求的 reset</h2>
+<p><div class="diagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1110 1040" role="img" aria-labelledby="reset-sequence-title"><title id="reset-sequence-title">重置時 owner、driver、device 與健康 VF 的時序</title><defs><marker id="reset-sequence-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="#2b628f"/></marker></defs><rect width="100%" height="100%" fill="#fafcfe"/><g font-family="system-ui,Microsoft JhengHei,sans-serif"><text x="24" y="34" font-size="22" fill="#18344e" text-anchor="start"><tspan x="24" dy="0">Reset with outstanding work · T07/T08 實作時序</tspan></text><text x="105" y="80" font-size="17" fill="#18344e" text-anchor="middle"><tspan x="105" dy="0">tenant A（owner）</tspan></text><path d="M105 96 V970" stroke="#9cadbe" stroke-dasharray="5 5"/><text x="385" y="80" font-size="17" fill="#18344e" text-anchor="middle"><tspan x="385" dy="0">labd + PF driver</tspan></text><path d="M385 96 V970" stroke="#9cadbe" stroke-dasharray="5 5"/><text x="660" y="80" font-size="17" fill="#18344e" text-anchor="middle"><tspan x="660" dy="0">device / fwcore</tspan></text><path d="M660 96 V970" stroke="#9cadbe" stroke-dasharray="5 5"/><text x="960" y="80" font-size="17" fill="#18344e" text-anchor="middle"><tspan x="960" dy="0">healthy VF B</tspan></text><path d="M960 96 V970" stroke="#9cadbe" stroke-dasharray="5 5"/><path d="M105 145 L660 145" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#reset-sequence-arrow)"/><text x="382.5" y="132" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="382.5" dy="0">SQ 已 fetch；completion 保留，outstanding=1</tspan></text><path d="M385 215 L105 215" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#reset-sequence-arrow)"/><text x="245.0" y="202" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="245.0" dy="0">STOP_REQUEST：停止新增提交</tspan></text><path d="M385 280 L660 280" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#reset-sequence-arrow)"/><text x="522.5" y="267" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="522.5" dy="0">FENCE → cancel / 清 IRQ → 換代；readback</tspan></text><path d="M105 345 L385 345" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#reset-sequence-arrow)"/><text x="245.0" y="332" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="245.0" dy="0">STOPPED：舊請求尚未完成</tspan></text><path d="M385 410 L660 410" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#reset-sequence-arrow)"/><text x="522.5" y="397" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="522.5" dy="0">QUIESCE / RESET → RECOVERING；仍 fenced</tspan></text><path d="M385 475 L105 475" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#reset-sequence-arrow)"/><text x="245.0" y="462" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="245.0" dy="0">RESET_NOTICE：新 epoch，outstanding=0</tspan></text><path d="M105 550 L385 550" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#reset-sequence-arrow)"/><text x="245.0" y="537" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="245.0" dy="0">舊 request ERROR；HELLO，刻意延後 READY</tspan></text><path d="M385 625 L105 625" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#reset-sequence-arrow)"/><text x="245.0" y="612" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="245.0" dy="0">允許配置：exact UNMAP 舊 IOVA → MAP 新 buffer</tspan></text><path d="M105 690 L660 690" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#reset-sequence-arrow)"/><text x="382.5" y="677" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="382.5" dy="0">CONFIG_COMMIT：新 epoch / 新 ready_gen</tspan></text><path d="M105 755 L385 755" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#reset-sequence-arrow)"/><text x="245.0" y="742" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="245.0" dy="0">READY：核 lease / peer / tuple</tspan></text><path d="M385 825 L660 825" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#reset-sequence-arrow)"/><text x="522.5" y="812" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="522.5" dy="0">REARM：解除 fence → RUNNING</tspan></text><path d="M385 900 L105 900" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#reset-sequence-arrow)"/><text x="245.0" y="887" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="245.0" dy="0">RUN：才可使用新 queue</tspan></text><rect x="840" y="160" width="240" height="590" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="858" y="191" font-size="19" fill="#18344e" text-anchor="start"><tspan x="858" dy="0">B 保持同 epoch</tspan></text><text x="858" y="220" font-size="15" fill="#18344e" text-anchor="start"><tspan x="858" dy="0">持續驗證固定 I/O</tspan><tspan x="858" dy="22.5"></tspan><tspan x="858" dy="22.5">A pending</tspan><tspan x="858" dy="22.5">A RECOVERING</tspan><tspan x="858" dy="22.5">A fresh CONFIG fenced</tspan><tspan x="858" dy="22.5">A resumed</tspan><tspan x="858" dy="22.5"></tspan><tspan x="858" dy="22.5">各階段核對進度</tspan><tspan x="858" dy="22.5">與 SQ/CQ/payload guard</tspan></text><text x="25" y="1010" font-size="16" fill="#18344e" text-anchor="start"><tspan x="25" dy="0">T08 在 fresh CONFIG fenced 與 REARM 後各執行一次舊 callback：要求只增加 STALE_CPL，無 DMA / IRQ。</tspan></text></g></svg>
+</div></p>
+<p>T07/T08 已驗證圖中的 retained work 與 stale callback，並通過完整 M3 回歸。
+T06 另驗證 VFIO_DEVICE_RESET、queue readback、重新配置以及 healthy VF。
+兩組測試觸發 reset 的路徑不同，不能互相替代。</p>
+<p>Reset 時的兩個重點是「確認安全的順序」和「誰仍擁有記憶體」。PF 先關 gate/readback，
+core 完成 quiesce/reset 到 RECOVERING；owner 將舊 request 標失敗，完成 exact UNMAP 後，
+才建立新 queue。T08 刻意把已 UNMAP 的舊 CPU allocation 保留下來做 guard，
+新 allocation 使用相同 IOVA，用來觀察 callback 是否錯碰新舊 memory。</p>
+<p>不能只看 callback counter。必須實際執行帶有舊 session/epoch/token 的 callback，
+檢查 STALE_CPL 而非 STALE_DESC，並確認 payload/CQ 未改及 eventfd 沒有新通知。</p>
+<h2 id="chapter-1-fsm-與-queue-gate-是兩張不同的圖">FSM 與 queue gate 是兩張不同的圖</h2>
+<p><div class="diagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1060 735" role="img" aria-labelledby="lifecycle-title"><title id="lifecycle-title">Firmware 主生命週期及 queue gate 的差別</title><defs><marker id="lifecycle-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="#2b628f"/></marker></defs><rect width="100%" height="100%" fill="#fafcfe"/><g font-family="system-ui,Microsoft JhengHei,sans-serif"><text x="25" y="36" font-size="22" fill="#18344e" text-anchor="start"><tspan x="25" dy="0">Firmware lifecycle：主要路徑（完整 20 條轉移見下方來源表）</tspan></text><rect x="25" y="85" width="230" height="80" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="43" y="116" font-size="19" fill="#18344e" text-anchor="start"><tspan x="43" dy="0">FREE</tspan></text><text x="43" y="145" font-size="15" fill="#18344e" text-anchor="start"></text><rect x="365" y="85" width="230" height="80" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="383" y="116" font-size="19" fill="#18344e" text-anchor="start"><tspan x="383" dy="0">PROVISIONING</tspan></text><text x="383" y="145" font-size="15" fill="#18344e" text-anchor="start"></text><rect x="725" y="85" width="230" height="80" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="743" y="116" font-size="19" fill="#18344e" text-anchor="start"><tspan x="743" dy="0">ACTIVE</tspan></text><text x="743" y="145" font-size="15" fill="#18344e" text-anchor="start"></text><rect x="725" y="285" width="230" height="80" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="743" y="316" font-size="19" fill="#18344e" text-anchor="start"><tspan x="743" dy="0">QUIESCING</tspan></text><text x="743" y="345" font-size="15" fill="#18344e" text-anchor="start"></text><rect x="365" y="285" width="230" height="80" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="383" y="316" font-size="19" fill="#18344e" text-anchor="start"><tspan x="383" dy="0">RESETTING</tspan></text><text x="383" y="345" font-size="15" fill="#18344e" text-anchor="start"></text><rect x="25" y="285" width="230" height="80" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="43" y="316" font-size="19" fill="#18344e" text-anchor="start"><tspan x="43" dy="0">RECOVERING</tspan></text><text x="43" y="345" font-size="15" fill="#18344e" text-anchor="start"></text><rect x="365" y="500" width="230" height="80" rx="12" fill="#fff2e5" stroke="#7792ae"/><text x="383" y="531" font-size="19" fill="#18344e" text-anchor="start"><tspan x="383" dy="0">FAILED</tspan></text><text x="383" y="560" font-size="15" fill="#18344e" text-anchor="start"></text><rect x="725" y="500" width="230" height="80" rx="12" fill="#edf4fc" stroke="#7792ae"/><text x="743" y="531" font-size="19" fill="#18344e" text-anchor="start"><tspan x="743" dy="0">DESTROYING</tspan></text><text x="743" y="560" font-size="15" fill="#18344e" text-anchor="start"></text><path d="M255 125 L365 125" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#lifecycle-arrow)"/><text x="310.0" y="115.0" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="310.0" dy="0">CREATE</tspan></text><path d="M595 125 L725 125" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#lifecycle-arrow)"/><text x="660.0" y="115.0" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="660.0" dy="0">COMMIT</tspan></text><path d="M840 165 L840 285" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#lifecycle-arrow)"/><text x="895" y="225" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="895" dy="0">FENCE</tspan></text><path d="M725 325 L595 325" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#lifecycle-arrow)"/><text x="660.0" y="315.0" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="660.0" dy="0">DRAIN_OK</tspan></text><path d="M365 325 L255 325" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#lifecycle-arrow)"/><text x="310.0" y="315.0" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="310.0" dy="0">RESET_DONE</tspan></text><path d="M140 285 V218 H670 V125 H725" fill="none" stroke="#2b628f" stroke-width="2" marker-end="url(#lifecycle-arrow)"/><text x="320" y="207" font-size="15" fill="#18344e" text-anchor="start"><tspan x="320" dy="0">READY_REARM（核對 fresh CONFIG）</tspan></text><path d="M480 365 L480 500" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#lifecycle-arrow)"/><text x="570" y="445" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="570" dy="0">EV_TIMEOUT</tspan></text><path d="M140 365 V540 H365" fill="none" stroke="#2b628f" stroke-width="2" marker-end="url(#lifecycle-arrow)"/><text x="185" y="525" font-size="15" fill="#18344e" text-anchor="start"><tspan x="185" dy="0">VERIFY_FAIL</tspan></text><path d="M595 540 L725 540" stroke="#2b628f" stroke-width="2" fill="none" marker-end="url(#lifecycle-arrow)"/><text x="660.0" y="530.0" font-size="14" fill="#18344e" text-anchor="middle"><tspan x="660.0" dy="0">DESTROY</tspan></text><text x="25" y="625" font-size="16" fill="#18344e" text-anchor="start"><tspan x="25" dy="0">FLR：ACTIVE / QUIESCING / RESETTING / RECOVERING → RECOVERING（queue 清除、fence 保持）</tspan><tspan x="25" dy="24.0">RELEASE_OK：DESTROYING → FREE；release 失敗 → FAILED。FAILED 保留 quota；KILL 不因 FREE 自動解除。</tspan><tspan x="25" dy="24.0">ACTIVE 不是 RUNNING 的充分條件：硬體另檢查 config_valid、BME、fence、kill 與 generation。</tspan></text></g></svg>
+</div></p>
+<p>完整轉移表以 <a href="code/fwcore__fsm.c.html#L5"><code>fwcore/fsm.c:edges</code></a> 的 20 條為準；離線 HTML 會直接從當前來源抽取表格。
+圖只展示主要路徑與失敗匯流，不能拿示意箭頭當作所有合法 state/event 的枚舉。</p>
+<p>從 FREE 到 ACTIVE 的 PROVISION commit，表示 firmware 已分配資源。它仍要求 hardware fenced，
+且沒有 live config。這時的 ACTIVE 不代表 tenant 可 DMA。真正的執行條件位於
+<a href="code/device__toy_hw.c.html#L161"><code>device/toy_hw.c:gate()</code></a>：要求 ACTIVE、valid config、BME、沒有 fence/kill，並有正確 generation。</p>
+<p>QUIESCING 與 RESETTING 的 logical deadline 各 100 ticks，RECOVERING 等 READY 為 1000 ticks。
+裝置一 tick 是一毫秒 QEMU virtual time。PF driver 的 mailbox 上限為 5 秒，以 guest jiffies 計時；
+labd／tenant 的 wire 上限為 120 秒，以 guest CLOCK_MONOTONIC 計時。它們不延長 core deadline，
+也不是 WSL controller 的程序 timeout。因此可能出現「guest 管理程式仍在等待，裝置已 KILL」的狀態。</p>
+<p>期限的精確邊界另以 native fake HAL 控制 logical clock，從正常 CREATE/COMMIT/REARM/FENCE
+路徑進入 QUIESCING、RESETTING、RECOVERING，沒有直接改寫待測 deadline。
+<code>artifacts/recovery-deadlines/20261013T074437Z-7f_3jtp_/</code> 保存九個實際讀值及 ASan/UBSan 執行：
+quiesce/reset 在 99 不失敗，100/101 進 FAILED 且 KILL；READY 相應為 999/1000/1001。
+這三種 timeout 情境都保留 8 credits。VM 的慢 READY 測試負責真實跨層握手；native 測試負責精確邊界，
+不宣稱 QMP polling 可以準確停在每一個 VM tick。</p>
+<p>FAILED 會保留 reserve；已驗證 owners closed、PCI/config/outstanding 清除後，DESTROY 可以釋放 ledger，
+但 KILL 仍需 global recovery 才能清除。故 FREE、FENCED 和 KILLED 可同時出現，
+並不是只看 FREE 就能接受為乾淨測試基線。</p>
+<h2 id="chapter-1-測試結果能支持哪些結論">測試結果能支持哪些結論</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>證據層</th>
+<th>檢查內容</th>
+<th>不能替代</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Native core unit/oracle/fuzz</td>
+<td>轉移、ledger、bounded parser、scheduler 算法</td>
+<td>真實 PCI/VFIO、driver lifetime</td>
+</tr>
+<tr>
+<td>Guest KASAN + VFIO</td>
+<td>kernel memory safety 診斷、實際 map/reset/owner 路徑</td>
+<td>未觸發路徑、KCSAN race、硬體效能</td>
+</tr>
+<tr>
+<td>QEMU requester/gate trace</td>
+<td>該次 DMA/RID、fence、generation、callback 路徑</td>
+<td>整個 buffer 是否正確、host process leak</td>
+</tr>
+<tr>
+<td>Whole-buffer + exact UNMAP + pidfd</td>
+<td>資料變化及 ownership cleanup</td>
+<td>所有無限可能時序都沒有 BUG</td>
+</tr>
+<tr>
+<td>保存 raw logs 並重新解析</td>
+<td>PASS 可追溯到真正執行與預期語意</td>
+<td>沒執行的 case、原始碼存在本身</td>
+</tr>
+</tbody>
+</table></div>
+<p>面試時要說明結論來自哪一層測試，以及該測試尚未涵蓋的情境。</p>
+<h2 id="chapter-1-錯誤分類決定恢復動作">錯誤分類決定恢復動作</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>錯誤類型</th>
+<th>即時動作</th>
+<th>為何不能一律 retry</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>格式錯誤 descriptor</td>
+<td>BAD_DESC completion，核對無額外 payload 改動</td>
+<td>同一筆錯誤輸入重送不會變正確</td>
+</tr>
+<tr>
+<td>old epoch descriptor</td>
+<td>consume SQ、增加 STALE_DESC、不產生 CQ</td>
+<td>若回寫舊 CQ，可能碰到新 owner 的資料</td>
+</tr>
+<tr>
+<td>DMA fault</td>
+<td>能安全寫 CQ 時回 DMA_ERROR，再 fence/fail</td>
+<td>mapping 可能已失效，重試可能破壞隔離</td>
+</tr>
+<tr>
+<td>old callback</td>
+<td>增加 STALE_CPL、禁止 payload/CQ/IRQ</td>
+<td>即使新 queue 已 RUNNING，舊工作仍無權存取</td>
+</tr>
+<tr>
+<td>cleanup 不完整</td>
+<td>保留 quota 或 buffer 到已確認安全的階段</td>
+<td>歸零計數會掩蓋實際 ownership</td>
+</tr>
+<tr>
+<td>logical timeout</td>
+<td>KILL／FAILED；保留資源待明確 recovery</td>
+<td>guest 管理程式仍在等待，不代表可以延長裝置 deadline</td>
+</tr>
+</tbody>
+</table></div>
+<p>測試範圍為 M0–M3／T01–T10，不包含 hostile remove／crash 全矩陣或量產可靠度驗證。</p>
+</section><section id="chapter-2"><h1 id="chapter-2-linux-kernel-導讀從-pci-probe-到最後一次-close">Linux kernel 導讀：從 PCI probe 到最後一次 close</h1>
+<p>本章從 Linux driver 的角度閱讀專案。先掌握裝置怎麼綁定、誰持有資源、在哪種 context 執行，
+再進入 DMA 與 reset。搭配 <a href="#chapter-1">系統圖</a> 和 <a href="#chapter-3">逐函式追蹤</a> 閱讀。</p>
+<h2 id="chapter-2-1-先把三個執行環境分清楚">1. 先把三個執行環境分清楚</h2>
+<p>Windows 管理實體筆電；WSL 執行編譯器與 QEMU；QEMU 裡的 guest Linux 載入 <code>toy_pf.ko</code>。
+因此，WSL 的 <code>uname -r</code> 不是 guest kernel 版本，WSL 的 <code>lspci</code> 也不會列出 QEMU 裡的 toy PF。
+要查 guest，應讀該次 VM 的 <code>kernel.log</code>、<code>serial.log</code> 與 <code>command.json</code>。</p>
+<p>這個專案涉及兩種不同的「核心」：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>名稱</th>
+<th>執行位置</th>
+<th>職責</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Linux kernel</td>
+<td>QEMU guest</td>
+<td>PCI enumeration、driver binding、VFIO、IOMMU、中斷、程序與記憶體管理</td>
+</tr>
+<tr>
+<td><code>fwcore</code></td>
+<td>WSL 中的 QEMU process；也可原生單獨測試</td>
+<td>裝置的 FSM、mailbox、quota、scheduler；是 portable C 程式庫</td>
+</tr>
+</tbody>
+</table></div>
+<p>PF driver 透過 MMIO/mailbox 操作裝置，不會直接呼叫 QEMU process 裡的 <code>fw_transition()</code>。
+這條邊界讓 driver 面對的是裝置協定，而不是一個可以任意改寫的 C struct。</p>
+<h2 id="chapter-2-2-一次開機如何走到-probe">2. 一次開機如何走到 probe</h2>
+<p>讀碼順序：</p>
+<ol>
+<li><code>tools/run_vm.py</code> 組成 QEMU 命令，指定 guest kernel、initramfs、Intel vIOMMU 和 toy PF。</li>
+<li>Guest Linux 啟動後執行 initramfs 的 <code>/init</code>，也就是 repository 裡的 <code>guest/init</code>。</li>
+<li>init 掛載 proc/sys/devtmpfs，確認 PF 存在，再載入 <code>/lib/modules/toy_pf.ko</code>。</li>
+<li><code>module_pci_driver(toy_driver)</code> 註冊 PCI driver。<code>toy_ids</code> 指定 vendor/device，PCI core 將符合且未被占用的裝置交給 probe。</li>
+<li><a href="code/guest__pf__toy_pf.c.html#L622"><code>guest/pf/toy_pf.c:toy_probe()</code></a> 建立管理資源；成功後註冊 misc device。</li>
+<li>init 由 <code>/sys/class/misc/toy_pf0/dev</code> 建立 <code>/dev/toy_pf0</code>，管理程式才有可開啟的入口。</li>
+</ol>
+<p>Driver 註冊和個別裝置 probe 是不同事件。模組載入成功，不代表指定裝置一定綁定成功；
+T02 會另外檢查失敗 probe 沒有留下 control node，乾淨重試則確實建立 control node。
+PCI driver 的 callback 結構與 probe 語意可對照 <a href="https://docs.kernel.org/6.12/PCI/pci.html">Linux 6.12 PCI 文件</a>。</p>
+<p>在 WSL terminal 切到 repository 根目錄後，用以下命令定位，不必先記行號：</p>
+<pre><code class="language-sh">grep -nE 'module_pci_driver|toy_ids|toy_driver|toy_probe' guest/pf/toy_pf.c
+grep -nE 'insmod|make_node|labd|m1-spike' guest/init
+</code></pre>
+<p>閱讀後應能說出：誰呼叫 probe、成功時公開什麼入口、失敗時誰負責回收。</p>
+<h2 id="chapter-2-3-probe-的順序是一份資源帳本">3. probe 的順序是一份資源帳本</h2>
+<p><code>toy_probe()</code> 的主要步驟如下。讀每個取得動作時，立即往下找它對應的釋放動作。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>步驟</th>
+<th>實際程式</th>
+<th>取得什麼／檢查什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>kzalloc</code>、mutex/completion/work/kref 初始化</td>
+<td>PF context 與同步物件，尚未接觸裝置</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>pci_enable_device_mem</code></td>
+<td>啟用 PCI memory resources</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>pci_request_regions</code></td>
+<td>宣告本 driver 使用 BAR resources</td>
+</tr>
+<tr>
+<td>4</td>
+<td>檢查 BAR0 長度與類型，<code>pci_iomap</code></td>
+<td>取得可用 MMIO helper 存取的映射</td>
+</tr>
+<tr>
+<td>5</td>
+<td>讀 magic、ABI、VF/queue/vector/credit caps</td>
+<td>確認 driver 與裝置協定相容</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>pci_alloc_irq_vectors</code>、兩次 <code>request_irq</code></td>
+<td>配置兩個 MSI-X vectors 並註冊 handler</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>pci_set_master</code>、VERSION_NEG</td>
+<td>啟用 bus mastering 並完成協定協商</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>misc_register</code>、debugfs</td>
+<td>公開管理入口與診斷節點</td>
+</tr>
+</tbody>
+</table></div>
+<p>例如第二次 <code>request_irq</code> 失敗時，第一個 IRQ 已經取得，必須釋放；尚未取得的第二個則不能釋放。
+程式以 <code>irq_count</code> 記錄成功取得的數量，沿 <code>free_irqs</code> → <code>unmap</code> → <code>release_regions</code> →
+<code>disable_device</code> → <code>free_context</code> 反向回收。</p>
+<p>這裡採用顯式 goto unwind，方便把每個 fault point 和資源配對。改用 devm 仍然需要處理裝置停止、
+DMA fence 與 worker 同步；記憶體自動釋放不會替代這些協定。</p>
+<h2 id="chapter-2-4-openioctlreadpoll-各做什麼">4. open、ioctl、read、poll 各做什麼</h2>
+<p><code>guest/pf/toy_control.inc</code> 是 <code>toy_pf.c</code> 納入的實作片段。先找檔案尾端的 <code>toy_fops</code>：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Userspace 操作</th>
+<th>Driver 入口</th>
+<th>主要用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>open(&quot;/dev/toy_pf0&quot;, ...)</code></td>
+<td><code>toy_open</code></td>
+<td>建立 per-open context，加入 files list，取得 PF reference</td>
+</tr>
+<tr>
+<td><code>ioctl(fd, TOY_GET_INFO, ...)</code></td>
+<td><code>toy_ioctl</code></td>
+<td>驗證 UAPI header，讀取一致的裝置 snapshot</td>
+</tr>
+<tr>
+<td>lease/fence/reset/rearm ioctl</td>
+<td><code>toy_control_ioctl</code> → <code>toy_execute_ctl</code></td>
+<td>檢查 owner 與世代，再執行管理交易</td>
+</tr>
+<tr>
+<td><code>read(fd, ...)</code></td>
+<td><code>toy_read_file</code></td>
+<td>取出 driver event；無資料時依 blocking 模式等待或回 EAGAIN</td>
+</tr>
+<tr>
+<td><code>poll(fd, ...)</code></td>
+<td><code>toy_poll</code></td>
+<td>將程序掛入 wait queue，回報可讀或裝置移除</td>
+</tr>
+<tr>
+<td>最後一次 fd reference 釋放</td>
+<td><code>toy_release_file</code></td>
+<td>回收 per-open context，降低 PF reference count</td>
+</tr>
+</tbody>
+</table></div>
+<p>一次 <code>open</code> 建立一個 open file description。<code>dup</code> 後的兩個 fd 指向同一個 <code>struct file</code>，
+不能把它們當成兩個互不相關的 owner。專案用 per-open context 綁 lease，也用它保存回覆 cache 和事件佇列。</p>
+<p>閱讀 <a href="code/guest__pf__toy_control.inc.html#L390"><code>guest/pf/toy_control.inc:toy_ioctl()</code></a> 時，注意四個防線：</p>
+<ol>
+<li><code>dying</code> 表示已不能再操作 BAR，回 ENODEV。</li>
+<li><code>copy_from_user</code> 先複製到 kernel local struct，再驗 size、ABI、reserved 和 VF 範圍。</li>
+<li>可修改狀態的命令再驗 session、epoch、lease token 和 operation。</li>
+<li>裝置成功回覆後，仍讀回 fence/config/state 等後置條件。</li>
+</ol>
+<p><code>copy_to_user</code> 失敗不會撤銷已經做完的 reset。控制交易保存原結果，讓相同 operation 的重試取回結果。
+這是協定語意，不是單靠 system call 的正負回傳值就能解決。</p>
+<h2 id="chapter-2-5-三種執行-context三種限制">5. 三種執行 context，三種限制</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>路徑</th>
+<th>Context</th>
+<th>本專案的處理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>probe、ioctl、read</td>
+<td>Process context</td>
+<td>可以在適當條件下睡眠；用 mutex 序列化管理操作</td>
+</tr>
+<tr>
+<td><code>toy_irq</code></td>
+<td>IRQ handler</td>
+<td>讀 cause、ACK、complete、排 work；不取得管理 mutex</td>
+</tr>
+<tr>
+<td><code>toy_notify_work</code></td>
+<td>Workqueue</td>
+<td>可以睡眠；取得管理鎖後讀取一致快照，向各 open context 發布事件</td>
+</tr>
+</tbody>
+</table></div>
+<p>沿 <a href="code/guest__pf__toy_pf.c.html#L296"><code>guest/pf/toy_pf.c:toy_irq()</code></a> 看 mailbox completion：
+handler 呼叫 <code>complete(&amp;pf-&gt;mbx_done)</code> 喚醒等待者；等待者仍需核對 DONE 和 ACK_SEQ。
+另一個 IRQ 先到、IRQ 被合併或回覆已過期，都不能靠「被喚醒」三個字判定交易成功。</p>
+<p>鎖順序是 <code>admin_mutex</code> → <code>mbx_mutex</code>。Mailbox 等待期間，完成它的 IRQ handler 不取得這兩把鎖，
+否則會出現等待者持鎖、完成者也等同一把鎖的循環。其他事件交給 workqueue，不在 IRQ context 做完整管理交易。</p>
+<p><code>event_lock</code> 則是短暫保護 per-open event ring 的 spinlock。
+<code>toy_read_file()</code> 在鎖內把資料移到 stash，放鎖後才 <code>copy_to_user</code>；copy 失敗保留 stash，
+避免 userspace 重試時事件已經遺失。完整鎖與引用表見 <a href="#chapter-3">Trace code</a>。</p>
+<h2 id="chapter-2-6-bar-位址cpu-pointeriova-不可混用">6. BAR 位址、CPU pointer、IOVA 不可混用</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>位址</th>
+<th>誰使用</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Kernel MMIO mapping</td>
+<td>PF driver</td>
+<td><code>pf-&gt;bar</code> 經 <code>readl/writel</code> 存取 PF registers</td>
+</tr>
+<tr>
+<td>Guest userspace VA</td>
+<td>Tenant CPU</td>
+<td>SQ/CQ/payload allocation 的 C pointer</td>
+</tr>
+<tr>
+<td>IOVA</td>
+<td>裝置發起 DMA</td>
+<td>descriptor 裡的 payload 位址</td>
+</tr>
+<tr>
+<td>Guest physical address</td>
+<td>Guest IOMMU 轉譯結果</td>
+<td>被 VFIO pin/map 的 guest pages</td>
+</tr>
+<tr>
+<td>Host virtual address</td>
+<td>QEMU process</td>
+<td>模擬 guest RAM 的 host memory；不交給 tenant 當作 IOVA</td>
+</tr>
+</tbody>
+</table></div>
+<p>本專案 PF 負責管理，資料 DMA mappings 由 tenant 透過 VFIO TYPE1 建立。
+因此不要在 PF driver 補一個 <code>dma_map_single</code>，再以為 tenant 的 IOVA 已經可用。
+那是不同的 ownership 與 address space。</p>
+<p>Classic VFIO 的 container/group/device 關係、group viability 與 DMA mapping 介面，
+可對照 <a href="https://docs.kernel.org/6.12/driver-api/vfio.html">Linux 6.12 VFIO 文件</a>。
+本專案進一步用 T04/T05 驗證實際 DMA requester 與兩個 domain 的資料，group 名稱只是其中一個觀測。</p>
+<h2 id="chapter-2-7-物件還活著不代表硬體還能用">7. 物件還活著，不代表硬體還能用</h2>
+<p><code>kref</code> 保護 <code>toy_pf</code> 記憶體的生命週期，<code>dying</code> 則阻止移除後的 MMIO。
+兩者缺一不可：只有 reference count，舊 fd 可能讀取已解除的 BAR；
+只有 dying flag，舊 fd 仍可能持有已被釋放的 context pointer。</p>
+<p><code>toy_open()</code> 在管理鎖內確認可接受新操作，再取得 reference。
+<code>toy_remove()</code> 關閉入口、fence、同步 worker/IRQ、釋放 PCI resources，最後放掉 driver 持有的 reference；
+既有 file context 仍需完成自己的 release。Reference 的取得與釋放原則見
+<a href="https://docs.kernel.org/6.12/core-api/kref.html">Linux 6.12 kref 文件</a>。</p>
+<p>讀碼能解釋預期生命週期，但本版驗收只涵蓋已列出的 T01–T10，未涵蓋所有 hostile hot-remove 交錯。
+面試時把「設計如何處理」和「實際測到哪些路徑」分開回答。</p>
+<h2 id="chapter-2-8-四個可自行完成的讀碼練習">8. 四個可自行完成的讀碼練習</h2>
+<p>所有命令都在 WSL repository 根目錄執行。</p>
+<pre><code class="language-sh">grep -nE 'CONFIG_(PCI_IOV|VFIO|INTEL_IOMMU|KASAN|PROVE_LOCKING)' build/kernel-kasan/.config
+grep -nE 'toy_(probe|irq|remove)|request_irq|cancel_work_sync|kref_' guest/pf/toy_pf.c
+grep -nE 'toy_fops|toy_open|toy_ioctl|toy_read_file|toy_poll' guest/pf/toy_control.inc
+grep -nE 'VFIO_(GROUP|SET_IOMMU|IOMMU_MAP_DMA|IOMMU_UNMAP_DMA|DEVICE_SET_IRQS)' guest/tenant/vfio.c
+</code></pre>
+<p>第一輪只畫出呼叫關係；第二輪在每個箭頭旁補上 context 和位址種類；
+第三輪從任一失敗點往回找 cleanup。最後用以下問題檢查理解：</p>
+<ol>
+<li>probe 第七步失敗時，為何不能直接 kfree？</li>
+<li>mailbox 完成時，哪個 context 會喚醒誰？為何還要核對 sequence？</li>
+<li>driver 的 copy_to_user 失敗時，reset 是否可能已完成？</li>
+<li>owner 關閉 VFIO fd 和 PF 放掉 lease，為何需要明確順序？</li>
+</ol>
+<p>答案不必背 API 名稱，應能指出取得的資源、仍可能執行的工作，以及允許釋放它們的條件。</p>
+<h2 id="chapter-2-9-練習題解答與下一條-trace-路徑">9. 練習題解答與下一條 trace 路徑</h2>
+<p>第一題先從 probe 的 <code>clear_master</code> label 往下讀。此時可能已經有 BAR mapping、兩個 IRQ 和 work，
+所以要先讓裝置停止接受管理工作、同步相關執行路徑，再解除映射與釋放 context。
+直接 kfree 會讓仍可能被 IRQ/work 使用的 pointer 失效。</p>
+<p>第二題的等待者是發 mailbox 的 process context，喚醒者是 <code>toy_irq()</code>。
+完成通知表示狀態可能有進度；DONE/ACK_SEQ 才把回覆綁到這一次 request。
+這可對照正常 I/O：eventfd 同樣只是通知，CQ phase/id/epoch 才描述完成資料。</p>
+<p>第三題的 reset 可能已經完成。若只因回傳 EFAULT 就建立新 operation 重送，可能再次產生副作用。
+應理解既有 operation 的重試契約，再沿 <code>toy_control_ioctl()</code> 看完整 request 比對和 cached result。</p>
+<p>第四題先畫 ownership：VFIO fd 持有 device、IRQ 與 mappings；PF lease 控制管理權限。
+只有實際完成 fence、drain、UNMAP、fd close 和 owner 退出，管理端才能釋放 lease 或允許下一個 owner。
+程式必須保留失敗時尚未確認釋放的資源，不能只讓計數看起來歸零。</p>
+<p>完成這四題後，依序追下面三條路徑：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>路徑</th>
+<th>起點</th>
+<th>終點</th>
+<th>應記下的欄位</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>管理查詢</td>
+<td>labd 的 ioctl</td>
+<td>PF SNAPSHOT 與 UAPI 回覆</td>
+<td>session、epoch、state、reserve、flags</td>
+</tr>
+<tr>
+<td>正常資料</td>
+<td>owner_workload</td>
+<td>CQ 檢查與 CQ_HEAD 更新</td>
+<td>SQ/CQ cursor、IOVA、requester、phase、id</td>
+</tr>
+<tr>
+<td>Reset</td>
+<td>labd recovery</td>
+<td>新 owner configuration 與 REARM</td>
+<td>lease、operation、epoch、ready_gen、cancel token</td>
+</tr>
+</tbody>
+</table></div>
+<p>每次只追一筆請求，將成功路徑走完，再回頭選一個 return/goto 追失敗回收。
+詳細函式順序與實際紀錄在 <a href="#chapter-3">Trace code</a>。</p>
+</section><section id="chapter-3"><h1 id="chapter-3-從一筆請求理解-vfioiommu-與裝置生命週期">從一筆請求理解 VFIO、IOMMU 與裝置生命週期</h1>
+<p>本章對應 M0–M3 實作，沿控制交易、資料請求與 reset 追蹤各層程式。
+執行狀態見 <a href="#chapter-7">VALIDATION.md</a>，真實故障見 <a href="#chapter-6">BUG_LOG.md</a>。
+以下檔案路徑均從 repository 根目錄起算，函式名稱比開發期間會變動的行號更適合追蹤。</p>
+<h2 id="chapter-3-先分清楚程式究竟在哪裡執行">先分清楚程式究竟在哪裡執行</h2>
+<p>Windows 是 L0，負責執行 WSL；WSL Ubuntu 是 L1，負責編譯與執行 QEMU。
+QEMU 裡的自建 Linux 是 L2，PF driver、labd 與 tenant 都在 L2。
+<code>device/</code> 的 C 程式在 L1 的 QEMU process 裡執行，模擬 L2 看見的 PCI 裝置。
+<code>fwcore/</code> 被連進 QEMU，管理這個模擬裝置的 firmware 狀態；並非在筆電上的真實網卡執行。</p>
+<p>這個區分決定除錯位置。tenant 的 ioctl 回錯，要看 guest 的 kernel.log；
+模擬 DMA 使用錯誤 requester，要看 QEMU 的 qemu.log；QEMU 本身編不過，要看 L1 build log。
+在 WSL 載入 toy_pf.ko 不會連上 guest 裡的 PCI function，也不屬於本專案的操作流程。</p>
+<h2 id="chapter-3-四種位址與兩種權限">四種位址與兩種權限</h2>
+<p>tenant 的 C pointer 是 guest process 的虛擬位址，CPU 經 guest page table 存取它。
+descriptor 裡填的是 IOVA：裝置 DMA 要使用的位址。這兩個數字不必相同。
+VFIO 將 tenant buffer pin 住，讓 guest IOMMU 將某個 domain 的 IOVA 對應到 guest physical pages。
+QEMU 最後再把 guest physical memory 解析到自己的 backing memory；toy 裝置不能直接跳過此路徑。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>名稱</th>
+<th>本專案中的例子</th>
+<th>誰使用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Userspace VA</td>
+<td><code>owner.maps[2].memory</code></td>
+<td>guest CPU 執行 tenant 的 load/store</td>
+</tr>
+<tr>
+<td>IOVA</td>
+<td>payload 起點 <code>0x400000</code></td>
+<td>VF descriptor 與 PCI DMA helper</td>
+</tr>
+<tr>
+<td>Guest physical address</td>
+<td>VFIO/IOMMU 建立的轉譯結果</td>
+<td>guest 的 DMA remapping</td>
+</tr>
+<tr>
+<td>Host virtual address</td>
+<td>QEMU RAM backing 的內部映射</td>
+<td>QEMU memory subsystem</td>
+</tr>
+</tbody>
+</table></div>
+<p>PF-only fence 決定「現在能否發 DMA」；IOMMU 決定「這個 requester 能碰哪些位址」。
+BME 是 PCI Command register 的 bus-master enable，tenant 可操作自身 PCI config；
+因此 BME 不能代替 PF-only fence。epoch 則用來辨認舊請求，不是位址隔離機制。</p>
+<p>IOMMU group 是不能任意拆分的隔離邊界。本拓樸要求每個 VF 各有一個只有自身的 group；
+兩個 container 若仍受同一 group 限制，不能宣稱獲得兩份隔離 domain。
+T04/T05 因此同時檢查 group membership、獨立 owner、相同數字 IOVA，以及實際 requester DMA。
+Group/container 的背景可對照 <a href="https://docs.kernel.org/driver-api/vfio.html">Linux VFIO 文件</a>。
+該網頁會隨 upstream 更新；本版實際採用的 ABI 與實作以 pinned Linux 6.12、
+<code>guest/tenant/vfio.c</code> 及 <code>downloads/linux/Documentation/driver-api/vfio.rst</code> 為準。</p>
+<h2 id="chapter-3-控制流程入口啟用-vf-之前先預留資源">控制流程入口：啟用 VF 之前先預留資源</h2>
+<p>從 <a href="code/guest__pf__toy_pf.c.html#L358"><code>guest/pf/toy_pf.c:toy_sriov_configure()</code></a> 開始看。寫入 PF 的 <code>sriov_numvfs</code> 後，
+Linux 會進入這個 driver callback。driver 在管理序列化區段中先驗證要求值、既有 VF 數與 leases，
+對每個 slot 執行 PROVISION，最後才呼叫 <code>pci_enable_sriov()</code>。</p>
+<p>這個順序避免「Linux 已經公布可使用 VF，但 firmware 沒有資源」的半完成狀態。
+PROVISION 不是單純設一個 enabled bit，還要管理 queue/vector/reserve 的 ledger。
+權威 ledger 與 VF FSM 放在 <code>fwcore</code>；PF driver 保存 host transaction、lease 與觀察快照，
+不另寫一份自行決定 ACTIVE/FAILED 的 firmware FSM。</p>
+<p>繼續追 <code>toy_mailbox_status()</code> → QEMU <a href="code/device__toy_pf.c.html#L137"><code>device/toy_pf.c:write_pf()</code></a> →
+<code>toy_mbx_work()</code> → <a href="code/fwcore__mailbox.c.html#L87"><code>fwcore/mailbox.c:fw_handle_mailbox()</code></a>。
+mailbox 的 session/sequence 與回覆 cache 處理重送；重送相同 request 不能再次預留資源。
+讀到 callback 不代表已完成，還要看它回傳的 status、transaction commit 與 unwind 分支。</p>
+<p>若第 N 個 VF 的 PCI 建立失敗，Linux 自己的 enumeration unwind 與 firmware 的 rollback
+是兩件事，都必須驗證。T02 用 pinned guest kernel hook 在真實枚舉迴圈中注入失敗；
+若 firmware rollback 也失敗，就留下 FAILED 與 retained quota，不能為了清表而直接寫 FREE。</p>
+<h2 id="chapter-3-一個-tenant-如何真正取得-vfio-所有權">一個 tenant 如何真正取得 VFIO 所有權</h2>
+<p>先讀 <a href="code/guest__admin__labd.c.html#L339"><code>guest/admin/labd.c:isolated_owner_start()</code></a>，再讀 <code>start_owner()</code>。
+labd 取得 per-open PF lease、查詢 VF 的 group、啟動 child、保存 pidfd，並檢查 Unix socket 的
+SO_PEERCRED。child 在 exec 前關閉管理 fd，不繼承 PF fd 或另一個 tenant 的 VFIO fd。</p>
+<p>再讀 <a href="code/guest__tenant__vfio.c.html#L137"><code>guest/tenant/vfio.c:lab_vfio_open()</code></a>。重要順序如下：</p>
+<ol>
+<li>將該 VF 綁定 vfio-pci，核對 sysfs driver link。</li>
+<li>開啟 container，核對 VFIO API 與 TYPE1 IOMMU extension。</li>
+<li>開啟 group，要求 VIABLE，將 group 加入 container，再設定 TYPE1 IOMMU。</li>
+<li>取得指定 BDF 的 device fd，核對 PCI、RESET、region、IRQ capabilities。</li>
+<li>核對 BAR 尺寸、兩個 MSI-X vectors、vendor/device identity、magic 與 IOVA 範圍。</li>
+</ol>
+<p>此處的 <code>argsz</code> 很重要：capability 回覆可能比第一個固定 struct 大。
+<code>owner.c:region_caps()</code> 會重新查詢實際大小，檢查 offset、範圍、重複與循環；
+不能把 kernel 傳回的 offset 當成可信任的 C pointer 直接加上去讀。</p>
+<p>VFIO open 本身可能觸發 PCI FLR。<code>owner_open()</code> 因此在取得 fd 後重新 latch session/epoch。
+不能沿用 labd 在 open 前讀到的 epoch；這是 T06 要以真實 ioctl/open/close 驗證的重點。</p>
+<h2 id="chapter-3-建立-ring有-config-還不能立即跑">建立 ring：有 CONFIG 還不能立即跑</h2>
+<p><a href="code/guest__tenant__owner.c.html#L149"><code>guest/tenant/owner.c:map_buffers()</code></a> 建立三種映射：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Buffer</th>
+<th>IOVA</th>
+<th>裝置方向</th>
+<th>VFIO flags</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SQ</td>
+<td><code>0x100000</code></td>
+<td>裝置讀 descriptor</td>
+<td>READ</td>
+</tr>
+<tr>
+<td>CQ</td>
+<td><code>0x200000</code></td>
+<td>裝置寫 completion</td>
+<td>WRITE</td>
+</tr>
+<tr>
+<td>Payload</td>
+<td><code>0x400000</code></td>
+<td>FILL 寫／CRC 讀</td>
+<td>READ＋WRITE</td>
+</tr>
+</tbody>
+</table></div>
+<p>這裡的 READ/WRITE 是從裝置 DMA 的角度，不是 C 程式能否讀寫 memory。
+T05 還揭露 pinned Intel IOMMU 對 WRITE-only 的平台差異，詳見 BUG_LOG B002，
+不能用 requested flags 的列印結果代替實際權限測試。</p>
+<p><code>owner_configure()</code> 建立 eventfds、登記 MSI-X IRQ、設定 BME，再寫 staging queue registers
+與 session/epoch，最後寫 CONFIG_COMMIT。QEMU <a href="code/device__toy_vf.c.html#L58"><code>device/toy_vf.c:config_commit()</code></a>
+驗證範圍、entries、當前 generation 及 fence，成功後成為 READY_PENDING。</p>
+<p>tenant 送 READY 給 labd。labd 核對自己的 lease、peer、PF live snapshot、ready_gen，
+透過 <code>TOY_REARM_VF</code> 要求 driver 重新核對，才讓裝置開 gate。
+收到 RUN 訊息之後，<code>owner_workload()</code> 還會讀回 QUEUE_STATUS==RUNNING；Unix 訊息本身不等於硬體就緒。</p>
+<h2 id="chapter-3-追一筆-fill從-c-array-到-pci-dma">追一筆 FILL：從 C array 到 PCI DMA</h2>
+<p>入口是 <code>owner_workload()</code>。它為每個 outstanding entry 分配獨立 payload 區，
+以 <code>lab_put16/32/64()</code> 明確編碼 32-byte little-endian descriptor。
+避免直接把 C struct memcpy 到 ring，可以排除 compiler padding、alignment 與位元組序的歧義。</p>
+<p>CPU 填好 SQ 後執行 C11 release fence；<code>owner_write32()</code> 再執行 sequentially consistent fence，
+經 VFIO region pwrite 寫入 register。本版只驗證 x86_64 QEMU 路徑；這些 fence 不等於跨平台 DMA coherency 保證。
+程式透過 <code>owner_write32()</code> 存取 register；程式不 mmap MSI-X table 保留頁。
+SQ_TAIL 與 DOORBELL 進入 <a href="code/device__toy_vf.c.html#L80"><code>device/toy_vf.c:write_vf()</code></a>，喚醒有界 worker。</p>
+<p><a href="code/device__toy_hw.c.html#L376"><code>device/toy_hw.c:toy_worker()</code></a> 計算 backlog、交給 core 的 logical scheduler，
+再由 <code>service_one()</code> 取 descriptor。最重要的轉折點是 <code>dma()</code>：
+它把 <strong>該 VF 的 PCI device</strong> 傳給 <code>pci_dma_read/write()</code>，所以 QEMU vIOMMU 看到的是該 VF RID。
+若改成 PF 或直接寫 guest RAM，即使 FILL 的 byte pattern 看似正確，隔離契約也已經破壞。</p>
+<p><code>service_one()</code> 保存 descriptor copy、session、epoch、cancel token 與 CQ reservation。
+格式不合法和 epoch 過期不同：舊 epoch 增加 STALE_DESC 並丟棄；非法 opcode/length 產生 BAD_DESC。
+合法 FILL 進入 <code>toy_complete()</code>，先核對 generation 和 gate，才寫 payload。
+跨 4 KiB 邊界時以 page boundary 切成 chunk；若後半段 fault，前半段可能已經寫入。
+軟體不能把 CPU buffer 回填原樣後聲稱 DMA 沒發生。T05 guard-page 變體專門驗證這個差別。</p>
+<h2 id="chapter-3-completion-的發布順序與-eventfd">Completion 的發布順序與 eventfd</h2>
+<p><code>toy_complete()</code> 先編碼 CQ，再分別寫內容和保留 bytes，最後單獨 DMA 寫 phase byte。
+phase 成功後才更新 CQ_TAIL 並呼叫 <code>toy_irq()</code>。<code>toy_irq()</code> 再檢查同一個 gate，
+透過該 VF 的 MSI-X 發通知；guest 的 VFIO 將它接到 owner 註冊的 eventfd。</p>
+<p>tenant 被 eventfd 喚醒後仍要用 acquire load 檢查 CQ phase；IRQ 是提醒，不是 completion 資料。
+程式逐項核對 id、status、length、epoch、CRC、reserved bytes 與 payload guard，
+最後才把 CQ_HEAD 交回裝置，允許它重用 ring slot。</p>
+<p>索引使用 u32 累計 counter，按模 2^32 回繞，實際 array index 才取 <code>counter &amp; (N-1)</code>。
+phase 每圈交替，讓同一個位置的新資料和上一圈不同。
+「只對 index 取模然後比較相等」無法可靠區分 empty、full 與 wrap。
+native ring oracle 另用獨立 Python FIFO 比較跨 UINT32_MAX 的行為，不必真的提交四十多億筆請求。</p>
+<h2 id="chapter-3-fenceflr-與-delayed-completion-的先後關係">FENCE、FLR 與 delayed completion 的先後關係</h2>
+<p><a href="code/device__toy_hw.c.html#L52"><code>device/toy_hw.c:toy_fence()</code></a> 先關 gate，取消 pending work、清除 pending IRQ，
+檢查溢位後才增加 epoch 與 cancel token。同一個非零 fence token 重送時，維持 fence 並取消 pending，
+但不再次增加世代；FLR 則不使用這個重送去重分支。
+不能先 unmap，再希望裝置剛好沒發 DMA。<code>toy_vf_flr()</code> 共用 clear/cancel 邏輯，
+清掉 queue registers，再送 firmware FLR event，使已存在的 VF 進 RECOVERING。</p>
+<p>即使 callback 已排入 timer，執行時也要在真正 payload/CQ DMA 前核對原先的 generation。
+<code>toy_complete()</code> 在第一個資料存取前檢查 <code>same_generation()</code>；不符只增加 STALE_CPL，
+不寫 payload/CQ，也不通知 tenant IRQ。STALE_DESC 與 STALE_CPL 是不同證據，不能互相替代。
+T08 的個別 VM 與完整 M3 回歸已通過；下節以保存的真實輸出追蹤它。</p>
+<p>owner 的 mapping 最後由 <code>owner_unmap()</code> 解除。VFIO_UNMAP 回傳 size 必須等於要求值；
+短 unmap 或失敗會把 memory 留到所有 VFIO fds 都關閉後再清理。
+PF 的 ledger 歸零只能證明 firmware 資源釋放，不能證明 userspace fd、pinned pages 或 child 已退出。</p>
+<h2 id="chapter-3-跟著-t08-的實跑資料逐步-trace">跟著 T08 的實跑資料逐步 trace</h2>
+<p>本節數值來自 <code>artifacts/m3-case/20261013T074144Z-r54944se/</code>，是開發時的一次獨立 PASS。
+每次 run 的 pid、virtual tick 和 healthy VF 完成數可不同，驗證器檢查的是關係與不變條件，
+不要求其他 run 重現同一 pid 或 wall-clock 耗時。</p>
+<h3 id="chapter-3-1-先讓裝置真的持有一筆工作">1. 先讓裝置真的持有一筆工作</h3>
+<p>由 <a href="code/guest__admin__recovery.inc.html#L50"><code>guest/admin/recovery.inc:recovery_handshake()</code></a> 設定 delay-cpl-ticks=60000，
+再讓 <a href="code/guest__tenant__recovery.c.html#L13"><code>guest/tenant/recovery.c:owner_submit_pending()</code></a> 提交 FILL。
+先完成 4096 筆正常 I/O 才注入延遲，避免把初始化與故障觀察混在一起。</p>
+<p>這筆 descriptor 的 id 是 0x708、length 是 8、payload IOVA 是 0x400000、FILL byte 是 0x79。
+SQ_HEAD 變成 4097，CQ_TAIL 仍是 4096，表示裝置已取走工作而尚未發布 completion。
+Host 另從 QMP 讀到 pending-completions=1，不能只靠 tenant 自己的 outstanding 變數。</p>
+<pre><code class="language-text">TOY_PENDING vf=0 epoch=4 token=5 cq_index=4096 due=74704
+</code></pre>
+<p><code>due</code> 是實際 device virtual tick。這筆工作並沒有等到 74704；reset 會取消它，
+測試稍後透過 fault hook 呼叫保存的真實副本，以重現已取消 callback 仍被執行的情境。</p>
+<h3 id="chapter-3-2-管理者停止提交硬體先建立安全邊界">2. 管理者停止提交，硬體先建立安全邊界</h3>
+<p>labd 發 STOP_REQUEST，執行 PF FENCE，核對 STOPPED 的完整 tuple，再要求 RESET。
+不能只核對訊息類型，因為前一代 owner 的 STOPPED/READY 可能晚到。
+<code>guest/tenant/reset.c</code> 的 reset-notice 路徑要求 FENCED readback 與 outstanding=0，
+並重新讀出 16 個已清空的 queue registers。</p>
+<p>此 run 的變化如下：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>階段</th>
+<th style="text-align:right">epoch</th>
+<th>firmware state</th>
+<th style="text-align:right">flags</th>
+<th style="text-align:right">ready_gen</th>
+<th style="text-align:right">reserve</th>
+<th style="text-align:right">outstanding</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>retained work</td>
+<td style="text-align:right">4</td>
+<td>ACTIVE (2)</td>
+<td style="text-align:right">28</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">8</td>
+<td style="text-align:right">1</td>
+</tr>
+<tr>
+<td>recovering</td>
+<td style="text-align:right">5</td>
+<td>RECOVERING (5)</td>
+<td style="text-align:right">13</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">8</td>
+<td style="text-align:right">0</td>
+</tr>
+<tr>
+<td>slow_ready</td>
+<td style="text-align:right">5</td>
+<td>RECOVERING (5)</td>
+<td style="text-align:right">13</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">8</td>
+<td style="text-align:right">0</td>
+</tr>
+<tr>
+<td>fresh_config</td>
+<td style="text-align:right">5</td>
+<td>RECOVERING (5)</td>
+<td style="text-align:right">61</td>
+<td style="text-align:right">2</td>
+<td style="text-align:right">8</td>
+<td style="text-align:right">0</td>
+</tr>
+<tr>
+<td>rearmed</td>
+<td style="text-align:right">5</td>
+<td>ACTIVE (2)</td>
+<td style="text-align:right">28</td>
+<td style="text-align:right">2</td>
+<td style="text-align:right">8</td>
+<td style="text-align:right">0</td>
+</tr>
+</tbody>
+</table></div>
+<p>Flags 應按 <code>include/toy_regs.h</code> 定義解碼，不背十進位數字：FENCED=1、KILLED=2、
+PCI_PRESENT=4、BME=8、CONFIG_VALID=16、READY_PENDING=32。
+因此 61 表示「新 config 已 READY，但仍 FENCED」，28 才是已解除 fence 的有效執行配置。
+這個表同時說明：ready_gen 增加與解除 fence 是兩個不同動作。</p>
+<h3 id="chapter-3-3-舊請求明確取消舊記憶體保留作證">3. 舊請求明確取消，舊記憶體保留作證</h3>
+<p><code>RECOVERY_CANCELLED</code> 記錄 old_epoch=4、new_epoch=5、requests_marked_error=1。
+它不是一筆成功 completion，也不把 completed 從 4096 偷加到 4097。</p>
+<p>owner 先回 HELLO，等待實際 device virtual time 至少走過 200 ticks。
+此時先不送 HELLO_REPLY 授權新配置。這是在 1000-tick READY deadline 內的慢 owner，
+不是把 host sleep 的 200 ms 當作裝置時間。</p>
+<p><a href="code/guest__tenant__recovery.c.html#L43"><code>guest/tenant/recovery.c:owner_retire()</code></a> 要求三個 VFIO UNMAP 都完整返回，
+把舊 CPU allocation 移入 retired 陣列，保留每個 byte 的 guard copy。
+隨後 <code>owner_configure()</code> 配置另一組 CPU memory，在同一 container 重用相同 IOVA。
+驗證器要求兩代 vaddr 不相同。若直接 free 舊 buffer，allocator 可能重用同一位址，
+會失去同時檢查舊、新記憶體的能力。</p>
+<h3 id="chapter-3-4-兩次真正呼叫舊-callback分別跨過-fence-的前後">4. 兩次真正呼叫舊 callback，分別跨過 fence 的前後</h3>
+<p>第一次在 fresh_config、尚未 REARM 時呼叫，第二次在 REARM 後、新 I/O 尚未開始前呼叫：</p>
+<pre><code class="language-text">TOY_STALE_CPL vf=0 old_session=2 live_session=2 old_epoch=4 live_epoch=5 old_token=5 live_token=6 count=1
+TOY_FAULT_ACK property=try-stale-cpl valid=1 ack=5 consumed=1
+TOY_STALE_CPL vf=0 old_session=2 live_session=2 old_epoch=4 live_epoch=5 old_token=5 live_token=6 count=2
+TOY_FAULT_ACK property=try-stale-cpl valid=1 ack=6 consumed=1
+</code></pre>
+<p><code>toy_complete()</code> 先檢查 generation，再檢查 gate，因此這兩次都在世代不符時返回。
+第二次在 gate 已解除後執行，用來確認新 queue 恢復運作時，舊 callback 仍不能寫入。<a href="code/device__toy_pf.c.html#L392"><code>device/toy_pf.c:stale_set()</code></a> 將 retained operation 副本交給
+<a href="code/device__toy_hw.c.html#L215"><code>device/toy_hw.c:toy_complete()</code></a>，不是直接把 STALE_CPL 加一。</p>
+<p>ACK 的 valid=1 指「呼叫前副本有效」，consumed=1 指「callback 已消耗該副本」。
+這兩個時點曾被記成同一個值，導致 B010 的真實 validator FAIL。
+最後 STALE_CPL=2、STALE_DESC=0、DMA_FAULT=0；每次檢查中 eventfd 非阻塞 read
+回 EAGAIN (11)，舊、新 SQ/CQ/payload 的 bytewise guards 均不變。</p>
+<h3 id="chapter-3-5-再證明裝置不是被整台停掉">5. 再證明裝置不是被整台停掉</h3>
+<p>A 新 ring 完成另一批 4096 筆，累計 8192，先前取消的一筆仍單獨計為 error。
+B 在 pending、slow_ready、configured_fenced、fresh_io 四個 checkpoint 的 completed
+分別為 4608、6656、7424、11776，session=2、epoch=4 沒改。
+每批都驗 payload/CRC，並非只看到計數器增加。</p>
+<p>最後先 fence 兩個 owner，再 UNMAP／關閉 VFIO／pidfd reap／釋放 lease／disable VFs。
+全部八個 slot 回 FREE、reserve=0、outstanding=0、lease=0、flags=1。
+這是該次情境的完整成功條件，不包含已移出本版的 hostile remove/crash 全矩陣。</p>
+<h2 id="chapter-3-不啟動-vm-也能先做的三個-trace-練習">不啟動 VM 也能先做的三個 trace 練習</h2>
+<p>這些是閱讀練習，不算新增的 runtime PASS。先寫下答案，再打開原始碼核對：</p>
+<ol>
+<li>在 <a href="code/device__toy_hw.c.html#L215"><code>device/toy_hw.c:toy_complete()</code></a> 找出第一個可能寫 payload 的點。
+沿此前每個 return 分支，說明 old token、fence、BME、bad descriptor 分別在哪裡被拒絕。
+如果只在 SQ fetch 檢查 epoch，延遲 completion 會留下哪個空窗？</li>
+<li>在 <a href="code/guest__tenant__owner.c.html#L231"><code>guest/tenant/owner.c:owner_workload()</code></a> 找出 release、phase acquire、CQ_HEAD 三個位置。
+解釋為何 eventfd 成功讀取後還要 drain CQ，以及 phase 檢查不能搬到讀取 CQ body 之後。</li>
+<li>在 <a href="code/guest__admin__recovery.inc.html#L50"><code>guest/admin/recovery.inc:recovery_handshake()</code></a> 列出所有可能回錯的 handshake 步驟。
+對每一步標出當時誰持有 lease、舊 mapping、新 mapping、pending work。
+說明為何出錯不能一律執行 memset 清 ledger。</li>
+</ol>
+<p>閱讀 completion 時推薦把資料寫成一行：
+<code>owner pid → VF BDF/RID → container/domain → IOVA → session/epoch/token → CQ id/phase</code>。
+任一欄位對不上，就先定位身分、位址或世代，不急著把所有失敗稱作 DMA bug。</p>
+<h2 id="chapter-3-重要實作一把-bytes-安全轉成-descriptor">重要實作一：把 bytes 安全轉成 descriptor</h2>
+<p>打開 <a href="code/fwcore__codec.c.html#L25"><code>fwcore/codec.c:fw_decode_sq()</code></a>。讀法分三步：先將 local struct 清零，再以逐 byte LE helper
+讀固定 offset，最後驗證後才賦值給呼叫者的 <code>out</code>。這讓失敗輸入不會留下半解碼結果。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align:right">SQ offset</th>
+<th style="text-align:right">長度</th>
+<th>欄位</th>
+<th>必要條件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right">0</td>
+<td style="text-align:right">8</td>
+<td>addr</td>
+<td><code>addr &lt;= UINT64_MAX - len</code>，避免範圍相加溢位</td>
+</tr>
+<tr>
+<td style="text-align:right">8</td>
+<td style="text-align:right">4</td>
+<td>len</td>
+<td>1–4096 bytes</td>
+</tr>
+<tr>
+<td style="text-align:right">12 / 13</td>
+<td style="text-align:right">1 / 1</td>
+<td>opcode / flags</td>
+<td>FILL=1 或 CRC32=2；flags=0</td>
+</tr>
+<tr>
+<td style="text-align:right">14</td>
+<td style="text-align:right">2</td>
+<td>id</td>
+<td>識別請求，completion 必須核對</td>
+</tr>
+<tr>
+<td style="text-align:right">16</td>
+<td style="text-align:right">8</td>
+<td>epoch</td>
+<td>parser 只解碼；裝置另比對 live epoch</td>
+</tr>
+<tr>
+<td style="text-align:right">24</td>
+<td style="text-align:right">8</td>
+<td>arg</td>
+<td>FILL pattern 等操作參數</td>
+</tr>
+</tbody>
+</table></div>
+<p>不要把 bytes cast 成 packed struct：即使 x86 允許部分 unaligned access，也會把 layout 與 endianness
+假設散落到各層。逐欄解碼較容易在 native fuzz、QEMU、UEFI 重用。</p>
+<p><a href="code/fwcore__codec.c.html#L81"><code>fwcore/codec.c:fw_queue_validate()</code></a> 再檢查 N=16..256 且為 2 的次方、SQ/CQ 相同大小、64-byte 對齊、
+session/epoch 相符、加法不溢位、兩段範圍不重疊。Descriptor 正確不等於 ring configuration 正確，兩層都要驗證。</p>
+<h2 id="chapter-3-重要實作二有表格也要有-guard-的-fsm">重要實作二：有表格也要有 guard 的 FSM</h2>
+<p>沿 <a href="code/fwcore__fsm.c.html#L28"><code>fwcore/fsm.c:fw_transition()</code></a> 讀：</p>
+<ol>
+<li>在 <code>edges</code> 找 <code>(current state, event)</code>。找不到時，在任何 HAL 呼叫之前回 FW_STATE。</li>
+<li>取得硬體 snapshot，要求 fenced；需要新 deadline 時以 checked arithmetic 計算。</li>
+<li>依 event 檢查條件。例如 RELEASE_OK 必須 PCI 不存在、config/outstanding 清除、owners_closed 為真。</li>
+<li>只有能釋放時才扣 ledger；失敗的 release 進 FAILED，保留 reserve。</li>
+<li>最後寫入 epoch、deadline、state，輸出 transition log。</li>
+</ol>
+<p><code>READY_REARM</code> 另由 <code>fw_vf_event()</code> 導向 rearm helper，所以不能只看 edges 就認為所有轉移都走同一 switch。
+Native tests 不只數合法邊，還驗非法事件後整份 context 不變；HAL side effects 則另受 adapter 契約與測試約束。</p>
+<h3 id="chapter-3-手算一次-admission-與-quota">手算一次 admission 與 quota</h3>
+<p>搭配 <a href="code/fwcore__admission.c.html#L5"><code>fwcore/admission.c:fw_create()</code></a> 閱讀：先驗 VF 範圍與 reserve=1..64，
+再要求 FREE、fenced、未 killed，且沒有 PCI function、live config 或 outstanding work。
+所有檢查成功後，才一起更新 state、reserve、epoch 與三個 resource counters。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>資源</th>
+<th>每個 VF 取得</th>
+<th>上限與 admission 檢查</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Queue</td>
+<td>1</td>
+<td>現有 used_queues 必須小於 8</td>
+</tr>
+<tr>
+<td>Vector</td>
+<td>2</td>
+<td>現有 used_vectors 必須不大於 14，新增後最多 16</td>
+</tr>
+<tr>
+<td>Credit</td>
+<td>要求的 reserve</td>
+<td>先確認 reserve 合法，再要求 used_credit ≤ 64 − reserve</td>
+</tr>
+</tbody>
+</table></div>
+<p>例如四個 VF 各 reserve=8，ledger 為 4 queues、8 vectors、32 credits。
+把其中一個 reserve 從 8 改為 16，<code>fw_set_reserve()</code> 先檢查可安全相減，再算
+remaining=32−8=24，最後確認 24≤64−16，才寫回 used_credit=40。
+這個操作還要求 ACTIVE/RECOVERING、fenced、無 outstanding 且未 killed；有 quota 不代表可隨時修改。</p>
+<p>用「上限減需求」檢查，比先做可能溢位的加法再判斷更清楚；但減法本身也必須先驗需求不超過上限。
+回收則沿 <code>fw_transition()</code> 的 RELEASE_OK／ABORT_OK 檢查 ownership 後扣帳。
+若 release 失敗而保留 reserve，下次 admission 仍會計入它，避免同一份資源被重複分配。
+這些數值是由當前程式推導的手算例子；執行證據仍讀 M0 oracle 和 T02 的實跑結果。</p>
+<h2 id="chapter-3-重要實作三重送與-exactly-once-的邊界">重要實作三：重送與 exactly-once 的邊界</h2>
+<p><a href="code/fwcore__mailbox.c.html#L87"><code>fwcore/mailbox.c:fw_handle_mailbox()</code></a> 先驗非零 seq 與 live session。
+如果 seq 等於最近已接受的 seq，必須比較完整 opcode、target、args；相同才回 cached reply，
+不同則 SEQ_CONFLICT。比最後 seq 舊的請求回 STALE_SEQ。這是「單一 outstanding、最後一筆 cache」
+的去重設計，不是無限歷史的分散式 exactly-once 系統。</p>
+<p>PF 的 <code>toy_mailbox_status()</code> 寫欄位後 SUBMIT，再同時檢查 DONE 與 ACK_SEQ；單靠 IRQ 到達不能判斷
+是這筆回覆。若裝置回 IDLE 且允許 retry，就重送相同 staging request，不重新做 fence 或增加 sequence。
+讀者可以把「同 key 同內容」「同 key 不同內容」「舊 key」「新 session」列成四格，逐一找到 return 分支。</p>
+<h2 id="chapter-3-重要實作四logical-scheduler-與效能的區別">重要實作四：logical scheduler 與效能的區別</h2>
+<p><a href="code/fwcore__scheduler.c.html#L4"><code>fwcore/scheduler.c:fw_schedule_round()</code></a> 每輪最多分配 64 credits。先篩 ACTIVE、unfenced、非 killed、
+BME、config_valid、沒有 delayed outstanding 的 VF，給 <code>min(reserve, backlog)</code> 基本配額；
+剩餘以 reserve 作權重分配，先取整數，再依餘數補足，相同餘數用 round 做輪替。
+需求較少的 VF 先封頂，再重算其他 VF 的份額；迴圈由八個 VF 的固定上限限制。</p>
+<p>所有 serviced counter 先驗溢位，再一起 commit，避免半數已加、後半數失敗。
+這些測試核對 logical work allocation 的規則，不能拿 credits 或 TCG wall time 當成實體裝置 bandwidth／P99。
+這段邏輯由 M0 native scheduler 測試覆蓋；不包含實體裝置的 QoS 壓力或效能驗證。</p>
+<h2 id="chapter-3-重要實作五為何-sq-index-不等於-cq-index">重要實作五：為何 SQ index 不等於 CQ index</h2>
+<p>這個缺陷位於 <a href="code/guest__tenant__owner.c.html#L231"><code>guest/tenant/owner.c:owner_workload()</code></a>。
+例：SQ tail=6、CQ head=5，表示先前有一筆 stale SQ 被 consume，但沒有產生 CQ。
+下一筆請求寫 SQ slot 6，也把 payload 放在 slot 6 對應的區段；completion 卻會寫 CQ slot 5。
+若用 CQ index 找 payload，就會核對到別筆 buffer。</p>
+<p>修正後兩個索引分開計算：</p>
+<pre><code class="language-c">/* CQ entry 依完成游標定位。 */
+uint32_t cq_index = lab_ring_index(o-&gt;cq_head, o-&gt;entries);
+/* Payload 依原提交游標定位；CQ id 另行核對。 */
+uint32_t payload_index = lab_ring_index(start + received, o-&gt;entries);
+</code></pre>
+<p>這是為閱讀整理的等價片段，實際變數名與 guard 以可點擊源碼為準。
+<code>tests/guest/test_owner_workload.c</code> 執行真實 workload 函式，以模擬的 pread/pwrite device boundary
+回覆 CQ；分別測正常游標、相差一筆、跨 UINT32_MAX，N=16/32/64/128/256 共 15 組。
+這是 native regression；T03/T09 和完整 M3 另驗 guest 路徑。</p>
+<h2 id="chapter-3-重要實作六linux-driver-的-uapi鎖與中斷">重要實作六：Linux driver 的 UAPI、鎖與中斷</h2>
+<p>先打開 <a href="code/guest__pf__toy_control.inc.html">PF control 實作</a>，由 <code>toy_fops</code> 找到
+<code>toy_ioctl()</code> → <code>toy_control_ioctl()</code> → <code>toy_execute_ctl()</code>。這份 .inc 被
+<code>guest/pf/toy_pf.c</code> 納入同一編譯單元，不是另一個 kernel module。</p>
+<p>一筆 REARM 的閱讀順序：</p>
+<ol>
+<li><code>file-&gt;private_data</code> 取得本次 open 的 <code>toy_file</code>，再取得共同的 <code>toy_pf</code>。</li>
+<li>取得 <code>admin_mutex</code> 並檢查 <code>dying</code>；若裝置已移除，返回 ENODEV，不再讀 BAR。</li>
+<li><code>copy_from_user</code> 只複製到 kernel local value。檢查 size、ABI major/minor、reserved=0、
+VF 範圍與 command-specific flags，避免直接信任 userspace struct。</li>
+<li><code>operation</code> 做 per-open replay 檢查：相同 operation 必須 command 和完整 request 相同；
+舊 operation 拒絕。同一個 fd 的 cached result 和 firmware mailbox cache 是不同層。</li>
+<li>核對 live session/epoch、lease owner/token、ready_gen，以及 FENCED、CONFIG_VALID、BME、
+READY_PENDING 和 outstanding=0。每個條件回答不同問題，不能只檢查「enabled」。</li>
+<li>發 mailbox REARM，再讀回 ACTIVE、config、epoch、fence/kill。回覆成功仍需驗證硬體後置條件。</li>
+<li>保存結果再 <code>copy_to_user</code>。即使最後 copy 失敗，已執行的操作不能當作未發生；保留 cache
+讓同一 operation 可取回原結果，避免重做副作用。</li>
+</ol>
+<p>這是原始碼行為的解釋；本版整合覆蓋仍以 T01–T10 的實際 case 為準，不表示每種 EFAULT 時序都已注入。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>同步機制</th>
+<th>保護什麼</th>
+<th>讀碼時檢查什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>admin_mutex</code></td>
+<td>PF 管理交易、lease、files list、共同 snapshot</td>
+<td>管理操作序列化；不能在持有它時等待需要同一把鎖的 worker</td>
+</tr>
+<tr>
+<td><code>mbx_mutex</code></td>
+<td>一次 outstanding mailbox request</td>
+<td>管理路徑按 admin → mailbox 順序，不反向取得</td>
+</tr>
+<tr>
+<td><code>event_lock</code></td>
+<td>每個 open 的 event ring、count、lost</td>
+<td>spinlock 內只做短操作；不包住可能 fault/sleep 的 copy_to_user</td>
+</tr>
+<tr>
+<td><code>read_mutex</code></td>
+<td>同一 fd 的讀者與暫存 event</td>
+<td>copy_to_user 失敗保留 stash，下一次 read 仍能取回</td>
+</tr>
+<tr>
+<td><code>kref</code></td>
+<td><code>toy_pf</code> 記憶體壽命</td>
+<td>open 增加引用、release 減少；與裝置是否可 MMIO 是兩件事</td>
+</tr>
+</tbody>
+</table></div>
+<p>接著讀 <a href="code/guest__pf__toy_pf.c.html#L296"><code>guest/pf/toy_pf.c:toy_irq()</code></a>。IRQ handler 讀 cause、ACK，對 mailbox 呼叫
+<code>complete()</code>，將其他事件累積後排入 workqueue；它不取得會睡眠的管理 mutex。
+<code>toy_notify_work()</code> 在可睡眠的 context 取得 admin_mutex，擷取一致快照，再發布 event。
+因此「IRQ 喚醒」與「查詢完整狀態」被分成不同 context，面試時應說得出各自允許做的事。</p>
+<p>最後讀 <code>toy_read_file()</code>：先 wait_event，短暫取得 event_lock 將一筆資料搬到 stash，
+放開 spinlock 後才 copy_to_user。若 event ring 滿，記錄 lost count，之後明確回 LOST_EVENTS，
+不把資訊遺失偽裝成完整事件序列。這個通知機制提醒管理者重新讀取 authoritative snapshot。</p>
+<h2 id="chapter-3-重要實作七probe-失敗的反向回收">重要實作七：probe 失敗的反向回收</h2>
+<p>從 <a href="code/guest__pf__toy_pf.c.html#L622"><code>guest/pf/toy_pf.c:toy_probe()</code></a> 把取得資源的順序寫下來，再沿 goto label 反向核對：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>取得資源</th>
+<th>出錯後對應處理</th>
+<th>為何順序重要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>context／kref</td>
+<td>最後 kref_put</td>
+<td>IRQ/work/fd 若仍會使用 context，不能提早 free</td>
+</tr>
+<tr>
+<td>pci_enable_device_mem</td>
+<td>pci_disable_device</td>
+<td>先停用裝置存取及回收上層資源</td>
+</tr>
+<tr>
+<td>pci_request_regions</td>
+<td>pci_release_regions</td>
+<td>先解除 BAR mapping 才歸還 region ownership</td>
+</tr>
+<tr>
+<td>pci_iomap</td>
+<td>pci_iounmap</td>
+<td>IRQ/work 已停止後才能讓 BAR pointer 失效</td>
+</tr>
+<tr>
+<td>MSI-X vectors、已成功 request 的 IRQ</td>
+<td>free_irq、pci_free_irq_vectors</td>
+<td>用 irq_count 回收已取得的部分，不假設兩個 IRQ 都成功</td>
+</tr>
+<tr>
+<td>workqueue callback</td>
+<td>cancel_work_sync</td>
+<td>舊 worker 不得在 context/BAR 釋放後執行</td>
+</tr>
+<tr>
+<td>BME、driver data、misc device</td>
+<td>fence／clear master／移除入口</td>
+<td>阻止新的操作進入正在拆除的裝置</td>
+</tr>
+</tbody>
+</table></div>
+<p>T02 在真實 probe、owner setup 和 PCI enumeration 路徑注入失敗，驗證回收與可重試狀態。
+對失敗保留 quota 的情況，正確結果是隔離並呈現 FAILED；不是讓所有計數無條件變成零。
+先理解這套取得／釋放配對，再讀 <code>toy_remove()</code> 的停止入口、同步 IRQ/work、引用釋放。
+本版不宣稱已完成 hostile hot-remove 與所有同時持有 fd 的時序矩陣。</p>
+<h2 id="chapter-3-build-與測試工具也要-trace">Build 與測試工具也要 trace</h2>
+<p>從 <code>tools/verify_project.py</code> 讀 stage 清單，再跟到各 builder；每個 stage 保存 command／log／exit code。
+它先記所有受測輸入 hash，完成後再比對，避免執行到一半改程式卻仍沿用 PASS。
+<code>tools/verify_core.py</code> 記錄當時 core inputs、binary hashes、build stamp hash 和 raw evidence hashes；
+<code>tools/verify_m0.py</code> 在 reuse 時核對這些關係。只有「目前 build 符合目前 source」不夠，
+還必須證明「這個 PASS 的確測過這個 build」。</p>
+<p>證據管道本身也要 trace。<code>guest/init</code> 將測試 stdin/stdout 指到 UART1，kernel console 留在 UART0。
+沿 <a href="code/guest__tenant__m1_spike.c.html#L44"><code>guest/tenant/m1_spike.c:host_checkpoint()</code></a>，確認等待 ACK 的 fd 也來自同一條協定 UART，
+而不是重新開啟 <code>/dev/console</code>；後者仍指向核心 console，會讓事件送得出去、回覆卻永遠讀不到。
+它先設 raw/noecho，再送 WAITING，逐 byte 核對 token，成功／失敗都恢復 termios。
+<code>tools/run_uefi.py:read_uefi_output()</code> 則分別讀取 firmware/kernel 與測試日誌，檢查後才組合成解析輸入。
+這條路徑對應 B020 的兩次實際失敗：先是 JSON 被 printk 切斷，再是搬移 UART 後 ACK 讀錯端點。</p>
+<p>UEFI 路徑可從 <code>uefi/SriovFwPkg/SriovProbe.c</code> 找 <code>UefiMain</code>，依序追 core selftest、PCI capability probe、
+mailbox version，再看 EFI-stub handoff；實際檔名與入口若需要快速定位，用
+<code>grep -n 'UefiMain' uefi/SriovFwPkg/*.c</code>。詳見 <a href="UEFI.md">UEFI.md</a> 的 CODE/VARS、PCD 與 BAR API 語意。</p>
+<h2 id="chapter-3-面試時用這條閱讀路徑回答而非背-api-名稱">面試時用這條閱讀路徑回答，而非背 API 名稱</h2>
+<p>先說需求：「我必須在兩個 VF 同時使用相同 IOVA 時，證明裝置只改到各自的 buffer。」
+接著說設計：「tenant 各自擁有 viable group/container；裝置每筆 DMA 都帶實際 VF requester。」
+再指出程式位置：「從 owner_workload 追到 service_one，再進 dma 的 PCI helper。」
+最後拿證據：「T04 比較兩個 owner 的整個 buffer 與 RID；T05 讓 A 不映射該 IOVA，
+B 仍映射它，實際觀察 A fault 與 B 的正確進度。」</p>
+<p>遇到 reset 問題則先說時間順序與所有權，再列函式。
+以 B001 為例，所有 API 都可以成功返回，整個流程仍會因串行等待跨越 deadline 而失敗。
+這正是需要狀態圖、時序圖、raw log 與回歸測試一起判斷的原因。</p>
+</section><section id="chapter-4"><h1 id="chapter-4-demo-操作手冊隔離reset-與測試證據">DEMO 操作手冊：隔離、reset 與測試證據</h1>
+<p>這份手冊用三個展示回答三件事：四個 VF 是否真的各有 VFIO domain、reset 是否影響其他 VF，
+以及相同 IOVA 是否仍能保持資料隔離。所有命令都在 <strong>WSL 的 repository 根目錄</strong>執行。
+正常使用不需要手動登入 guest，也不需要在 WSL 載入 driver。</p>
+<h2 id="chapter-4-1-展示前準備">1. 展示前準備</h2>
+<p>先完成 <a href="#chapter-0">建置教學</a> 的完整驗收。首次建立 kernel 可能耗時較久，
+面試當天只啟動已建好的 VM。</p>
+<p>PowerShell：</p>
+<pre><code class="language-powershell">wsl -d Ubuntu-26.04
+</code></pre>
+<p>進入 WSL 後：</p>
+<pre><code class="language-sh">cd &quot;$HOME/src/sriov-fw-lab&quot;
+make env-check
+</code></pre>
+<p>確認目前已有完整結果：</p>
+<pre><code class="language-sh">python3 - &lt;&lt;'PY'
+import json
+from pathlib import Path
+
+pointer = json.loads(Path('artifacts/project-latest.json').read_text())
+report = Path(pointer['path']) / 'result.json'
+result = json.loads(report.read_text())
+print('完整驗收：', report)
+print('狀態：', result['status'])
+print('範圍：', result['scope'])
+print('空 build 起跑：', result['build_started_empty'])
+for step in result['steps']:
+    print(step['id'], step['status'])
+assert pointer['status'] == result['status'] == 'PASS'
+assert all(step['status'] == 'PASS' for step in result['steps'])
+PY
+</code></pre>
+<p>若指標不存在，回建置教學執行 <code>make verify-project JOBS=2</code>。
+若最近改過 source，先重建並重驗；這段只是讀報告，沒有替新版本重新跑測試。</p>
+<p>準備兩個 WSL terminal：A 執行測試，B 讀程式和結果。兩個 terminal 都先 cd 到 repository，
+不要在 B 另外啟動一台 VM。接上電源並保留足夠 RAM；正常 guest 使用 1536 MiB，KASAN 使用 2048 MiB。</p>
+<h2 id="chapter-4-2-demo-a四個-vf-與完整回收">2. DEMO A：四個 VF 與完整回收</h2>
+<h3 id="chapter-4-執行">執行</h3>
+<p>在 terminal A：</p>
+<pre><code class="language-sh">make demo
+</code></pre>
+<p>這個命令直接啟動 stress guest，執行 M1：
+檢查 PF/VF capabilities、四個獨立 group/container、真實 MAP/UNMAP，
+先 warm-up，再做 100 次 enable/disable。輸出會收進 artifacts，終端暫時安靜是正常的。</p>
+<h3 id="chapter-4-讀取這一次的結果">讀取這一次的結果</h3>
+<p>等命令返回後，在同一 terminal：</p>
+<pre><code class="language-sh">python3 - &lt;&lt;'PY'
+import json
+from pathlib import Path
+
+pointer = json.loads(Path('artifacts/m1-latest.json').read_text())
+directory = Path(pointer['path'])
+result = json.loads((directory / 'result.json').read_text())
+print('本次目錄：', directory)
+print('整體：', result['status'])
+for case in result['cases']:
+    print(case['id'], json.dumps(case, ensure_ascii=False))
+print('Host 檢查：', result['host_checkpoints'])
+print('核心異常：', result['unexpected_kernel_reports'])
+print('錯誤：', result.get('error', '無'))
+assert pointer['status'] == result['status'] == 'PASS'
+PY
+</code></pre>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>欄位</th>
+<th>成功時要看什麼</th>
+<th>面試時如何解釋</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>M1_CAPS</code></td>
+<td>四個 VF、各自 requester、PF/VF capabilities 完整</td>
+<td>PCI function 存在只是第一步</td>
+</tr>
+<tr>
+<td><code>M1_GROUPS</code></td>
+<td>四個 group，各只有對應 VF，PF 不混在其中</td>
+<td>檢查實際 group 成員</td>
+</tr>
+<tr>
+<td><code>M1_TYPE1</code></td>
+<td>四個同時存在的 container、exact UNMAP、剩餘 fd/maps 為零</td>
+<td>真正走過 VFIO 操作</td>
+</tr>
+<tr>
+<td>M1 報告的 <code>T01</code></td>
+<td>100 cycles、VF/fd/map/ledger 回零</td>
+<td>這是 M1 enumeration loop；M3 的 T01 另外涵蓋完整 tenant lifecycle</td>
+</tr>
+<tr>
+<td><code>host_checkpoints</code></td>
+<td>warm-up 後 initial/final inventory hash 一致</td>
+<td>排除首次 requester cache 後，檢查是否持續成長</td>
+</tr>
+<tr>
+<td><code>unexpected_kernel_reports</code></td>
+<td>空陣列</td>
+<td>已檢查該次 guest 核心診斷</td>
+</tr>
+</tbody>
+</table></div>
+<p>簡短講法：「我不只看 lspci 出現四個 VF；我會打開四個 VFIO container，實際映射、解除映射，
+再比對多次 enable/disable 後的裝置與程序資源。」</p>
+<h2 id="chapter-4-3-demo-b有未完成工作的-vf-reset">3. DEMO B：有未完成工作的 VF reset</h2>
+<h3 id="chapter-4-執行-1">執行</h3>
+<pre><code class="language-sh">make demo-reset
+</code></pre>
+<p>這個入口執行 T07。它先檢查目前 build 對應的 M1/M2 證據，驗 native logical deadlines，
+再啟動 KASAN guest。案例讓 VF A 保留一筆 delayed work，執行 reset/reconfigure/rearm，
+並確認 VF B 仍持續處理工作。</p>
+<h3 id="chapter-4-找-aggregate-與真正的-vm-目錄">找 aggregate 與真正的 VM 目錄</h3>
+<pre><code class="language-sh">python3 - &lt;&lt;'PY'
+import json
+from pathlib import Path
+
+pointer = json.loads(Path('artifacts/t07-latest.json').read_text())
+aggregate_dir = Path(pointer['path'])
+aggregate = json.loads((aggregate_dir / 'result.json').read_text())
+print('T07 aggregate：', aggregate_dir)
+print('狀態：', aggregate['status'])
+print('錯誤：', aggregate.get('error', '無'))
+assert pointer['status'] == aggregate['status'] == 'PASS'
+
+vm_dir = Path(aggregate['path'])
+vm = json.loads((vm_dir / 'result.json').read_text())
+print('VM 原始紀錄：', vm_dir)
+print('Case：', vm['cases'])
+print('核心異常：', vm['unexpected_kernel_reports'])
+for filename in ('reset-generations.json', 'healthy-progress.json'):
+    print('\n' + filename)
+    for row in json.loads((vm_dir / filename).read_text()):
+        print(json.dumps(row, ensure_ascii=False))
+PY
+</code></pre>
+<p>按照 <a href="#chapter-1-%E6%8E%A7%E5%88%B6%E6%99%82%E5%BA%8F%E6%9C%89%E6%9C%AA%E5%AE%8C%E6%88%90%E8%AB%8B%E6%B1%82%E7%9A%84-reset">reset 時序圖</a> 解釋四個觀察點：</p>
+<ol>
+<li><strong>Reset 前</strong>：<code>pending_at_reset=1</code>，證明當時真的有未完成工作。</li>
+<li><strong>Reset 後、READY 前</strong>：VF A 留在 RECOVERING/fenced；沒有因 timeout 尚未到就提早放行 DMA。</li>
+<li><strong>重新配置後</strong>：epoch/ready_gen 符合新 queue，REARM 後才回到可工作狀態。</li>
+<li><strong>另一個 VF</strong>：healthy progress 的 completed 增加，session/epoch/lease 維持該 owner 的一致性。</li>
+</ol>
+<p><code>guard-digests.json</code> 保存舊、新 SQ/CQ/payload 的檢查；<code>delayed-callbacks.json</code> 保存相關 counters。
+數字會依執行時序變化，不應背誦某次 PID 或 completed 值。真正的成功條件由 validator 檢查跨紀錄的關係。</p>
+<p>報告的 <code>m3_status=NOT_RUN</code> 表示單獨 T07 不替整套 M3 驗收，並不是 T07 失敗。
+本次 T07 的結果應讀自己的 <code>status</code>；完整結果仍在 <code>project-latest.json</code>。</p>
+<h2 id="chapter-4-4-demo-c兩個-vf-使用相同-iova">4. DEMO C：兩個 VF 使用相同 IOVA</h2>
+<p>時間足夠時執行：</p>
+<pre><code class="language-sh">make verify-t04
+</code></pre>
+<p>它在 N=16、32、256 三種 ring size 啟動獨立 VM，各驗兩個 domain。
+用以下程式取得每個 variant 的實際目錄：</p>
+<pre><code class="language-sh">python3 - &lt;&lt;'PY'
+import json
+from pathlib import Path
+
+pointer = json.loads(Path('artifacts/t04-latest.json').read_text())
+directory = Path(pointer['path'])
+result = json.loads((directory / 'result.json').read_text())
+print('T04：', directory, result['status'])
+assert pointer['status'] == result['status'] == 'PASS'
+for variant in result['variants']:
+    print('N =', variant['entries'], 'VM =', variant['path'])
+    print(json.dumps(variant['validation'], ensure_ascii=False, indent=2))
+PY
+</code></pre>
+<p>先在白板畫 A/B 各自的 container/domain，再畫兩條同名的 IOVA <code>0x400000</code>。
+相同數字透過不同 requester/domain 轉譯，指向不同 owner 的 pages。
+報告要同時看到兩邊的實際工作、完整 buffer 比對與 requester 證據。</p>
+<p>若面試官追問「A 存取未映射位址會怎樣」，用 T05 的已保存結果接續說明；
+<code>make verify-t05</code> 會跑六種 fault，包含 WRITE-only 實驗所需的 toy-only kernel patch。
+不要把 T04 的正常隔離測試誤說成所有錯誤權限測試。</p>
+<h2 id="chapter-4-5-十分鐘展示安排">5. 十分鐘展示安排</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>時間</th>
+<th>操作</th>
+<th>要說清楚的問題</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0:00–1:30</td>
+<td><a href="#chapter-5">90 秒介紹</a></td>
+<td>為何用簡單 FILL/CRC32 workload 研究隔離與生命週期</td>
+</tr>
+<tr>
+<td>1:30–3:00</td>
+<td>開架構與 I/O 時序圖</td>
+<td>Windows、WSL/QEMU、guest kernel/userspace 各在哪裡</td>
+</tr>
+<tr>
+<td>3:00–5:00</td>
+<td>執行 DEMO B，查看結果</td>
+<td>先 fence/cancel，再撤映射；其他 VF 如何繼續工作</td>
+</tr>
+<tr>
+<td>5:00–7:00</td>
+<td>點 <code>owner_workload</code> 和 <code>toy_complete</code> 源碼</td>
+<td>SQ/CQ 索引、generation guard、CQ phase 發布</td>
+</tr>
+<tr>
+<td>7:00–9:00</td>
+<td>說明 B018 或 B020</td>
+<td>症狀、錯誤假設、修正、回歸證據</td>
+</tr>
+<tr>
+<td>9:00–10:00</td>
+<td>展示驗證表與限制</td>
+<td>測到哪些路徑，哪些結論不能外推到實體硬體</td>
+</tr>
+</tbody>
+</table></div>
+<p>先在自己的筆電練一次，記下實際 DEMO 耗時。表中的時間是講解安排，不是 TCG 執行時間保證。
+如果時間有限，只跑 T07；其餘展示已保存且版本可核對的結果。</p>
+<h2 id="chapter-4-6-現場出錯時的處理">6. 現場出錯時的處理</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>情況</th>
+<th>下一步</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Current-binary M1 prerequisite unavailable</code></td>
+<td>檢查 build 是否改過；回到完整驗收入口，不修改 result 讓它通過</td>
+</tr>
+<tr>
+<td>找不到 kernel/initramfs</td>
+<td>先依建置章完成 build；demo 不會自動建立整套依賴</td>
+</tr>
+<tr>
+<td>等很久但終端沒輸出</td>
+<td>在 B 查看最新 case 的 log 與程序；不要重複啟動 VM</td>
+</tr>
+<tr>
+<td>出現 FAIL</td>
+<td>先讀 aggregate 的 error，再追失敗子項目，不只看 make 的 Error 2</td>
+</tr>
+<tr>
+<td>QEMU 結束碼是 1，但報告 PASS</td>
+<td>本專案用 isa-debug-exit，guest 成功值 0 會轉為 QEMU exit 1；以 controller 的完整判斷為準</td>
+</tr>
+<tr>
+<td>kernel.log 出現 warning/KASAN</td>
+<td>保存該次紀錄，說明中止原因；不能只展示 guest 的 PASS 字串</td>
+</tr>
+<tr>
+<td>中途 Ctrl+C</td>
+<td>保存中斷紀錄，等程序停止後再重跑；沒有完整結果就不算通過</td>
+</tr>
+</tbody>
+</table></div>
+<p>測試的正常結束路徑會清理 guest 內的 owner、fd、mapping 和 VF，QEMU 隨後退出。
+正常 demo 結束不必執行 clean-build；那會刪除下次展示要用的建置產物。</p>
+</section><section id="chapter-5"><h1 id="chapter-5-面試介紹用證據解釋-sr-iov-的隔離與生命週期">面試介紹：用證據解釋 SR-IOV 的隔離與生命週期</h1>
+<p>目標職缺是 Linux kernel／driver／虛擬化工程師。專案涵蓋 M0–M3／T01–T10，
+以 PCI 裝置、VFIO、DMA、中斷與資源生命週期為主軸。
+講解時以 <a href="#chapter-7">VALIDATION.md</a> 的實跑範圍為準，不說「沒有任何 BUG」。</p>
+<h2 id="chapter-5-90-秒版本">90 秒版本</h2>
+<p>我做的是一個可在 16 GB Windows 筆電的 WSL2 執行的 SR-IOV 教學平台。
+QEMU 模擬一個最多支援八個 VF 的 PCIe 加速器，guest Linux 的 PF driver 負責管理，
+不同 tenant 透過 classic VFIO 使用各自的 VF。資料工作是 FILL 和 CRC32，
+因此可以把重點放在位址隔離、重置時序及資源所有權。</p>
+<p>我把問題拆成三部分：IOMMU 決定 requester 可以碰哪個位址；PF-only fence
+決定裝置現在能否 DMA；session、epoch、cancel token 決定 callback 是否還屬於這一代。
+這三種保護不能互相取代。控制面則由 portable C core 管理 VF 生命週期的 FSM 和資源 ledger，
+Linux driver 管理 host transaction、lease、IRQ 與 fd lifetime。</p>
+<p>我用真實 VFIO MAP／UNMAP、VF requester DMA、整個 buffer 的檢查及故障注入驗證行為。
+例如兩個 VF 使用相同數字 IOVA，A 沒有映射時必須 fault，B 仍能完成正確工作。
+另一個實際問題是四個 owner 串行關閉，讓最早 close 的 VF 等到 READY timeout；
+我修正停止與等待的安排，保留原來的 deadline，再以 100 輪測試確認資源回到基線。</p>
+<p>這是軟體裝置模型，沒有實體板卡效能或硬體功耗的結論。驗證結果保存了
+原始紀錄和版本雜湊，並提供清空 build 後重新建置與驗證的命令。</p>
+<h2 id="chapter-5-五分鐘版本每段回答一個工程問題">五分鐘版本：每段回答一個工程問題</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>時間</th>
+<th>問題</th>
+<th>展示內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0:00–0:45</td>
+<td>為何需要這個系統？</td>
+<td>在一般筆電重現隔離、VF lifecycle、DMA fault，讓錯誤可觀察、可重播</td>
+</tr>
+<tr>
+<td>0:45–1:30</td>
+<td>誰擁有什麼？</td>
+<td>架構圖；core 擁有 ledger/FSM；PF 擁有控制序列；tenant 擁有 VFIO fd/mapping</td>
+</tr>
+<tr>
+<td>1:30–2:20</td>
+<td>一筆請求怎麼走？</td>
+<td>SQ → VF requester → IOMMU → payload → CQ phase → MSI-X/eventfd</td>
+</tr>
+<tr>
+<td>2:20–3:20</td>
+<td>reset 為什麼難？</td>
+<td>fence/readback、cancel/drain、舊 owner UNMAP、新 CONFIG/READY/REARM 的時序</td>
+</tr>
+<tr>
+<td>3:20–4:20</td>
+<td>怎麼知道沒有假通過？</td>
+<td>同 IOVA 的兩個 domain、guard、故障 RID、healthy VF 進度、raw log 再解析</td>
+</tr>
+<tr>
+<td>4:20–5:00</td>
+<td>找到什麼 BUG？</td>
+<td>B001 串行 close 的 deadline 問題，或 B002 requested flags 與有效權限不同</td>
+</tr>
+</tbody>
+</table></div>
+<p>不要先列所有 API。先指出一個必須維持的條件，再給設計、程式位置、反例與證據。
+若面試官追問「完整做到哪裡」，直接打開本版需求與實測表，說明刪減的範圍和原因。</p>
+<h2 id="chapter-5-系統分析把需求轉成可檢查的條件">系統分析：把需求轉成可檢查的條件</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>需求</th>
+<th>設計決定</th>
+<th>故障時必須觀察什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>VF A 不能碰 VF B 的 memory</td>
+<td>每 VF 獨立 viable group/container；DMA 使用該 VF PCI requester</td>
+<td>A fault、B guard 不變；不能只檢查 map flags</td>
+</tr>
+<tr>
+<td>reset 後不能讓舊工作完成到新 ring</td>
+<td>關 gate、advance generation、取消 retained work；callback 最後再次核對</td>
+<td>舊 callback 確實執行但被丟棄；新舊 buffer/CQ/IRQ 均需檢查</td>
+</tr>
+<tr>
+<td>失敗時不能假裝資源已釋放</td>
+<td>FAILED 保留 reserve；driver 確認 owner 關閉、core 確認硬體清理條件後才釋放 ledger</td>
+<td>reserve、outstanding、lease、PCI presence、fd/process 都需收斂</td>
+</tr>
+<tr>
+<td>timeout 仍可停止 DMA</td>
+<td>硬體 fence register 不依賴 firmware mailbox worker</td>
+<td>readback 確認；mailbox timeout 本身不等於成功停止</td>
+</tr>
+<tr>
+<td>重送不能重複副作用</td>
+<td>session + sequence + 逐欄比較完整 request + reply cache</td>
+<td>原回覆重現、resource count 不增加、內容衝突被拒</td>
+</tr>
+<tr>
+<td>筆電可重跑</td>
+<td>JOBS=2、一個 guest、TCG 必要、來源/patch/config/build hash</td>
+<td>失敗 exit code、timeout、缺 log 不得轉 PASS</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="chapter-5-kernel-職缺的講解順序">Kernel 職缺的講解順序</h2>
+<p>如果面試官關心的是 kernel 開發，先用兩分鐘說明 PF driver，再展開整個系統：</p>
+<ol>
+<li><strong>Probe 與 unwind</strong>：畫出 BAR、IRQ、misc device 的取得順序，挑第二個 IRQ 註冊失敗說明反向回收。</li>
+<li><strong>UAPI 與 ownership</strong>：從 open file context 說明 lease、ioctl header、replay cache，解釋為何不能只拿 PID 當 owner。</li>
+<li><strong>IRQ 與同步</strong>：說明 IRQ handler、workqueue、process context 的工作分配，以及 admin → mailbox 的鎖順序。</li>
+<li><strong>Lifetime 與 DMA</strong>：區分 kref、dying、fence、UNMAP，最後連到 reset 時序圖。</li>
+</ol>
+<p>白板上至少保留兩欄：「CPU 正在執行的程式」與「裝置仍可能執行的工作」。
+Mutex 可以保護 driver 的管理資料，卻不會自動取消已經取走的 descriptor。
+能把這兩欄接起來，比列出用過多少 API 更能說明你理解 driver 的責任。</p>
+<h3 id="chapter-5-為何-insmod-成功還要檢查-probe">為何 insmod 成功還要檢查 probe？</h3>
+<p>Module registration 成功和裝置綁定成功是兩件事。T02 會檢查失敗時沒有 control node，
+並在移除模組後乾淨重試，確認同一個裝置可以正常 probe。只看 insmod 的 return code，可能漏掉裝置初始化失敗。</p>
+<h3 id="chapter-5-為何-kref-與-dying-都需要">為何 kref 與 dying 都需要？</h3>
+<p>kref 確保仍被 file context 引用的記憶體不被提前釋放；dying 阻止已移除裝置的 MMIO。
+物件存在不等於 BAR 還有效。回答時沿 toy_open、toy_remove、toy_release_file 各指出一次 reference 操作。</p>
+<h3 id="chapter-5-為何-copy_to_user-要放在-event-spinlock-外">為何 copy_to_user 要放在 event spinlock 外？</h3>
+<p>Copy 可能遇到 userspace page fault，不能把它放在需要短暫持有的 spinlock 區段。
+這裡先將事件搬到 per-open stash，放開鎖後複製；若 copy 失敗，stash 保留供下一次讀取。
+Read mutex 序列化同一個 open context 的讀者，event lock 則保護短小的 queue 操作。</p>
+<h3 id="chapter-5-native-32-bit-layout-check-能代表-32-bit-guest-實測嗎">Native 32-bit layout check 能代表 32-bit guest 實測嗎？</h3>
+<p>不能。它檢查 UAPI 結構的大小、offset 與編譯配置；整合 VM 是 x86_64。
+Driver 提供 compat_ioctl 的安排，不代表已跑過所有 32-bit userspace 系統呼叫。
+面試時應先說實際測試層級，再說程式的相容性設計。</p>
+<h2 id="chapter-5-三種狀態要分開說">三種狀態要分開說</h2>
+<p>Firmware 的 ACTIVE 表示 slot 有可用的已 provision 資源，<strong>不單獨保證 queue 正在執行</strong>。
+第一次 PROVISION commit 後，VF 仍可能 FENCED 且尚未 CONFIG。
+是否能 DMA，還要查 config_valid、BME、FENCED、KILLED、generation 及 queue 狀態。</p>
+<p>Owner 的 lease/fd/mapping 狀態是另一個維度。Firmware FREE 不會自動關閉 userspace fd；
+close VFIO fd 也不等於 driver 可以忽略尚未完成的 lease transaction。
+用一個「enabled」布林值代表所有層，會丟掉失敗回復需要的資訊。</p>
+<h2 id="chapter-5-常見追問與回答重點">常見追問與回答重點</h2>
+<h3 id="chapter-5-為何不把-sr-iov-當作-iommu-隔離保證">為何不把 SR-IOV 當作 IOMMU 隔離保證？</h3>
+<p>SR-IOV 提供 functions 與 requester 身分；隔離仍取決於拓樸、group、IOMMU domain、
+mapping 及 DMA 的實際 requester。這個模型檢查每 group 的成員，禁止 ACS override，
+並讓兩個 owner 映射相同 IOVA 做正反向測試。</p>
+<h3 id="chapter-5-為何關-bme-還不夠">為何關 BME 還不夠？</h3>
+<p>Tenant 能經 VF config 存取自己的 BME。管理者的安全保證需要 VF 無法繞過的 PF-only gate，
+並在 payload/CQ/IRQ 的真正執行處檢查。BME 仍是必要的 PCI bus mastering 條件，但不是唯一權限。</p>
+<h3 id="chapter-5-為何先-fence再-unmap">為何先 fence，再 UNMAP？</h3>
+<p>UNMAP 是 owner 的位址映射操作；裝置可能已有 descriptor copy 和排程中的 callback。
+先確認 fence、generation advance 與 outstanding drain/cancel，才能撤映射。
+若 UNMAP size 不符，不可立刻 free buffer；保留 allocation，直到確認 VFIO fd 全部關閉。</p>
+<h3 id="chapter-5-eventfd-的數值是否等於-completion-數量">eventfd 的數值是否等於 completion 數量？</h3>
+<p>不能這樣假設。IRQ 可合併或遮罩，eventfd 是通知；有效資料以 CQ phase、id、epoch、status 為準。
+Tenant 被喚醒後 drain CQ，再交還 CQ_HEAD。測試同時核對 IRQ 行為和實際 completion 資料。</p>
+<h3 id="chapter-5-為何要有-sessionepoch-和-token">為何要有 session、epoch 和 token？</h3>
+<p>Session 區分全域 recovery 前後；epoch 區分該 VF 的世代；cancel token 區分硬體取消的工作。
+Lease token 表示管理所有權，ready_gen 表示新的 queue configuration 已完成。
+它們的用途不同，不能拿一個單調數字替所有欄位作模糊的「版本檢查」。</p>
+<h3 id="chapter-5-裝置-callback-已序列化為何還需要-lifetime-管理">裝置 callback 已序列化，為何還需要 lifetime 管理？</h3>
+<p>本模型的裝置 callback 依 QEMU BQL/main loop 的規則執行；guest 仍有 SMP、IRQ、workqueue、open fd 和 remove。
+即使裝置 callback 依序執行，PF driver 仍須管理鎖順序與引用生命週期，防止 guest 端的 UAF。
+本版沒有 KCSAN／hostile remove 全矩陣，不能以模型序列化宣稱已驗證所有 guest races。</p>
+<h3 id="chapter-5-規格跟-upstream-行為不一樣怎麼辦">規格跟 upstream 行為不一樣怎麼辦？</h3>
+<p>T05 是具體例子：VFIO requested WRITE-only 在 pinned Intel IOMMU second-level mapping
+中實際被加上 READ。先保留真實失敗與來源定位，再增加預設關閉、只限 toy VF 的 pinned patch，
+使嚴格權限成為明確的實驗條件。不能把通過的客製 kernel 結果描述成 stock Linux 保證。</p>
+<h3 id="chapter-5-crc-能不能證明-secure-firmware-update">CRC 能不能證明 secure firmware update？</h3>
+<p>CRC 能找出部分資料毀損，不能驗證作者身分。本版的 CRC32 是資料工作負載，
+不提供 capsule／A/B update，也沒有信任根或簽章驗證；不能把 checksum 稱為 secure update。</p>
+<h2 id="chapter-5-用一個-bug-說明除錯方法">用一個 BUG 說明除錯方法</h2>
+<h3 id="chapter-5-sq-與-cq-不一定同步前進">SQ 與 CQ 不一定同步前進</h3>
+<p>B018 適合白板講解，因為只需要畫兩條 ring：stale descriptor 前 SQ/CQ 同步，
+丟棄 stale SQ 後 SQ 比 CQ 多一筆；下一筆工作使用 SQ slot 6，但完成記錄位於 CQ slot 5。
+問題不是 CRC 算法錯，而是用完成位置猜原請求的 payload 位置。
+我把 payload 定位改回 submission cursor，加入五個 N、正常／差一／wrap 共 15 個 native regression，
+保留舊碼實際 EILSEQ 失敗，再跑 sanitizer 與整合 gate。這也說明為何要測異常後的正常工作，
+只測異常回覆和 teardown 可能漏掉後續狀態污染。</p>
+<h3 id="chapter-5-跨-owner-的時間累積">跨 owner 的時間累積</h3>
+<p>以 B001 為例，先展示原始 FAIL，再問哪一層失敗。所有 UNMAP、close、reap 都成功，
+但最後硬體 flags 是 3，代表 FENCED 加 KILLED。因此問題不在 mapping size 或 child leak。
+往前對齊 FLR、RECOVERING、deadline 與各 owner 關閉順序，才找到時間累積的根因。</p>
+<p>修正沒有延長 deadline：先送出所有停止，再等待每個 owner；最後一個 lease 釋放後立即 disable。
+驗證也不是只重跑到一次成功，還強化 validator 的跨 owner 順序檢查，保留兩次 100 輪證據，
+並跑受影響的 M1/M2/M3 回歸。完整狀態請見 <a href="#chapter-6">BUG_LOG.md</a>。</p>
+<h2 id="chapter-5-更深入的追問">更深入的追問</h2>
+<h3 id="chapter-5-為何不用一個-global-mutex-包住全部操作">為何不用一個 global mutex 包住全部操作？</h3>
+<p>Mutex 能序列化部分 host threads，無法回收已被 device fetch 的 descriptor，也不能代替 VFIO domain。
+還要考慮 IRQ callback 不能睡眠、等待 ACK 的 thread 不應阻擋完成它的 worker。
+本版 admin_mutex → mbx_mutex 有固定順序；remove／fd lifetime 另需引用保護。不要宣稱一把鎖解決所有時序問題。</p>
+<h3 id="chapter-5-dma-helper-成功一次整筆工作就成功了嗎">DMA helper 成功一次，整筆工作就成功了嗎？</h3>
+<p>不是。SQ fetch、payload 各 chunk、CQ body、CQ phase 都可能各自 fault。
+每次 helper 都核對回傳值；跨頁寫可能部分成功，不保證 transaction rollback。
+即使 payload 完成，CQ 失敗也必須保守 fence，不能只回一個猜測成功的 IRQ。</p>
+<h3 id="chapter-5-為何需要獨立-oracle">為何需要獨立 oracle？</h3>
+<p>把實作表格直接複製成預期值，兩邊可能一起錯。Native Python oracle 以獨立模型核對 C core 操作，
+ring oracle 以 FIFO 比較 u32 wrap；guest validator 則從 raw records 核對跨層關係。
+它們提供不同角度，但仍受輸入預算與模型假設限制。</p>
+<h3 id="chapter-5-kasan-通過能證明沒有-race-嗎">KASAN 通過能證明沒有 race 嗎？</h3>
+<p>不能。KASAN 幫助偵測受測 kernel 路徑的越界與 UAF，不等於 race detector。
+本版只保留已驗證的 KASAN 情境；沒有 KCSAN 與所有 hostile hot-remove 的實測結果。
+對面試官應說明覆蓋邊界，而不是把 sanitizer 名稱當成保證。</p>
+<h3 id="chapter-5-跨-u32-wrap-為何仍能算-pending">跨 u32 wrap 為何仍能算 pending？</h3>
+<p>Counter 使用 unsigned arithmetic，<code>tail - head</code> 按 2^32 取模；前提是有效 outstanding 永遠有界且不超過 N。
+Array index 再取 <code>counter &amp; (N-1)</code>，phase 依 counter/N 的圈數交替。
+不能用 signed subtraction，不能只保存 masked index，也不能忽略 <code>pending &gt; N</code> 的非法輸入。</p>
+<h3 id="chapter-5-為何-retained-quota-比直接歸零更安全">為何 retained quota 比直接歸零更安全？</h3>
+<p>失敗的 release 表示仍不確定資源是否可重用。歸零會讓下一個 owner 再次分配同一份資源，
+把未清理的狀態交給別人。保留 quota 限制可用容量，但讓錯誤顯性存在，直到明確 recovery 成功。</p>
+<h3 id="chapter-5-軟體模型的價值及限制是什麼">軟體模型的價值及限制是什麼？</h3>
+<p>價值是可控制 requester、logical clock、fault checkpoint 與 retained callback，使跨層錯誤可重現。
+Linux PCI/VFIO/IRQ 路徑實際執行，能練習 driver 與協定設計。
+限制是沒有真實 PCIe 電氣／cache coherency／功耗／吞吐與板級韌體部署證據。</p>
+<h2 id="chapter-5-10-分鐘現場展示腳本">10 分鐘現場展示腳本</h2>
+<p>完整命令與報告讀法見 <a href="#chapter-4">DEMO 操作手冊</a>。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>時間</th>
+<th>動作</th>
+<th>要講的重點</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0:00–1:30</td>
+<td>90 秒介紹，指出本版範圍</td>
+<td>問題是跨 VF 隔離與 reset ownership</td>
+</tr>
+<tr>
+<td>1:30–3:00</td>
+<td>架構＋正常 I/O 時序</td>
+<td>分清 guest CPU VA、IOVA、requester、completion phase</td>
+</tr>
+<tr>
+<td>3–5 分</td>
+<td><code>make demo-reset</code> 或打開已保存 T07 結果</td>
+<td>一個 VF reset，另一個仍完成正確資料；先 fence 後 UNMAP</td>
+</tr>
+<tr>
+<td>5–7 分</td>
+<td>點 <code>toy_complete</code> 與 <code>owner_workload</code></td>
+<td>最終 generation guard、SQ/CQ 索引分離</td>
+</tr>
+<tr>
+<td>7–9 分</td>
+<td>B018 原始 FAIL 與 regression</td>
+<td>假設、反例、修正與覆蓋增強</td>
+</tr>
+<tr>
+<td>9–10 分</td>
+<td><code>project-latest.json</code>、範圍與限制</td>
+<td>可重現證據；不作實體硬體或零 BUG 主張</td>
+</tr>
+</tbody>
+</table></div>
+<p>展示前完成完整 gate、接上電源、關閉其他大型 VM，預先打開六張圖與結果。
+現場不重新編譯整套 kernel；若 demo 失敗，保留當次 log，先指出是 build prerequisite、guest boot 還是 case failure。
+已保存的結果要報出它自己的版本與時間，不能拿舊 PASS 覆蓋現場 FAIL。</p>
+<h2 id="chapter-5-新手自我檢核與履歷描述">新手自我檢核與履歷描述</h2>
+<p>準備好回答以下五題，才算能自己介紹這個專案：</p>
+<ol>
+<li>從 <code>owner_workload</code> 追到 <code>dma</code>，說出每一層的執行位置與位址種類。</li>
+<li>在 reset 圖上標出舊 mapping 最早何時能撤除，哪個回傳值證明它完全撤除。</li>
+<li>解釋 ACTIVE、RUNNING、lease acquired 三者為何不同。</li>
+<li>用一個 raw artifact 說明 PASS 不只靠 log 字串。</li>
+<li>選一個 BUG，先說錯誤假設，再說反例、修正和測試，最後說仍未覆蓋的範圍。</li>
+</ol>
+<p>履歷可寫：「在 16 GB WSL2 筆電建立 QEMU SR-IOV 教學加速器，整合 portable C firmware core、
+Linux PF driver 與 VFIO tenant；以同 IOVA 隔離、DMA fault、reset/stale callback、KASAN 與原生 fuzz/oracle
+驗證 M0–M3，建立可追溯建置流程和故障紀錄。」
+只有在本版完整結果確實 PASS 後才使用「驗證完成」，並能逐段解釋設計、程式及實際測試結果。</p>
+<h2 id="chapter-5-英文摘要">英文摘要</h2>
+<p>I built a software SR-IOV lab on a 16 GB Windows laptop using WSL2, QEMU and a custom Linux guest.
+The device exposes a PF and up to eight VFs. Each tenant owns its classic VFIO container, group,
+device descriptors and DMA mappings. A portable C core owns the device state machine and resource ledger.</p>
+<p>The central design separates address isolation, permission to issue DMA, and generation validity.
+The IOMMU limits addresses for each VF requester. A PF-controlled fence stops device access.
+Session, epoch and cancellation tokens prevent old work from touching newly configured queues.</p>
+<p>My tests use actual VFIO mappings, requester-specific DMA traces, complete buffer checks,
+fault injection and raw-log validation. A useful debugging example was a teardown timing failure:
+serial owner shutdown allowed an earlier VF's recovery deadline to expire. I changed the shutdown
+ordering and verified repeated lifecycle runs without relaxing the deadline.</p>
+<p>The deliverable is scoped to M0 through M3. I separate software-model evidence from physical hardware
+claims, and I do not claim production readiness, real-device performance or authenticated firmware updates.</p>
+</section><section id="chapter-6"><h1 id="chapter-6-實際失敗與修正紀錄">實際失敗與修正紀錄</h1>
+<p>這份紀錄區分程式缺陷、來源版本的行為差異與測試工具問題。
+歷史 PASS 只對應該次輸入；最新驗收以 <a href="#chapter-7">VALIDATION.md</a> 的 checkpoint 為準。
+測試範圍為 M0–M3／T01–T10；每筆紀錄區分症狀、根因、修正和回歸證據。</p>
+<h2 id="chapter-6-b001四個-owner-串行關閉造成-ready-deadline-到期">B001：四個 owner 串行關閉造成 READY deadline 到期</h2>
+<p>狀態：<strong>修正後 100 輪 PASS，完整受影響回歸 PASS</strong>。</p>
+<ul>
+<li>重現：<code>python3 tools/run_vm.py --gate m3-case --profile kasan --case T01 --timeout 2400</code>。</li>
+<li>失敗紀錄：<code>artifacts/m3-case/20261012T165957Z-v6lqkeoi/</code>。</li>
+<li>受影響回歸：<code>artifacts/m3-checkpoint/20261012T165003Z-0lbowior/</code>，T01 FAIL，後續案例 NOT_RUN。</li>
+<li>症狀：第 16 個 measured cycle 的 owner 都已正確 UNMAP、close、reap、release，
+但 disable 後 VF 0 的旗標是 FENCED|KILLED，測試要求的乾淨基線不成立。</li>
+<li>根因：<a href="code/guest__admin__labd.c.html#L574"><code>guest/admin/labd.c:lifecycle_case()</code></a> 的註解描述一起關閉，實作卻對每個 VF
+依序執行 <code>owner_stop()</code> 並等待退出。第一個 close 觸發真實 PCI FLR，進入 RECOVERING；
+等待其餘 VF 的清理和 socket 清除期間可能超過 1000 個 virtual ticks。
+<a href="code/fwcore__context.c.html#L141"><code>fwcore/context.c:fw_poll_deadlines()</code></a> 因 READY 逾時轉 FAILED，KILL 必須保留到 global recovery。</li>
+<li>修正：將 stop 拆成 begin/finish。先對每個 owner fence 並送停止通知，再確認各 owner
+的 EXIT_ACK、pidfd/waitpid 退出與 lease release。最後一個 lease 關閉後立即 disable PCI VFs，
+再清除 socket、目錄與管理 fd。</li>
+<li>保持的條件：不延長 core 的 READY deadline，不忽略 KILL，不直接把 FAILED 改 FREE，
+不省略 UNMAP 或 owner 退出確認。</li>
+<li>修正後：<code>artifacts/m3-case/20261012T170334Z-brrcjgt_/</code> 暖機加 100 輪 PASS，
+每輪實際資源回到基線。semantic validator 另要求全部 fence 先於第一個 pidfd reap。
+完整受影響回歸 <code>artifacts/m3-checkpoint/20261013T005556Z-56ebu4kg/</code> PASS，
+其中新的 100 輪為 <code>artifacts/t01/20261013T010558Z-rz3hvxnp/</code>。
+這證明記錄範圍內的回歸通過，不是永不再發生的保證。</li>
+</ul>
+<h2 id="chapter-6-b002要求-write-only-不代表-pinned-linux-會禁止讀取">B002：要求 WRITE-only 不代表 pinned Linux 會禁止讀取</h2>
+<p>分類：<strong>平台行為差異，並非 toy DMA helper 漏檢查</strong>。</p>
+<ul>
+<li>重現：原生 pinned guest kernel 上執行 T05 variant 4。</li>
+<li>原始失敗：<code>artifacts/m3-case/20261012T163725Z-at60ieyh/</code>。</li>
+<li>症狀：VFIO map 要求 WRITE-only，但 VF RID 0101 的 CRC DMA 成功讀取八個 bytes，
+發出 OK completion，沒有 DMA fault。該次結果必須是 FAIL。</li>
+<li>根因：Linux v6.12 Intel IOMMU 的 <code>__domain_mapping()</code> 自動加入
+<code>DMA_FL_PTE_PRESENT</code>，此 bit 在 second-level page table 也是 READ bit。
+只列 VFIO requested flags，無法證明有效頁表權限。</li>
+<li>實驗處理：新增 SHA256-pinned、預設關閉的 guest patch；只有明確指定
+<code>toy_iommu_strict_wo=1</code>，且 domain 僅有一個 1234:e002 toy VF 時，保留獨立 R/W 權限。
+其餘 domain、first-level 與未啟用選項的行為維持上游。</li>
+<li>實際開啟選項後，variant 4 開發測試 PASS：
+<code>artifacts/m3-case/20261012T164801Z-pgphhfe3/</code>。</li>
+<li>驗證內容：讀取真的被 IOMMU 擋下、實際 requester 與 fault counter、A FAILED/fenced、
+B guard 不變、B 完成 4098 筆請求、owner 清理與 global recovery。</li>
+<li>限制：不能將此結果說成 stock Linux 的 WRITE-only 安全保證。
+完整受影響回歸已通過 <code>artifacts/m3-checkpoint/20261013T005556Z-56ebu4kg/</code>。
+詳見 <a href="DECISIONS.md#d015--explicit-toy-only-strict-write-only-guest-iommu-mode">D015</a>。</li>
+</ul>
+<h2 id="chapter-6-b003未映射的-cpu-guard-被測試-helper-錯誤拒絕">B003：未映射的 CPU guard 被測試 helper 錯誤拒絕</h2>
+<p>狀態：開發測試修正後 PASS，完整受影響回歸 PASS：<code>artifacts/m3-checkpoint/20261013T005556Z-56ebu4kg/</code>。</p>
+<ul>
+<li>失敗：<code>artifacts/m3-case/20261012T163400Z-nq5t6c5j/</code>。</li>
+<li>症狀：T05 variant 1 在送 DMA 前以 EINVAL 結束。</li>
+<li>根因：<code>owner_freeze()</code> 同時要求 CPU buffer 存在、VFIO mapping 成立。
+但「A 未 map、B map 相同 IOVA」正需要保留未映射的 A CPU guard。</li>
+<li>修正：freeze 驗證 CPU allocation 並保存整個 buffer；mapping 有無由獨立 owner map 狀態管理。
+沒有替 A 補映射，也沒有繞過 IOMMU。</li>
+<li>修正後：<code>artifacts/m3-case/20261012T164705Z-8qcbj5we/</code> PASS。</li>
+</ul>
+<h2 id="chapter-6-b004把-qemu-裝置初次-realize-的-reset-誤當-pci-flr">B004：把 QEMU 裝置初次 realize 的 reset 誤當 PCI FLR</h2>
+<p>狀態：已在既有 checkpoint 回歸通過。</p>
+<ul>
+<li>失敗：<code>artifacts/m1/20261011T041635Z-kzwhoi8v/</code>。</li>
+<li>另一份早期 T03 <code>artifacts/m3-case/20261011T041729Z-0pr3pe82/</code> 雖被當時 runner 標 PASS，
+raw log 含未使用 VF 的 FAILED transition，因此已明確撤回驗收，不刪除原紀錄。</li>
+<li>根因：QEMU hotplug realize 期間會先呼叫 reset；當時 <code>dev-&gt;realized</code> 尚未設 true。
+舊 hook 一律當 FLR，替尚無 tenant 的 VF 開始 READY deadline。</li>
+<li>修正：初次 power-on 仍 fence、advance generation、clear queue，但不發 firmware FLR event。
+已 realized 的 VF reset 仍走真實 <code>toy_vf_flr()</code>。</li>
+<li>Trace：<code>device/toy_vf.c</code> 的 reset hook → <a href="code/device__toy_hw.c.html#L111"><code>device/toy_hw.c:toy_vf_flr()</code></a> →
+<a href="code/fwcore__fsm.c.html#L96"><code>fwcore/fsm.c:fw_vf_event()</code></a>。raw log 分別使用 TOY_VF_POWER_ON／TOY_FLR。</li>
+<li>回歸：<code>artifacts/m3-checkpoint/20261012T111926Z-eajy2snh/</code> 包含 M1、M2 與當時已實作的 M3 案例。</li>
+</ul>
+<h2 id="chapter-6-b005kernel-printk-插入-json-serial-記錄">B005：kernel printk 插入 JSON serial 記錄</h2>
+<p>狀態：已在既有 checkpoint 回歸通過。</p>
+<ul>
+<li>失敗：<code>artifacts/m3-case/20261011T132643Z-n6tck8bh/</code>。</li>
+<li>症狀：driver 的九個 failpoint 都有命中，但三行 JSON 被 printk 切斷，semantic validator 拒絕。</li>
+<li>根因：kernel console 與 userspace 結構化事件共用同一 UART；完整的一次 printf
+不能保證與另一層的 console 輸出互斥。</li>
+<li>修正：M3 的 UART0 保存 kernel.log，UART1 保存 serial.log。兩者都保存 hash 並檢查
+KASAN、lockdep、panic 等非預期診斷；沒有放寬 failpoint 命中條件。</li>
+<li>Trace：<code>tools/run_vm.py</code> → <code>guest/init</code> 的 console 設定 → <code>tools/vm_runtime.py</code> 收集 → semantic validator。</li>
+<li>決策：<a href="DECISIONS.md#d013--keep-kernel-diagnostics-separate-from-m3-structured-records">D013</a>。</li>
+<li>後續：當時只修正 M3；M1／UEFI handoff 仍共用 UART，後來再次重現，見 B020。</li>
+</ul>
+<h2 id="chapter-6-b006guest-沒有選配的-proc-children-介面">B006：guest 沒有選配的 proc children 介面</h2>
+<p>狀態：已在 T01 既有 checkpoint 回歸通過；與 B001 為不同問題。</p>
+<ul>
+<li>失敗：<code>artifacts/m3-case/20261012T063358Z-5gdnrooj/</code>；診斷 run：
+<code>artifacts/m3-case/20261012T063625Z-dzt_o1b9/</code>。</li>
+<li>根因：guest 未啟用 CONFIG_PROC_CHILDREN，讀取 <code>/proc/self/task/PID/children</code> 回 ENOENT。</li>
+<li>修正：每個已知 child 仍使用 pidfd/waitpid 確認退出；最後要求
+<code>waitpid(-1, WNOHANG)</code> 回 -1 且 errno=ECHILD，確認既無存活 child，也無待 reap child。</li>
+<li>為何不接受空檔／忽略 ENOENT：介面不存在無法證明沒有 child。</li>
+<li>回歸：<code>artifacts/t01/20261012T112848Z-nzlrkpjz/</code>。</li>
+</ul>
+<h2 id="chapter-6-b007native-decoder-replay-遺漏-core-的連結單元">B007：native decoder replay 遺漏 core 的連結單元</h2>
+<p>狀態：修正後 ASan/UBSan replay PASS。</p>
+<ul>
+<li>失敗：<code>artifacts/t09-native/20261012T111906Z-dnia4alr/</code>，未解析 <code>fw_zero</code>。</li>
+<li>根因：harness 只編入 codec.c；該檔使用同一 portable core 提供的 helper。</li>
+<li>修正：連結完整 portable core，保留 sanitizer 與 Werror，不自行複製 helper 實作。</li>
+<li>通過：<code>artifacts/t09-native/20261012T111929Z-itwqts6s/</code>。</li>
+<li>驗證意義：以 guest 真正送出的六組 descriptor bytes 重播 bounded parser，
+不以手工重造的近似向量替代原始輸入。</li>
+</ul>
+<h2 id="chapter-6-b008重設後相同-iova-的新映射被-validator-認成舊事件">B008：重設後相同 IOVA 的新映射被 validator 認成舊事件</h2>
+<p>狀態：validator 修正後，新 VM 實跑 PASS：<code>artifacts/m3-case/20261012T171149Z-ctnvo3xr/</code>。</p>
+<ul>
+<li>失敗：<code>artifacts/m3-case/20261012T171104Z-il8wl8_q/</code>。</li>
+<li>症狀：guest 完成 ioctl reset、fresh CONFIG/REARM、close/open 與清理，
+host validator 卻拒絕「old UNMAP → new MAP」順序。</li>
+<li>根因：兩代 mapping 的 pid、kind、IOVA、size、flags 可以完全相同。
+Python <code>list.index(dict)</code> 按欄位值相等尋找第一個事件，因而把第二代 MAP 指回第一代。</li>
+<li>修正：解析完成後以各事件物件的 identity 建立其原始 log 位置索引。
+順序判斷使用保存的位置，不依欄位值是否相同。</li>
+<li>證據原則：原始 FAIL 不改成 PASS；修正後另開新 VM 重跑。這不是裝置成功字串足夠的理由，
+其餘 raw requester、FLR、guard、epoch、mapping、healthy progress 斷言仍全部必要。</li>
+</ul>
+<h2 id="chapter-6-b009反向-apply-成功無法證明工作樹只有指定-patch">B009：反向 apply 成功無法證明工作樹只有指定 patch</h2>
+<p>分類：建置來源驗證缺口；以獨立 Git 測試 fixture 重現，不是發現本機 kernel 曾混入額外修改。</p>
+<ul>
+<li>原檢查：HEAD 與允許的 dirty filenames、patch hash、<code>git apply --reverse --check</code>。</li>
+<li>缺口：在同一個允許的來源檔、遠離 patch context 的位置新增一行，reverse check 仍可能成功。
+因此「包含這個 patch」不能推出「只有這個 patch」。</li>
+<li>修正：每次核對 HEAD，使用獨立 temporary Git index 從 pinned HEAD 依序套用 locked patches，
+取得預期 blobs，再逐 byte 比對工作檔案。正常 index、branch 和工作樹不被重設。</li>
+<li>三項真 Git 測試：正確 patch 通過且正常 index 不變、額外同檔修改遭拒、不同 HEAD 遭拒。
+紀錄：<code>artifacts/source-verification-tests/20261013T073408Z-6vofnbff/</code> PASS。</li>
+<li>目前實際 kernel 工作樹的精確唯讀稽核：
+<code>artifacts/source-exact-audit/20261013T011419Z-t0zcg9no/</code> PASS。</li>
+<li>Helper hash 是 kernel stamp 的一部分，修正後會重建／重新驗證 kernels 和受影響前提，
+不直接把舊 stamp 改成新 hash。</li>
+</ul>
+<h2 id="chapter-6-b010把-callback-執行後的-valid-誤當成執行前的有效性">B010：把 callback 執行後的 valid 誤當成執行前的有效性</h2>
+<p>狀態：修正診斷後以新 VM 通過 T08；完整 M3 回歸也已通過。</p>
+<ul>
+<li>原始失敗：<code>artifacts/m3-case/20261013T073556Z-bcnekcar/</code>。</li>
+<li>現象：STALE_CPL 實際增加兩次，卻出現 <code>try-stale-cpl valid=0</code>，host 拒絕缺少有效 retained callback 的證據。</li>
+<li>根因：fault setter 複製真實 retired operation，呼叫 <code>toy_complete()</code> 後才讀 <code>copy.valid</code>。
+completion 路徑消耗 operation 時會把它設 false。這個欄位描述的是不同時點，不能用同一名稱混讀。</li>
+<li>修正：呼叫前保存 <code>was_valid</code>，ACK 同時輸出 <code>valid=1</code> 與執行後的 <code>consumed=1</code>。
+Validator 同時要求兩者、真實 callback 的 old/live token、STALE_CPL、buffer 與 IRQ guards。
+沒有只放寬 regex 來接受無效 operation。</li>
+<li>新 VM：<code>artifacts/m3-case/20261013T074144Z-r54944se/</code> PASS。
+T07 同版 QEMU 重跑：<code>artifacts/m3-case/20261013T074221Z-79mqmb0v/</code> PASS。</li>
+<li>保存這兩次 raw events 的 fixture 後，42 項 controller/semantic 測試通過：
+<code>artifacts/m3-validator-tests/20261013T074457Z-3r9sxbee/</code>。</li>
+<li>面試重點：觀測程式本身也會出錯。先確認資料的時點與語意，再判斷裝置行為；保留原始 FAIL。</li>
+</ul>
+<h2 id="chapter-6-b011linux-efi-stub-遇到新-compiler-的-c23-關鍵字">B011：Linux EFI stub 遇到新 compiler 的 C23 關鍵字</h2>
+<p>分類：已重現的工具鏈相容性問題；GCC 14 建置及 guest boot 已通過，GCC 15 原組合仍是 FAIL。</p>
+<ul>
+<li>原始錯誤：<code>artifacts/build-kernel/20261007T154311Z-w2gl3ipa/compile.log</code>，
+<code>cannot use keyword 'false' as enumeration constant</code>、<code>'bool' cannot be defined via 'typedef'</code>。</li>
+<li>原因：Linux v6.12 的 EFI libstub Makefile 替換一般 kernel CFLAGS，沒有保留明確 C dialect。
+Ubuntu GCC 15 的 C23 預設與舊 kernel 的 false enum、bool typedef 衝突。</li>
+<li>修正方法：builder 明確使用已釘選的 GCC 14.3 <code>CC</code> 與 <code>HOSTCC</code>，同樣用於外部 PF module。
+不切換整台主機的 alternatives，不刪 EFI stub，也不掩蓋錯誤。</li>
+<li>從哪裡追：<code>tools/build_kernel.py</code> 的 compiler argv → pinned
+<code>drivers/firmware/efi/libstub/Makefile</code> → 出錯的 <code>include/linux/stddef.h</code>／<code>types.h</code>。</li>
+<li>修正後早期證據：<code>artifacts/build-kernel/20261008T005830Z-j07gwf5d/</code>；
+新版 KASAN/stress 的實際 runtime 另隨 M3 checkpoint 保存。</li>
+<li>新手判斷：不要只看最後 <code>make Error 2</code>，向前找第一個 compiler error 與那一個 compile argv。</li>
+</ul>
+<h2 id="chapter-6-b012nasm-3-不再接受-edk2-舊-x64-push-operand-寫法">B012：NASM 3 不再接受 EDK2 舊 X64 PUSH operand 寫法</h2>
+<p>分類：已重現的 assembler 相容性問題；已 backport upstream 修正並通過 M2。</p>
+<ul>
+<li>原始錯誤：<code>artifacts/build-edk2/20261009T022324Z-lat9fnjj/positive.log</code>，
+<code>instruction not valid with 32-bit operand size</code>。</li>
+<li>原因：ExceptionHandlerAsm.nasm 在 64-bit 模式使用 <code>push strict dword</code>。</li>
+<li>修正：將 upstream commit <code>9ccf8751a74f26142e584c7b7c7572a182b67997</code> 的兩個 operand 修正
+backport 至 <code>uefi/patches/0001-nasm3-x64-push.patch</code>，改為 <code>strict qword</code>。
+patch 與目標內容都有 hash，僅套用 build worktree。</li>
+<li>另一個實際陷阱：該 upstream 檔本身含 CRLF；初版 LF patch context 無法套用，
+<code>artifacts/build-edk2/20261009T022547Z-ein4_cny/</code> 保留失敗。最後保留 upstream bytes，
+只對該 patch 使用窄範圍 Git attribute，不修改全機 line-ending 設定。</li>
+<li>詳細來源與 upstream 連結：<a href="DECISIONS.md#d009--backport-the-upstream-nasm-3-x64-push-fix">D009</a>。</li>
+</ul>
+<h2 id="chapter-6-b013sr-iov-reset-覆蓋下一個-acs-capability-header">B013：SR-IOV reset 覆蓋下一個 ACS capability header</h2>
+<p>分類：已重現的 register layout 問題；調整 toy layout 後 M1/M2 通過。</p>
+<ul>
+<li>現象：UEFI 成功走過 ARI=0x100、SR-IOV=0x140，但 next pointer 指向 0x180 時讀到零。
+失敗：<code>artifacts/m2-probe/20261009T130032Z-zktgskjg/</code>。</li>
+<li>根因：pinned QEMU 的 <code>pcie_sriov_pf_reset()</code> 依 <code>PCI_NUM_REGIONS</code> 迴圈，
+對 4-byte BAR offset 進行 8-byte 寫入，末筆涵蓋 0x17c..0x183，破壞放在 0x180 的 ACS。</li>
+<li>修正：把 toy PF 的 ACS 移至 0x200，沿用 upstream capability helper 管理 header 與 next。
+M1 額外檢查 PF/VF 的 ACS/ARI，不能只讓 UEFI 忽略零 header。</li>
+<li>Trace：<code>device/toy_pf.c</code> 的 realize/capability 安排 → pinned
+<code>hw/pci/pcie_sriov.c</code> 的 reset 寫入範圍 → UEFI extended-capability walk。</li>
+<li>面試重點：capability 初次建立正確還不夠；reset 路徑也會改寫同一片 config space。</li>
+</ul>
+<h2 id="chapter-6-b014uefi-pci-io-protocol-index-不等於實體-bar-編號">B014：UEFI PCI I/O protocol index 不等於實體 BAR 編號</h2>
+<p>分類：已重現的 API 語意誤解；probe 修正後三條 M2 boot path 通過。</p>
+<ul>
+<li>失敗：<code>artifacts/m2-probe/20261010T023836Z-_uoy5wg0/</code>。
+BAR0 檢查通過，但以 physical BAR2 的數字呼叫 <code>GetBarAttributes(2)</code> 得 EFI_UNSUPPORTED。</li>
+<li>根因：pinned EDK2 <code>GatherDeviceInfo()</code> 每呼叫一次 <code>PciParseBar()</code> 才增加 protocol 陣列 index；
+64-bit BAR 本身跨兩個 config DWORD。因此本裝置 physical BAR0/BAR2 對應 protocol 0/1。</li>
+<li>修正：probe 先按 config BAR type 走實際佈局，推得 protocol index，再比對回傳的 type、length、base。
+不拿另一個 index 回 Success 就算通過，也不對使用中的 BAR 寫 all-ones 來 sizing。</li>
+<li>對照：<a href="DECISIONS.md#d012--resolve-edk2-protocol-bar-indices-from-physical-bar-layout">D012</a>。
+面試時說明是「這個 pinned implementation 的映射」，不要推廣成所有 UEFI 都有同樣細節。</li>
+</ul>
+<h2 id="chapter-6-b015edk2-沒改來源卻幾乎整套重編">B015：EDK2 沒改來源卻幾乎整套重編</h2>
+<p>分類：已重現的可重現建置／增量效率問題；不是 firmware runtime defect。</p>
+<ul>
+<li>重編記錄：<code>artifacts/build-edk2/20261009T180208Z-llo33trc/</code>。</li>
+<li>根因：BaseTools 的 GenC.py 用 Python <code>hash(Info.Guid)</code> 選 STACK_COOKIE_VALUE；
+每個 Python process 的 hash seed 改變，生成的 AutoGen.h 隨之改變，連帶大量 module 重編。</li>
+<li>修正：僅在 builder subprocess 固定 <code>PYTHONHASHSEED=0</code>，保留 cookie table；
+unchanged Conf/DSC/toolchain files 不無故更新 timestamp。真正 input 變更仍由正常 build dependency 處理。</li>
+<li>證據：<code>artifacts/edk2-incremental/20261010T023823Z-u953zmyh/result.json</code>。
+positive/negative 步驟從約 116/109 秒降至約 12/11 秒，輸出 image hash 相同。
+這是當時兩次 build 的觀察，不是所有機器的固定速度保證。</li>
+</ul>
+<h2 id="chapter-6-b016第一次使用-requester-的-cache-被誤判成持續-leak">B016：第一次使用 requester 的 cache 被誤判成持續 leak</h2>
+<p>分類：已重現的基線定義問題；加入明確 warm-up 後檢查每輪資源是否回穩。</p>
+<ul>
+<li>失敗：<code>artifacts/m1/20261008T162441Z-o7m628zi/</code>，冷機 340 個 QOM objects 變為 360。</li>
+<li>根因：QEMU Intel IOMMU 的 <code>vtd_find_add_as()</code> 為新 requester 快取五個 memory-region objects，
+四個 VF 合計增加 20；不能僅憑一次總量增加判斷是每輪漏資源。</li>
+<li>修正：保存 cold inventory，先做不列入 100 次的 warm-up，再建立 measured baseline。
+之後 100 次完成循環要求 initial/final 完整 inventory 相同、device-owned pending work 為零、
+guest ownership counters 回零。不以「可能是 cache」忽略後續成長。</li>
+<li>T01 的完整 tenant lifecycle 比 M1 enumeration 多了 owner/fd/map/reap，兩種證據分開保留。</li>
+</ul>
+<h2 id="chapter-6-b017重建之後沿用舊-core-pass">B017：重建之後沿用舊 core PASS</h2>
+<p>分類：測試證據綁定缺陷；審查發現並以反例測試驗證，不是 guest runtime crash。</p>
+<ul>
+<li>原因：舊 <code>verify_m0 --reuse-core</code> 只比較當前 build stamp 的 inputs 和當前 sources，再接受過去 core result 的 PASS。
+修改 core 並只執行 build-core 後，當前 stamp 已更新，但舊 result 沒有證明測過這組 binary。</li>
+<li>修正：build stamp 保存 binary hashes；core run 保存受測 inputs、binary、stamp hash 和 evidence hashes；
+reuse 全部核對。缺乏新欄位的歷史結果須重新驗證，不能自動補標。</li>
+<li>回歸：<code>python3 -m unittest discover -s tests/scenarios -p 'test_m0_reuse.py' -v</code>。
+七項檢查含舊 execution／新 build、binary 被改、stamp 被換、失敗 build、legacy result，只有完全相符時接受。</li>
+<li>教訓：證據要綁到「當時受測的產物」，不是只綁到目前目錄存在的檔案。</li>
+</ul>
+<h2 id="chapter-6-b018stale-sq-之後錯用-cq-slot-核對-payload">B018：stale SQ 之後錯用 CQ slot 核對 payload</h2>
+<p>分類：真實 tenant workload 邏輯錯誤，已保存修正前 native 失敗與修正後 sanitizer 回歸。</p>
+<ul>
+<li>重現：old-epoch descriptor 只前進 SQ，不產生 CQ。下一批正常 workload 的 submission slot 與 completion slot 相差一筆。
+原碼以 CQ head index 找 payload，可能出現 EILSEQ 或 EBADMSG。</li>
+<li>原始失敗：<code>artifacts/release-preparation/20261013T181909Z-69pn08bk/owner-before-fix.log</code>。
+該目錄以 Git HEAD 取出修正前 owner.c，編譯同一個新測試，確實取得非零退出碼；沒有改動歷史 log。</li>
+<li>修正：<a href="code/guest__tenant__owner.c.html#L231"><code>guest/tenant/owner.c:owner_workload()</code></a> 以 <code>start + received</code> 的原始 SQ cursor 找 payload，CQ cursor 只定位 completion。
+仍核對 completion id、epoch、status、length、CRC 和 guards。</li>
+<li>回歸：<code>make verify-guest-native</code> 執行真實 owner_workload，涵蓋五個 ring sizes 的正常、SQ/CQ 差一、u32 wrap，共 15 組。
+首次修正後 ASan/UBSan PASS：<code>artifacts/guest-native/20261013T181637Z-1ub_ttyc/</code>。
+Guest 整合回歸另見 <a href="#chapter-7">驗證紀錄</a>。</li>
+<li>為何舊測試沒發現：T09 送完 stale/malformed vectors 即進 cleanup，沒有再啟動一般 workload；正常 T03 的 SQ/CQ 則同步前進。</li>
+</ul>
+<h2 id="chapter-6-b019全新環境缺少教材依賴檢查">B019：全新環境缺少教材依賴檢查</h2>
+<p>分類：安裝清單缺項，審查發現；不冒稱在全新 OS 重現過完整安裝失敗。</p>
+<ul>
+<li>原因：renderer import <code>markdown_it</code>，但 bootstrap 未安裝 <code>python3-markdown-it</code>；environment 也未檢查 kernel 必需的 gcc-14。</li>
+<li>修正：installer 補教材套件；env-check 檢查 gcc-14、套件狀態與目前 Python 能否 import renderer。</li>
+<li>驗證：本機 env-check 及 handbook generation；完整 OS 首次 apt 安裝會受發行版套件更新影響，須以實際 apt log 為準。</li>
+</ul>
+<h2 id="chapter-6-b020uefi-handoff-仍沿用單-uart偶發遺失-capability-證據">B020：UEFI handoff 仍沿用單 UART，偶發遺失 capability 證據</h2>
+<p>分類：真實整合驗收失敗，修正範圍包含 M1 和 UEFI handoff；不是 PCI capability 本身消失。</p>
+<ul>
+<li>失敗：<code>artifacts/m2-handoff/20261014T145421Z-4j_x1q0l/</code>，連帶使
+<code>artifacts/project/20261014T143257Z-nrtvyinf/</code> 的完整驗收 FAIL。</li>
+<li>症狀：guest 已印出 M1_CAPS 與最後 PASS，但 host validator 只解析到四筆 function_caps，
+拒絕「PF 加四個 VF」的必要條件。<code>serial.log</code> 第 383–384 行保存 clocksource 訊息切進 VF4 bdf 字串的原始 bytes。</li>
+<li>根因：B005 只將 M3 分流；M1 和 UEFI→Linux 路徑仍讓 printk 與 userspace JSON 共用 UART0。
+延遲的 TSC calibration 訊息可能在任意 printf 輸出期間出現，不能靠先前幾次剛好通過推定沒有問題。</li>
+<li>修正：所有 Linux gate 都以 UART0 記錄核心、UART1 傳輸測試 JSON／checkpoint ACK。
+UEFI handoff 的 UART0 同時保存 firmware→Linux 交接順序；probe-only 仍只用 UART0。
+原始檔案分別保存；語意檢查才讀取兩個 channel，不刪行、不修補損壞 JSON、不降低 capability 數量要求。</li>
+<li>核心診斷：M1 及重用前提都檢查並 hash kernel.log；M2 重解析同時核對兩份 raw log。
+分流不能用來隱藏 KASAN、warning 或 panic。</li>
+<li>修正過程中的額外失敗：<code>artifacts/m1/20261015T162947Z-_q0ku6op/</code> 的第一個 checkpoint timeout。
+只移動 stdout 還不夠：<code>host_checkpoint()</code> 原本重新開啟 <code>/dev/console</code>，仍在 UART0 等 ACK，
+而 host 已回覆 UART1。改成獨立開啟 init 傳入的 stdin 裝置，保留 nonblocking/raw/noecho 與恢復流程；
+真實 VM 要驗三次 checkpoint，不能只檢查 JSON 輸出。</li>
+<li>回歸：<code>test_uart_transport.py</code> 涵蓋損壞紀錄拒收、雙 channel 正常解析、核心 warning 拒收、
+缺 kernel log 拒收及 probe-only 行為；全部 Python tests 共 73 項已通過。
+真實 VM 與最終整合結果以 <a href="#chapter-7">VALIDATION</a> 首節為準。</li>
+<li>教訓：修正共用機制時，要列出每個使用它的入口；單一情境修好不代表其他 boot path 一併修好。</li>
+</ul>
+<h2 id="chapter-6-驗證界線">驗證界線</h2>
+<p>M4 hostile remove／crash／併發全矩陣和 M5 持久化已移出本版範圍，不改標 PASS。
+以上修正和有限測試不能證明零 BUG；一般排錯策略與真實重現紀錄分開閱讀。</p>
+</section><section id="chapter-7"><h1 id="chapter-7-驗證紀錄">驗證紀錄</h1>
+<p>本頁記錄 2026-10-18 的本機驗收。公開原始碼包附有 <a href="verification-summary.json">驗證摘要</a>，
+保留 146 個受測輸入雜湊、各步驟結果與原始 result 的 SHA256；原始 logs、binary 及主機環境紀錄不隨包提供。
+下文 artifacts 路徑是本機紀錄索引，新的執行會產生不同時間戳。摘要不能獨立驗證完整 runtime 證據。</p>
+<p>公開整理後，146 個受測輸入仍逐一符合原雜湊。規格 HTML 已改為現行範圍索引，
+並更新授權、路徑與文件呈現；規格的新舊雜湊分別列在摘要中。這些整理不另算一次完整 runtime 驗收。</p>
+<h2 id="chapter-7-完整驗收pass">完整驗收：PASS</h2>
+<p>2026-10-18（臺灣時間），在 Lenovo R7000P 2024、16 GB RAM、WSL2 Ubuntu 26.04 上執行
+<code>make verify-project JOBS=2</code>，以 QEMU TCG 完成 <strong>M0–M3／T01–T10</strong>。
+十個頂層步驟全部通過，總耗時約 35 分 28 秒。這是本機當次測量，不是首次建置的時間預估。</p>
+<ul>
+<li>完整結果（本機紀錄：<code>artifacts/project/20261017T173924Z-zxmxej2p/result.json</code>）：各步驟命令、退出碼、耗時及子結果。</li>
+<li>M3 結果（本機紀錄：<code>artifacts/m3/20261017T175140Z-q1s8vqzd/result.json</code>）：兩種 M1 profile、M2、T01–T10 與 validators。</li>
+<li>驗收後核對（本機紀錄：<code>artifacts/project-evidence-audit/20261018T045239Z-8lc0viw2/result.json</code>）：44 份結果、570 個檔案的來源、產物及紀錄雜湊符合保存值。</li>
+</ul>
+<p>受測工作目錄的基底 commit 是 <code>7b0cec68a191b31db99c6848421e94ca01d5ae23</code>，
+並包含尚未提交的修改；確切版本以結果中的 146 個 <code>input_hashes</code> 為準。
+只 checkout 這個 commit，不等於取得本次受測內容。</p>
+<h2 id="chapter-7-驗收摘要">驗收摘要</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>項目</th>
+<th>結果與證據</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>環境與建置</td>
+<td>env-check、QEMU、stress/KASAN kernel、兩份 initramfs 全部成功；EDK2 在 M2 中成功建立</td>
+</tr>
+<tr>
+<td>M0 core</td>
+<td>unit、ASan/UBSan、獨立 oracle、coverage、兩個 fuzz targets 全部通過</td>
+</tr>
+<tr>
+<td>Core coverage</td>
+<td><strong>98.16% line coverage</strong>；只計 core，不是整個專案或 Linux kernel 的覆蓋率</td>
+</tr>
+<tr>
+<td>Oracle</td>
+<td>四個 seeds 各 100,000 operations；另有 QoS 比對</td>
+</tr>
+<tr>
+<td>Fuzz</td>
+<td>每個 target 先跑 100,000 次，再各探索 300 秒；當次探索分別執行 5,570,699 與 21,869,143 次</td>
+</tr>
+<tr>
+<td>M1</td>
+<td>stress 與 KASAN 各驗四 VF、獨立 VFIO domains、MAP/UNMAP、100 次 enable/disable 與資源回收</td>
+</tr>
+<tr>
+<td>M2</td>
+<td>UEFI probe-only、同次開機 handoff、disabled-PCD 對照三條路徑通過</td>
+</tr>
+<tr>
+<td>M3</td>
+<td>T01–T10 全部通過；逐項內容及結果見 <a href="M3_PROGRESS.md">M3 測試索引</a></td>
+</tr>
+<tr>
+<td>Python tests</td>
+<td>全部 <strong>73 項</strong>通過；其中 M3 controller/validator 的 <strong>42 項</strong>另在 M3 gate 執行，兩者不相加</td>
+</tr>
+<tr>
+<td>Native guest</td>
+<td>wire/UAPI、120,000 次 ring oracle 比對、15 組真實 owner_workload cursor 回歸通過</td>
+</tr>
+</tbody>
+</table></div>
+<p>Core 詳細結果在 verify-core（本機紀錄：<code>artifacts/verify-core/20261017T173926Z-m79vspke/result.json</code>）；
+native guest 結果在 guest-native（本機紀錄：<code>artifacts/guest-native/20261017T181450Z-01n6vtkz/result.json</code>）。
+Native 的 32-bit UAPI 檢查是編譯期 layout 檢查，並未執行 32-bit guest。
+15 組 owner workload 以 native harness 呼叫實際函式，和 VM 整合測試分別記錄。</p>
+<h2 id="chapter-7-demo-與教材檢查">DEMO 與教材檢查</h2>
+<p>2026-10-18 依 <a href="#chapter-4">DEMO 手冊</a> 另行執行三個展示入口，結果如下。
+耗時是本機已有 build 的單次觀察，並非固定執行時間。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>指令</th>
+<th>結果</th>
+<th style="text-align:right">耗時</th>
+<th>實際報告</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>make demo</code></td>
+<td>PASS</td>
+<td style="text-align:right">120.59 秒</td>
+<td>四 VF／100 次啟停（本機紀錄：<code>artifacts/m1/20261018T045250Z-qt3f6qwo/result.json</code>）</td>
+</tr>
+<tr>
+<td><code>make demo-reset</code></td>
+<td>PASS</td>
+<td style="text-align:right">24.15 秒</td>
+<td>T07 reset（本機紀錄：<code>artifacts/t07/20261018T045451Z-1vmphj0k/result.json</code>）</td>
+</tr>
+<tr>
+<td><code>make verify-t04</code></td>
+<td>PASS</td>
+<td style="text-align:right">60.48 秒</td>
+<td>T04 三種 ring size（本機紀錄：<code>artifacts/t04/20261018T045515Z-attm8kit/result.json</code>）</td>
+</tr>
+</tbody>
+</table></div>
+<p>指令、退出碼與 log hashes 保存在 DEMO 命令紀錄（本機紀錄：<code>artifacts/demo-commands/20261018T045250Z-6zkmqh9f/result.json</code>）。
+手冊內四段結果讀取程式也已 逐段實跑通過（本機紀錄：<code>artifacts/demo-examples/20261018T045621Z-ctmb2bay/result.json</code>）。</p>
+<p>原驗收版本教材的 30 段命令範例通過 語法檢查（本機紀錄：<code>artifacts/doc-examples/20261018T045323Z-1883cr3n/result.json</code>）：
+27 段 shell 範例包含 7 段內嵌 Python，另有 3 段 PowerShell。
+語法檢查不執行其中的安裝、清理或建置命令。</p>
+<p>離線教材包含主頁及 22 份程式碼頁；<code>make build-handbook</code> 檢查本地連結、
+source anchors、輸入／輸出 hashes 與六張內嵌 SVG。
+當次畫面檢查紀錄（本機紀錄：<code>artifacts/handbook-visual-review/20261017T175223Z-rhny9fbk/result.json</code>）
+保存六張圖、章節版面與來源跳轉的檢查結果，並綁定最後產生的檔案雜湊。</p>
+<h2 id="chapter-7-已修正問題">已修正問題</h2>
+<ul>
+<li><strong>B017</strong>：舊 core PASS 沒有綁定受測 binary；補齊來源、build stamp、binary 及 evidence hash 核對，七項反例回歸通過。</li>
+<li><strong>B018</strong>：SQ/CQ cursor 不同步時，payload 核對取錯 slot；改用原始 SQ cursor，五個 ring sizes 各驗正常、差一與 u32 wrap。</li>
+<li><strong>B019</strong>：補齊教材 renderer 安裝與 GCC 14 環境檢查。</li>
+<li><strong>B020</strong>：kernel printk 與 JSON 共用 UART，偶發破壞紀錄；改為雙 UART，並修正 checkpoint ACK 的輸入端。</li>
+</ul>
+<p>症狀、根因、修正前失敗與程式位置見 <a href="#chapter-6">BUG_LOG</a>。
+本輪完整驗收涵蓋上述修正後版本，未出現尚待修復的測試失敗。</p>
+<h2 id="chapter-7-建置方式與中斷紀錄">建置方式與中斷紀錄</h2>
+<p>本次完整 PASS 的 <code>build_started_empty=false</code>，使用已存在的 source cache 與增量建置。
+建置程式核對來源及產物後，實際執行全部驗收；不將它描述為單次從空 build 跑到底。</p>
+<p>先前從空 build 開始的 <code>artifacts/project/20261014T005523Z-i612et2_/</code> 已完成 M0、QEMU、
+stress/KASAN kernel 與兩份 initramfs，之後在 KASAN M1 中斷。
+<code>artifacts/project/20261014T143257Z-nrtvyinf/</code> 則在 M2 handoff 實際失敗，根因為 B020；
+原始 UART 交錯紀錄留在 <code>artifacts/m2-handoff/20261014T145421Z-4j_x1q0l/</code>，仍維持 FAIL。</p>
+<p>其他中斷及較早版本的結果見 <a href="archive/VALIDATION_HISTORY.md">歷史驗證紀錄</a>。
+從頭建立的命令及清理方式見 <a href="#chapter-0">建置教學</a>。</p>
+<h2 id="chapter-7-適用範圍">適用範圍</h2>
+<p>裝置與 IOMMU 由 QEMU 模擬，Linux PCI/VFIO/IRQ 路徑在 x86_64 guest 實際執行。
+T05 strict WRITE-only 使用明列的 toy-only guest kernel patch。
+本版不包含 M4/M5、KCSAN、KVM、實體 passthrough、firmware update 或硬體效能驗證；
+也未涵蓋所有 race、hot-remove 或 non-coherent ARM 情境。</p>
+</section></main></div></html>

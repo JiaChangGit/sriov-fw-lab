@@ -1,0 +1,765 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>guest/admin/labd.c</title><style>
+:root{color-scheme:light;--ink:#18293c;--blue:#184d83;--line:#ced9e4;--muted:#526477}
+*{box-sizing:border-box}body{margin:0;background:#f2f5f8;color:var(--ink);font:17px/1.8 system-ui,'Microsoft JhengHei',sans-serif}
+a{color:var(--blue);overflow-wrap:anywhere}header{background:#102e4d;color:#fff;padding:48px max(24px,calc((100vw - 1100px)/2))}
+header p{max-width:850px}header a{color:#b8dcff}.label{letter-spacing:.15em;font-size:13px;color:#b8dcff}
+.layout{max-width:1420px;margin:auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:32px;padding:30px}
+nav{position:sticky;top:20px;align-self:start;max-height:95vh;overflow:auto;font-size:14px}nav a{display:block;margin:12px 0}
+main{min-width:0;background:white;padding:36px 44px;border:1px solid var(--line);border-radius:12px}
+h1{font-size:2rem;line-height:1.35}h2{font-size:1.5rem;margin-top:2em;border-bottom:1px solid var(--line);padding-bottom:10px}h3{font-size:1.1rem}
+p{max-width:95ch}section+section{margin-top:80px;border-top:4px solid var(--blue);padding-top:26px}
+pre{overflow:auto;background:#112c45;color:#eaf3fa;padding:20px;border-radius:8px;font-size:14px;line-height:1.6}
+code{font-family:Consolas,monospace;font-size:.88em}p code,li code,td code{background:#edf3f8;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}
+.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;margin:20px 0;font-size:15px}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf1f8}
+img,svg{max-width:100%;height:auto}.diagram{overflow:auto;margin:20px 0}.diagram svg{min-width:900px;width:100%;display:block}blockquote,.notice{border-left:5px solid #c4841b;background:#fff5df;padding:16px 20px;margin:24px 0}.muted{color:var(--muted)}
+.source-line{display:block;white-space:pre}.source-line:target{background:#355b79}.line-no{display:inline-block;width:5em;color:#9db8ce;text-decoration:none;user-select:none}
+@media(max-width:850px){.layout{display:block;padding:14px}nav{position:static;max-height:none}main{padding:24px 18px}header{padding:30px 20px}h1{font-size:1.65rem}}
+@media print{body{background:white;font-size:11pt}header{color:#18293c;background:white;padding:0}nav{display:none}.layout{display:block;padding:0}main{border:0;padding:0}section{break-before:page}pre{white-space:pre-wrap}a{color:inherit}}
+</style><main><a href="../handbook.html">回教材</a><h1>guest/admin/labd.c</h1><p>SHA256 <code>1f5bae33839876d1953f58996b4745aff062aff66885bd418dc2e2d3a3fb8dae</code></p><pre><span class="source-line" id="L1"><a class="line-no" href="#L1">1</a>/* Guest 管理程序：持有 PF 控制 fd/lease，啟停 tenant，並核對 socket peer 與每次握手的 tuple。 */</span>
+<span class="source-line" id="L2"><a class="line-no" href="#L2">2</a>#define _GNU_SOURCE</span>
+<span class="source-line" id="L3"><a class="line-no" href="#L3">3</a>#include &quot;../common/lab_wire.h&quot;</span>
+<span class="source-line" id="L4"><a class="line-no" href="#L4">4</a>#include &quot;t02.h&quot;</span>
+<span class="source-line" id="L5"><a class="line-no" href="#L5">5</a>#include &quot;../tenant/vfio.h&quot;</span>
+<span class="source-line" id="L6"><a class="line-no" href="#L6">6</a>#include &quot;toy_uapi.h&quot;</span>
+<span class="source-line" id="L7"><a class="line-no" href="#L7">7</a>#include &quot;toy_regs.h&quot;</span>
+<span class="source-line" id="L8"><a class="line-no" href="#L8">8</a>#include &lt;errno.h&gt;</span>
+<span class="source-line" id="L9"><a class="line-no" href="#L9">9</a>#include &lt;dirent.h&gt;</span>
+<span class="source-line" id="L10"><a class="line-no" href="#L10">10</a>#include &lt;fcntl.h&gt;</span>
+<span class="source-line" id="L11"><a class="line-no" href="#L11">11</a>#include &lt;inttypes.h&gt;</span>
+<span class="source-line" id="L12"><a class="line-no" href="#L12">12</a>#include &lt;limits.h&gt;</span>
+<span class="source-line" id="L13"><a class="line-no" href="#L13">13</a>#include &lt;poll.h&gt;</span>
+<span class="source-line" id="L14"><a class="line-no" href="#L14">14</a>#include &lt;signal.h&gt;</span>
+<span class="source-line" id="L15"><a class="line-no" href="#L15">15</a>#include &lt;stdbool.h&gt;</span>
+<span class="source-line" id="L16"><a class="line-no" href="#L16">16</a>#include &lt;stdio.h&gt;</span>
+<span class="source-line" id="L17"><a class="line-no" href="#L17">17</a>#include &lt;stdlib.h&gt;</span>
+<span class="source-line" id="L18"><a class="line-no" href="#L18">18</a>#include &lt;string.h&gt;</span>
+<span class="source-line" id="L19"><a class="line-no" href="#L19">19</a>#include &lt;sys/ioctl.h&gt;</span>
+<span class="source-line" id="L20"><a class="line-no" href="#L20">20</a>#include &lt;sys/socket.h&gt;</span>
+<span class="source-line" id="L21"><a class="line-no" href="#L21">21</a>#include &lt;sys/stat.h&gt;</span>
+<span class="source-line" id="L22"><a class="line-no" href="#L22">22</a>#include &lt;sys/syscall.h&gt;</span>
+<span class="source-line" id="L23"><a class="line-no" href="#L23">23</a>#include &lt;sys/wait.h&gt;</span>
+<span class="source-line" id="L24"><a class="line-no" href="#L24">24</a>#include &lt;termios.h&gt;</span>
+<span class="source-line" id="L25"><a class="line-no" href="#L25">25</a>#include &lt;unistd.h&gt;</span>
+<span class="source-line" id="L26"><a class="line-no" href="#L26">26</a></span>
+<span class="source-line" id="L27"><a class="line-no" href="#L27">27</a>struct admin {</span>
+<span class="source-line" id="L28"><a class="line-no" href="#L28">28</a>    int pf,listen,connection,pidfd,management;</span>
+<span class="source-line" id="L29"><a class="line-no" href="#L29">29</a>    pid_t child;</span>
+<span class="source-line" id="L30"><a class="line-no" href="#L30">30</a>    uint64_t operation,lease;</span>
+<span class="source-line" id="L31"><a class="line-no" href="#L31">31</a>    uint32_t vf;</span>
+<span class="source-line" id="L32"><a class="line-no" href="#L32">32</a>    bool child_reaped,leased,bound;</span>
+<span class="source-line" id="L33"><a class="line-no" href="#L33">33</a>    char bdf[32],socket[108],management_path[108],directory[64];</span>
+<span class="source-line" id="L34"><a class="line-no" href="#L34">34</a>    struct toy_vf_info info;</span>
+<span class="source-line" id="L35"><a class="line-no" href="#L35">35</a>    const char *scenario,*count_path;</span>
+<span class="source-line" id="L36"><a class="line-no" href="#L36">36</a>    const char *failpoint;</span>
+<span class="source-line" id="L37"><a class="line-no" href="#L37">37</a>    unsigned fail_hit,group,dma_fault,recovery_case;</span>
+<span class="source-line" id="L38"><a class="line-no" href="#L38">38</a>    bool owner_error;</span>
+<span class="source-line" id="L39"><a class="line-no" href="#L39">39</a>    bool vfio_reset,healthy;</span>
+<span class="source-line" id="L40"><a class="line-no" href="#L40">40</a>    struct lab_message failure,original,current;</span>
+<span class="source-line" id="L41"><a class="line-no" href="#L41">41</a>};</span>
+<span class="source-line" id="L42"><a class="line-no" href="#L42">42</a>static struct toy_uapi_header header(size_t size)</span>
+<span class="source-line" id="L43"><a class="line-no" href="#L43">43</a>{ return (struct toy_uapi_header){size,TOY_UAPI_MAJOR,TOY_UAPI_MINOR}; }</span>
+<span class="source-line" id="L44"><a class="line-no" href="#L44">44</a>static int snapshot(struct admin *a)</span>
+<span class="source-line" id="L45"><a class="line-no" href="#L45">45</a>{</span>
+<span class="source-line" id="L46"><a class="line-no" href="#L46">46</a>    memset(&amp;a-&gt;info,0,sizeof(a-&gt;info)); a-&gt;info.hdr=header(sizeof(a-&gt;info)); a-&gt;info.vf=a-&gt;vf;</span>
+<span class="source-line" id="L47"><a class="line-no" href="#L47">47</a>    return ioctl(a-&gt;pf,TOY_GET_VF,&amp;a-&gt;info);</span>
+<span class="source-line" id="L48"><a class="line-no" href="#L48">48</a>}</span>
+<span class="source-line" id="L49"><a class="line-no" href="#L49">49</a>static int control(struct admin *a,unsigned long cmd,uint32_t generation,struct toy_vf_ctl *result)</span>
+<span class="source-line" id="L50"><a class="line-no" href="#L50">50</a>{</span>
+<span class="source-line" id="L51"><a class="line-no" href="#L51">51</a>    if (a-&gt;operation==UINT64_MAX) { errno=EOVERFLOW; return -1; }</span>
+<span class="source-line" id="L52"><a class="line-no" href="#L52">52</a>    memset(result,0,sizeof(*result)); result-&gt;hdr=header(sizeof(*result));</span>
+<span class="source-line" id="L53"><a class="line-no" href="#L53">53</a>    result-&gt;vf=a-&gt;vf; result-&gt;session=a-&gt;info.session; result-&gt;epoch=a-&gt;info.epoch;</span>
+<span class="source-line" id="L54"><a class="line-no" href="#L54">54</a>    result-&gt;lease_token=a-&gt;lease; result-&gt;operation=++a-&gt;operation; result-&gt;ready_gen=generation;</span>
+<span class="source-line" id="L55"><a class="line-no" href="#L55">55</a>    if (cmd==TOY_LEASE_RELEASE) result-&gt;flags=TOY_CTL_OWNER_CLOSED;</span>
+<span class="source-line" id="L56"><a class="line-no" href="#L56">56</a>    int rc=ioctl(a-&gt;pf,cmd,result),saved=errno;</span>
+<span class="source-line" id="L57"><a class="line-no" href="#L57">57</a>    printf(&quot;{\&quot;event\&quot;:\&quot;M3_CONTROL\&quot;,\&quot;vf\&quot;:%u,\&quot;command\&quot;:%lu,\&quot;operation\&quot;:%&quot; PRIu64 &quot;,\&quot;errno\&quot;:%d,\&quot;session\&quot;:%&quot; PRIu64 &quot;,\&quot;epoch\&quot;:%&quot; PRIu64 &quot;,\&quot;state\&quot;:%u,\&quot;flags\&quot;:%u,\&quot;outstanding\&quot;:%u,\&quot;fw_status\&quot;:%u}\n&quot;,a-&gt;vf,_IOC_NR(cmd),a-&gt;operation,rc?saved:0,(uint64_t)result-&gt;session,(uint64_t)result-&gt;epoch,result-&gt;state,result-&gt;hw_flags,result-&gt;outstanding,result-&gt;fw_status);</span>
+<span class="source-line" id="L58"><a class="line-no" href="#L58">58</a>    errno=saved; return rc;</span>
+<span class="source-line" id="L59"><a class="line-no" href="#L59">59</a>}</span>
+<span class="source-line" id="L60"><a class="line-no" href="#L60">60</a>static int child_wait(struct admin *a,int timeout)</span>
+<span class="source-line" id="L61"><a class="line-no" href="#L61">61</a>{</span>
+<span class="source-line" id="L62"><a class="line-no" href="#L62">62</a>    int status;</span>
+<span class="source-line" id="L63"><a class="line-no" href="#L63">63</a>    if (a-&gt;child_reaped||a-&gt;child&lt;=0) return 0;</span>
+<span class="source-line" id="L64"><a class="line-no" href="#L64">64</a>    if (lab_wait(a-&gt;pidfd,POLLIN,lab_now_ms()+timeout)) return -1;</span>
+<span class="source-line" id="L65"><a class="line-no" href="#L65">65</a>    pid_t got;</span>
+<span class="source-line" id="L66"><a class="line-no" href="#L66">66</a>    do { got=waitpid(a-&gt;child,&amp;status,0); } while (got&lt;0&amp;&amp;errno==EINTR);</span>
+<span class="source-line" id="L67"><a class="line-no" href="#L67">67</a>    if (got!=a-&gt;child) return -1;</span>
+<span class="source-line" id="L68"><a class="line-no" href="#L68">68</a>    a-&gt;child_reaped=true;</span>
+<span class="source-line" id="L69"><a class="line-no" href="#L69">69</a>    if (!WIFEXITED(status)||WEXITSTATUS(status)) { errno=ECHILD; return -1; }</span>
+<span class="source-line" id="L70"><a class="line-no" href="#L70">70</a>    printf(&quot;{\&quot;event\&quot;:\&quot;M3_OWNER_REAP\&quot;,\&quot;vf\&quot;:%u,\&quot;pid\&quot;:%d,\&quot;exit_code\&quot;:0,\&quot;pidfd\&quot;:true}\n&quot;,a-&gt;vf,a-&gt;child);</span>
+<span class="source-line" id="L71"><a class="line-no" href="#L71">71</a>    return 0;</span>
+<span class="source-line" id="L72"><a class="line-no" href="#L72">72</a>}</span>
+<span class="source-line" id="L73"><a class="line-no" href="#L73">73</a>static int tenant_message(struct admin *a,struct lab_message *m,uint16_t type,uint64_t request)</span>
+<span class="source-line" id="L74"><a class="line-no" href="#L74">74</a>{</span>
+<span class="source-line" id="L75"><a class="line-no" href="#L75">75</a>    int64_t deadline=lab_now_ms()+LAB_TIMEOUT_MS;</span>
+<span class="source-line" id="L76"><a class="line-no" href="#L76">76</a>    for (;;) {</span>
+<span class="source-line" id="L77"><a class="line-no" href="#L77">77</a>        struct pollfd fds[3]={{a-&gt;connection,POLLIN,0},{a-&gt;pidfd,POLLIN,0},{a-&gt;management,POLLIN,0}};</span>
+<span class="source-line" id="L78"><a class="line-no" href="#L78">78</a>        int64_t remain=deadline-lab_now_ms();</span>
+<span class="source-line" id="L79"><a class="line-no" href="#L79">79</a>        if (remain&lt;=0) { errno=ETIMEDOUT; return -1; }</span>
+<span class="source-line" id="L80"><a class="line-no" href="#L80">80</a>        int count=poll(fds,3,(int)remain);</span>
+<span class="source-line" id="L81"><a class="line-no" href="#L81">81</a>        if (count&lt;0&amp;&amp;errno==EINTR) continue;</span>
+<span class="source-line" id="L82"><a class="line-no" href="#L82">82</a>        if (count&lt;0) return -1;</span>
+<span class="source-line" id="L83"><a class="line-no" href="#L83">83</a>        if (!count) { errno=ETIMEDOUT; return -1; }</span>
+<span class="source-line" id="L84"><a class="line-no" href="#L84">84</a>        if (fds[2].revents&amp;POLLIN) {</span>
+<span class="source-line" id="L85"><a class="line-no" href="#L85">85</a>            int fd=accept4(a-&gt;management,NULL,NULL,SOCK_CLOEXEC|SOCK_NONBLOCK);</span>
+<span class="source-line" id="L86"><a class="line-no" href="#L86">86</a>            if (fd&gt;=0) {</span>
+<span class="source-line" id="L87"><a class="line-no" href="#L87">87</a>                struct ucred cred; socklen_t size=sizeof(cred);</span>
+<span class="source-line" id="L88"><a class="line-no" href="#L88">88</a>                struct lab_message query;</span>
+<span class="source-line" id="L89"><a class="line-no" href="#L89">89</a>                if (!getsockopt(fd,SOL_SOCKET,SO_PEERCRED,&amp;cred,&amp;size)&amp;&amp;size==sizeof(cred)&amp;&amp;cred.uid==getuid()&amp;&amp;</span>
+<span class="source-line" id="L90"><a class="line-no" href="#L90">90</a>                    !lab_recv(fd,&amp;query,lab_now_ms()+1000)&amp;&amp;query.type==LAB_HELLO&amp;&amp;!snapshot(a)) {</span>
+<span class="source-line" id="L91"><a class="line-no" href="#L91">91</a>                    query.type=LAB_HELLO_REPLY; query.vf=a-&gt;vf; query.session=a-&gt;info.session;</span>
+<span class="source-line" id="L92"><a class="line-no" href="#L92">92</a>                    query.epoch=a-&gt;info.epoch; query.lease_token=a-&gt;lease;</span>
+<span class="source-line" id="L93"><a class="line-no" href="#L93">93</a>                    query.ready_gen=a-&gt;info.ready_gen; query.operation=a-&gt;operation;</span>
+<span class="source-line" id="L94"><a class="line-no" href="#L94">94</a>                    (void)lab_send(fd,&amp;query,lab_now_ms()+1000);</span>
+<span class="source-line" id="L95"><a class="line-no" href="#L95">95</a>                }</span>
+<span class="source-line" id="L96"><a class="line-no" href="#L96">96</a>                close(fd);</span>
+<span class="source-line" id="L97"><a class="line-no" href="#L97">97</a>            }</span>
+<span class="source-line" id="L98"><a class="line-no" href="#L98">98</a>        }</span>
+<span class="source-line" id="L99"><a class="line-no" href="#L99">99</a>        if (fds[0].revents&amp;POLLIN) break;</span>
+<span class="source-line" id="L100"><a class="line-no" href="#L100">100</a>        if ((fds[0].revents&amp;(POLLHUP|POLLERR))||(fds[1].revents&amp;POLLIN)) { errno=ECHILD; return -1; }</span>
+<span class="source-line" id="L101"><a class="line-no" href="#L101">101</a>    }</span>
+<span class="source-line" id="L102"><a class="line-no" href="#L102">102</a>    if (lab_recv(a-&gt;connection,m,deadline)) return -1;</span>
+<span class="source-line" id="L103"><a class="line-no" href="#L103">103</a>    if (m-&gt;type==LAB_ERROR) {</span>
+<span class="source-line" id="L104"><a class="line-no" href="#L104">104</a>        a-&gt;owner_error=true; a-&gt;failure=*m;</span>
+<span class="source-line" id="L105"><a class="line-no" href="#L105">105</a>        fprintf(stderr,&quot;CHILD_REPORTED_ERROR errno=%u stage=%u\n&quot;,lab_get32(m-&gt;payload),lab_get32(m-&gt;payload+4));</span>
+<span class="source-line" id="L106"><a class="line-no" href="#L106">106</a>        errno=EIO; return -1;</span>
+<span class="source-line" id="L107"><a class="line-no" href="#L107">107</a>    }</span>
+<span class="source-line" id="L108"><a class="line-no" href="#L108">108</a>    if (m-&gt;type!=type||m-&gt;request_id!=request||m-&gt;vf!=a-&gt;vf||m-&gt;lease_token!=a-&gt;lease) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L109"><a class="line-no" href="#L109">109</a>    return 0;</span>
+<span class="source-line" id="L110"><a class="line-no" href="#L110">110</a>}</span>
+<span class="source-line" id="L111"><a class="line-no" href="#L111">111</a>static int start_owner(struct admin *a,const char *tenant,unsigned group,unsigned entries,unsigned requests)</span>
+<span class="source-line" id="L112"><a class="line-no" href="#L112">112</a>{</span>
+<span class="source-line" id="L113"><a class="line-no" href="#L113">113</a>    char vf_text[16],group_text[16],entries_text[16],requests_text[16],lease_text[32],operation_text[32],hit_text[16],dma_text[16],recovery_text[16];</span>
+<span class="source-line" id="L114"><a class="line-no" href="#L114">114</a>    snprintf(vf_text,sizeof(vf_text),&quot;%u&quot;,a-&gt;vf); snprintf(group_text,sizeof(group_text),&quot;%u&quot;,group);</span>
+<span class="source-line" id="L115"><a class="line-no" href="#L115">115</a>    snprintf(entries_text,sizeof(entries_text),&quot;%u&quot;,entries); snprintf(requests_text,sizeof(requests_text),&quot;%u&quot;,requests);</span>
+<span class="source-line" id="L116"><a class="line-no" href="#L116">116</a>    snprintf(lease_text,sizeof(lease_text),&quot;%&quot; PRIu64,a-&gt;lease); snprintf(operation_text,sizeof(operation_text),&quot;%&quot; PRIu64,a-&gt;operation);</span>
+<span class="source-line" id="L117"><a class="line-no" href="#L117">117</a>    snprintf(hit_text,sizeof(hit_text),&quot;%u&quot;,a-&gt;fail_hit);</span>
+<span class="source-line" id="L118"><a class="line-no" href="#L118">118</a>    snprintf(dma_text,sizeof(dma_text),&quot;%u&quot;,a-&gt;dma_fault);</span>
+<span class="source-line" id="L119"><a class="line-no" href="#L119">119</a>    snprintf(recovery_text,sizeof(recovery_text),&quot;%u&quot;,a-&gt;recovery_case);</span>
+<span class="source-line" id="L120"><a class="line-no" href="#L120">120</a>    a-&gt;listen=lab_listen(a-&gt;socket); if (a-&gt;listen&lt;0) return -1;</span>
+<span class="source-line" id="L121"><a class="line-no" href="#L121">121</a>    a-&gt;child=fork(); if (a-&gt;child&lt;0) return -1;</span>
+<span class="source-line" id="L122"><a class="line-no" href="#L122">122</a>    if (!a-&gt;child) {</span>
+<span class="source-line" id="L123"><a class="line-no" href="#L123">123</a>        /* exec 前關掉所有管理 fd；owner 不繼承 PF/container/group。 */</span>
+<span class="source-line" id="L124"><a class="line-no" href="#L124">124</a>        if (syscall(SYS_close_range,3u,UINT_MAX,0u)) _exit(125);</span>
+<span class="source-line" id="L125"><a class="line-no" href="#L125">125</a>        execl(tenant,tenant,&quot;--socket&quot;,a-&gt;socket,&quot;--bdf&quot;,a-&gt;bdf,&quot;--vf&quot;,vf_text,&quot;--group&quot;,group_text,</span>
+<span class="source-line" id="L126"><a class="line-no" href="#L126">126</a>              &quot;--entries&quot;,entries_text,&quot;--requests&quot;,requests_text,&quot;--lease&quot;,lease_text,&quot;--operation&quot;,operation_text,</span>
+<span class="source-line" id="L127"><a class="line-no" href="#L127">127</a>              &quot;--failpoint&quot;,a-&gt;failpoint,&quot;--fail-hit&quot;,hit_text,</span>
+<span class="source-line" id="L128"><a class="line-no" href="#L128">128</a>              &quot;--vectors&quot;,!strcmp(a-&gt;scenario,&quot;T09&quot;)?&quot;1&quot;:&quot;0&quot;,</span>
+<span class="source-line" id="L129"><a class="line-no" href="#L129">129</a>              &quot;--dma-fault&quot;,dma_text,</span>
+<span class="source-line" id="L130"><a class="line-no" href="#L130">130</a>              &quot;--recovery-case&quot;,recovery_text,</span>
+<span class="source-line" id="L131"><a class="line-no" href="#L131">131</a>              &quot;--reset-test&quot;,(!strcmp(a-&gt;scenario,&quot;T06&quot;)||a-&gt;recovery_case)?&quot;1&quot;:&quot;0&quot;,</span>
+<span class="source-line" id="L132"><a class="line-no" href="#L132">132</a>              &quot;--vfio-reset&quot;,a-&gt;vfio_reset?&quot;1&quot;:&quot;0&quot;,&quot;--healthy&quot;,a-&gt;healthy?&quot;1&quot;:&quot;0&quot;,</span>
+<span class="source-line" id="L133"><a class="line-no" href="#L133">133</a>              &quot;--inspect&quot;,(!strcmp(a-&gt;scenario,&quot;T04&quot;)||!strcmp(a-&gt;scenario,&quot;T05&quot;)||!strcmp(a-&gt;scenario,&quot;T06&quot;)||a-&gt;recovery_case)?&quot;1&quot;:&quot;0&quot;,(char *)NULL);</span>
+<span class="source-line" id="L134"><a class="line-no" href="#L134">134</a>        _exit(127);</span>
+<span class="source-line" id="L135"><a class="line-no" href="#L135">135</a>    }</span>
+<span class="source-line" id="L136"><a class="line-no" href="#L136">136</a>    a-&gt;pidfd=(int)syscall(SYS_pidfd_open,a-&gt;child,0); if (a-&gt;pidfd&lt;0) return -1;</span>
+<span class="source-line" id="L137"><a class="line-no" href="#L137">137</a>    if (lab_wait(a-&gt;listen,POLLIN,lab_now_ms()+LAB_TIMEOUT_MS)) return -1;</span>
+<span class="source-line" id="L138"><a class="line-no" href="#L138">138</a>    a-&gt;connection=accept4(a-&gt;listen,NULL,NULL,SOCK_CLOEXEC|SOCK_NONBLOCK);</span>
+<span class="source-line" id="L139"><a class="line-no" href="#L139">139</a>    if (a-&gt;connection&lt;0||lab_peer(a-&gt;connection,getuid(),a-&gt;child)) return -1;</span>
+<span class="source-line" id="L140"><a class="line-no" href="#L140">140</a>    printf(&quot;{\&quot;event\&quot;:\&quot;M3_PEER_VERIFIED\&quot;,\&quot;vf\&quot;:%u,\&quot;pid\&quot;:%d,\&quot;uid\&quot;:%u,\&quot;pidfd\&quot;:true}\n&quot;,a-&gt;vf,a-&gt;child,getuid());</span>
+<span class="source-line" id="L141"><a class="line-no" href="#L141">141</a>    return 0;</span>
+<span class="source-line" id="L142"><a class="line-no" href="#L142">142</a>}</span>
+<span class="source-line" id="L143"><a class="line-no" href="#L143">143</a>static int busy_operations(struct admin *a)</span>
+<span class="source-line" id="L144"><a class="line-no" href="#L144">144</a>{</span>
+<span class="source-line" id="L145"><a class="line-no" href="#L145">145</a>    struct toy_vf_info before[8],after;</span>
+<span class="source-line" id="L146"><a class="line-no" href="#L146">146</a>    char links[4][32],path[PATH_MAX],actual[32];</span>
+<span class="source-line" id="L147"><a class="line-no" href="#L147">147</a>    uint64_t count;</span>
+<span class="source-line" id="L148"><a class="line-no" href="#L148">148</a>    const char *values[]={&quot;0\n&quot;,&quot;2\n&quot;};</span>
+<span class="source-line" id="L149"><a class="line-no" href="#L149">149</a>    for (unsigned i=0;i&lt;8;i++) {</span>
+<span class="source-line" id="L150"><a class="line-no" href="#L150">150</a>        before[i]=(struct toy_vf_info){.hdr=header(sizeof(before[i])),.vf=i};</span>
+<span class="source-line" id="L151"><a class="line-no" href="#L151">151</a>        if (ioctl(a-&gt;pf,TOY_GET_VF,&amp;before[i])||before[i].reserve!=(i&lt;4?8u:0u)) return -1;</span>
+<span class="source-line" id="L152"><a class="line-no" href="#L152">152</a>        if (i&lt;4) {</span>
+<span class="source-line" id="L153"><a class="line-no" href="#L153">153</a>            /* 使用 PF 的 count 路徑組出每一個 virtfn link。 */</span>
+<span class="source-line" id="L154"><a class="line-no" href="#L154">154</a>            snprintf(path,sizeof(path),&quot;%.*svirtfn%u&quot;,(int)(strlen(a-&gt;count_path)-strlen(&quot;sriov_numvfs&quot;)),a-&gt;count_path,i);</span>
+<span class="source-line" id="L155"><a class="line-no" href="#L155">155</a>            if (lab_link_basename(path,links[i],sizeof(links[i]))) return -1;</span>
+<span class="source-line" id="L156"><a class="line-no" href="#L156">156</a>        }</span>
+<span class="source-line" id="L157"><a class="line-no" href="#L157">157</a>    }</span>
+<span class="source-line" id="L158"><a class="line-no" href="#L158">158</a>    if (!before[a-&gt;vf].lease_token) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L159"><a class="line-no" href="#L159">159</a>    for (unsigned op=0;op&lt;2;op++) {</span>
+<span class="source-line" id="L160"><a class="line-no" href="#L160">160</a>        errno=0;</span>
+<span class="source-line" id="L161"><a class="line-no" href="#L161">161</a>        int rc=lab_write_text(a-&gt;count_path,values[op]),error=errno;</span>
+<span class="source-line" id="L162"><a class="line-no" href="#L162">162</a>        if (!rc||(error!=EBUSY&amp;&amp;error!=EPERM)||lab_read_u64(a-&gt;count_path,&amp;count)||count!=4) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L163"><a class="line-no" href="#L163">163</a>        for (unsigned i=0;i&lt;8;i++) {</span>
+<span class="source-line" id="L164"><a class="line-no" href="#L164">164</a>            after=(struct toy_vf_info){.hdr=header(sizeof(after)),.vf=i};</span>
+<span class="source-line" id="L165"><a class="line-no" href="#L165">165</a>            if (ioctl(a-&gt;pf,TOY_GET_VF,&amp;after)||memcmp(&amp;before[i],&amp;after,sizeof(after))) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L166"><a class="line-no" href="#L166">166</a>            if (i&lt;4) {</span>
+<span class="source-line" id="L167"><a class="line-no" href="#L167">167</a>                snprintf(path,sizeof(path),&quot;%.*svirtfn%u&quot;,(int)(strlen(a-&gt;count_path)-strlen(&quot;sriov_numvfs&quot;)),a-&gt;count_path,i);</span>
+<span class="source-line" id="L168"><a class="line-no" href="#L168">168</a>                if (lab_link_basename(path,actual,sizeof(actual))||strcmp(actual,links[i])) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L169"><a class="line-no" href="#L169">169</a>            }</span>
+<span class="source-line" id="L170"><a class="line-no" href="#L170">170</a>            printf(&quot;{\&quot;event\&quot;:\&quot;T10_SNAPSHOT\&quot;,\&quot;attempt\&quot;:%u,\&quot;vf\&quot;:%u,\&quot;state\&quot;:%u,\&quot;reserve\&quot;:%u,\&quot;flags\&quot;:%u,\&quot;outstanding\&quot;:%u,\&quot;epoch\&quot;:%&quot; PRIu64 &quot;,\&quot;lease\&quot;:%&quot; PRIu64 &quot;,\&quot;unchanged\&quot;:true}\n&quot;,op,i,after.state,after.reserve,after.hw_flags,after.outstanding,(uint64_t)after.epoch,(uint64_t)after.lease_token);</span>
+<span class="source-line" id="L171"><a class="line-no" href="#L171">171</a>        }</span>
+<span class="source-line" id="L172"><a class="line-no" href="#L172">172</a>        printf(&quot;{\&quot;event\&quot;:\&quot;T10_BUSY\&quot;,\&quot;attempt\&quot;:%u,\&quot;requested\&quot;:%u,\&quot;errno\&quot;:%d,\&quot;enabled\&quot;:%&quot; PRIu64 &quot;,\&quot;topology_unchanged\&quot;:true,\&quot;ledger_unchanged\&quot;:true,\&quot;owner_pid\&quot;:%d}\n&quot;,op,op?2:0,error,count,a-&gt;child);</span>
+<span class="source-line" id="L173"><a class="line-no" href="#L173">173</a>    }</span>
+<span class="source-line" id="L174"><a class="line-no" href="#L174">174</a>    return 0;</span>
+<span class="source-line" id="L175"><a class="line-no" href="#L175">175</a>}</span>
+<span class="source-line" id="L176"><a class="line-no" href="#L176">176</a>static int owner_prepare(struct admin *a)</span>
+<span class="source-line" id="L177"><a class="line-no" href="#L177">177</a>{</span>
+<span class="source-line" id="L178"><a class="line-no" href="#L178">178</a>    struct lab_message m;</span>
+<span class="source-line" id="L179"><a class="line-no" href="#L179">179</a>    struct toy_vf_ctl ctl;</span>
+<span class="source-line" id="L180"><a class="line-no" href="#L180">180</a>    if (tenant_message(a,&amp;m,LAB_HELLO,1)||snapshot(a)) return -1;</span>
+<span class="source-line" id="L181"><a class="line-no" href="#L181">181</a>    if (lab_tuple(&amp;m,a-&gt;vf,a-&gt;info.session,a-&gt;info.epoch,a-&gt;lease,a-&gt;operation)||a-&gt;info.ready_gen==UINT32_MAX) { errno=ESTALE; return -1; }</span>
+<span class="source-line" id="L182"><a class="line-no" href="#L182">182</a>    m.type=LAB_HELLO_REPLY; m.ready_gen=a-&gt;info.ready_gen+1; a-&gt;original=m;</span>
+<span class="source-line" id="L183"><a class="line-no" href="#L183">183</a>    if (lab_send(a-&gt;connection,&amp;m,lab_now_ms()+LAB_TIMEOUT_MS)||tenant_message(a,&amp;m,LAB_READY,2)||snapshot(a)) return -1;</span>
+<span class="source-line" id="L184"><a class="line-no" href="#L184">184</a>    if (lab_tuple(&amp;m,a-&gt;original.vf,a-&gt;original.session,a-&gt;original.epoch,a-&gt;original.lease_token,a-&gt;original.operation)||</span>
+<span class="source-line" id="L185"><a class="line-no" href="#L185">185</a>        m.ready_gen!=a-&gt;original.ready_gen||a-&gt;info.ready_gen!=m.ready_gen||a-&gt;info.epoch!=m.epoch||a-&gt;info.session!=m.session) { errno=ESTALE; return -1; }</span>
+<span class="source-line" id="L186"><a class="line-no" href="#L186">186</a>    if (control(a,TOY_REARM_VF,m.ready_gen,&amp;ctl)) return -1;</span>
+<span class="source-line" id="L187"><a class="line-no" href="#L187">187</a>    a-&gt;current=m;</span>
+<span class="source-line" id="L188"><a class="line-no" href="#L188">188</a>    return 0;</span>
+<span class="source-line" id="L189"><a class="line-no" href="#L189">189</a>}</span>
+<span class="source-line" id="L190"><a class="line-no" href="#L190">190</a>static int owner_run(struct admin *a)</span>
+<span class="source-line" id="L191"><a class="line-no" href="#L191">191</a>{</span>
+<span class="source-line" id="L192"><a class="line-no" href="#L192">192</a>    struct lab_message m=a-&gt;current;</span>
+<span class="source-line" id="L193"><a class="line-no" href="#L193">193</a>    if (!strcmp(a-&gt;scenario,&quot;T10&quot;)&amp;&amp;busy_operations(a)) return -1;</span>
+<span class="source-line" id="L194"><a class="line-no" href="#L194">194</a>    m.type=LAB_RUN;</span>
+<span class="source-line" id="L195"><a class="line-no" href="#L195">195</a>    if (lab_send(a-&gt;connection,&amp;m,lab_now_ms()+LAB_TIMEOUT_MS)||tenant_message(a,&amp;m,LAB_STOPPED,a-&gt;current.request_id+1)) return -1;</span>
+<span class="source-line" id="L196"><a class="line-no" href="#L196">196</a>    if (lab_tuple(&amp;m,a-&gt;original.vf,a-&gt;original.session,a-&gt;original.epoch,a-&gt;original.lease_token,a-&gt;original.operation)||</span>
+<span class="source-line" id="L197"><a class="line-no" href="#L197">197</a>        m.ready_gen!=a-&gt;original.ready_gen) { errno=ESTALE; return -1; }</span>
+<span class="source-line" id="L198"><a class="line-no" href="#L198">198</a>    a-&gt;current=m;</span>
+<span class="source-line" id="L199"><a class="line-no" href="#L199">199</a>    return 0;</span>
+<span class="source-line" id="L200"><a class="line-no" href="#L200">200</a>}</span>
+<span class="source-line" id="L201"><a class="line-no" href="#L201">201</a>/* 停止拆成發送與等待兩段，讓多 VF teardown 能先通知全部 owner，再逐一收尾。 */</span>
+<span class="source-line" id="L202"><a class="line-no" href="#L202">202</a>static int owner_stop_begin(struct admin *a)</span>
+<span class="source-line" id="L203"><a class="line-no" href="#L203">203</a>{</span>
+<span class="source-line" id="L204"><a class="line-no" href="#L204">204</a>    struct lab_message m=a-&gt;current;</span>
+<span class="source-line" id="L205"><a class="line-no" href="#L205">205</a>    struct toy_vf_ctl ctl;</span>
+<span class="source-line" id="L206"><a class="line-no" href="#L206">206</a>    if (snapshot(a)) return -1;</span>
+<span class="source-line" id="L207"><a class="line-no" href="#L207">207</a>    if (control(a,TOY_FENCE_VF,0,&amp;ctl)||ctl.outstanding||!(ctl.hw_flags&amp;TOY_HW_FLAGS_FENCED)) return -1;</span>
+<span class="source-line" id="L208"><a class="line-no" href="#L208">208</a>    m.type=LAB_STOP; m.payload_len=16; memset(m.payload,0,16); lab_put32(m.payload+4,ctl.hw_flags);</span>
+<span class="source-line" id="L209"><a class="line-no" href="#L209">209</a>    return lab_send(a-&gt;connection,&amp;m,lab_now_ms()+LAB_TIMEOUT_MS);</span>
+<span class="source-line" id="L210"><a class="line-no" href="#L210">210</a>}</span>
+<span class="source-line" id="L211"><a class="line-no" href="#L211">211</a>static int owner_stop_finish(struct admin *a)</span>
+<span class="source-line" id="L212"><a class="line-no" href="#L212">212</a>{</span>
+<span class="source-line" id="L213"><a class="line-no" href="#L213">213</a>    struct lab_message m;</span>
+<span class="source-line" id="L214"><a class="line-no" href="#L214">214</a>    if (tenant_message(a,&amp;m,LAB_EXIT_ACK,a-&gt;current.request_id)) return -1;</span>
+<span class="source-line" id="L215"><a class="line-no" href="#L215">215</a>    if (lab_tuple(&amp;m,a-&gt;original.vf,a-&gt;original.session,a-&gt;original.epoch,a-&gt;original.lease_token,a-&gt;original.operation)||</span>
+<span class="source-line" id="L216"><a class="line-no" href="#L216">216</a>        m.ready_gen!=a-&gt;original.ready_gen) { errno=ESTALE; return -1; }</span>
+<span class="source-line" id="L217"><a class="line-no" href="#L217">217</a>    for (unsigned i=0;i&lt;16;i++) if (m.payload[i]) { errno=EBUSY; return -1; }</span>
+<span class="source-line" id="L218"><a class="line-no" href="#L218">218</a>    return child_wait(a,LAB_TIMEOUT_MS);</span>
+<span class="source-line" id="L219"><a class="line-no" href="#L219">219</a>}</span>
+<span class="source-line" id="L220"><a class="line-no" href="#L220">220</a>static int owner_stop(struct admin *a)</span>
+<span class="source-line" id="L221"><a class="line-no" href="#L221">221</a>{ return owner_stop_begin(a)||owner_stop_finish(a)?-1:0; }</span>
+<span class="source-line" id="L222"><a class="line-no" href="#L222">222</a>static int descriptor_counters(struct admin *a,const char *phase)</span>
+<span class="source-line" id="L223"><a class="line-no" href="#L223">223</a>{</span>
+<span class="source-line" id="L224"><a class="line-no" href="#L224">224</a>    char record[1536],*line;</span>
+<span class="source-line" id="L225"><a class="line-no" href="#L225">225</a>    if (lab_read_text(&quot;/sys/kernel/debug/toy_pf0/vf-stats&quot;,record,sizeof(record))) return -1;</span>
+<span class="source-line" id="L226"><a class="line-no" href="#L226">226</a>    for (line=record;line&amp;&amp;*line;line=strchr(line,&#x27;\n&#x27;),line=line?line+1:NULL) {</span>
+<span class="source-line" id="L227"><a class="line-no" href="#L227">227</a>        unsigned vf,desc,cpl,dma,blocked,irq;</span>
+<span class="source-line" id="L228"><a class="line-no" href="#L228">228</a>        if (sscanf(line,&quot;vf=%u stale_desc=%u stale_cpl=%u dma_fault=%u fence_blocked=%u irq_suppressed=%u&quot;,&amp;vf,&amp;desc,&amp;cpl,&amp;dma,&amp;blocked,&amp;irq)!=6) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L229"><a class="line-no" href="#L229">229</a>        if (vf!=a-&gt;vf) continue;</span>
+<span class="source-line" id="L230"><a class="line-no" href="#L230">230</a>        if (desc!=(!strcmp(phase,&quot;after&quot;)?1u:0u)||cpl||dma||blocked||irq) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L231"><a class="line-no" href="#L231">231</a>        printf(&quot;{\&quot;event\&quot;:\&quot;T09_COUNTERS\&quot;,\&quot;phase\&quot;:\&quot;%s\&quot;,\&quot;vf\&quot;:%u,\&quot;stale_desc\&quot;:%u,\&quot;stale_cpl\&quot;:%u,\&quot;dma_fault\&quot;:%u,\&quot;fence_blocked\&quot;:%u,\&quot;irq_suppressed\&quot;:%u}\n&quot;,phase,vf,desc,cpl,dma,blocked,irq);</span>
+<span class="source-line" id="L232"><a class="line-no" href="#L232">232</a>        return 0;</span>
+<span class="source-line" id="L233"><a class="line-no" href="#L233">233</a>    }</span>
+<span class="source-line" id="L234"><a class="line-no" href="#L234">234</a>    errno=ENOENT; return -1;</span>
+<span class="source-line" id="L235"><a class="line-no" href="#L235">235</a>}</span>
+<span class="source-line" id="L236"><a class="line-no" href="#L236">236</a>static int owner_session(struct admin *a)</span>
+<span class="source-line" id="L237"><a class="line-no" href="#L237">237</a>{</span>
+<span class="source-line" id="L238"><a class="line-no" href="#L238">238</a>    if (owner_prepare(a)||(!strcmp(a-&gt;scenario,&quot;T09&quot;)&amp;&amp;descriptor_counters(a,&quot;before&quot;))||owner_run(a)||</span>
+<span class="source-line" id="L239"><a class="line-no" href="#L239">239</a>        (!strcmp(a-&gt;scenario,&quot;T09&quot;)&amp;&amp;descriptor_counters(a,&quot;after&quot;))||owner_stop(a)) return -1;</span>
+<span class="source-line" id="L240"><a class="line-no" href="#L240">240</a>    return 0;</span>
+<span class="source-line" id="L241"><a class="line-no" href="#L241">241</a>}</span>
+<span class="source-line" id="L242"><a class="line-no" href="#L242">242</a>static int owner_inspect(struct admin *a)</span>
+<span class="source-line" id="L243"><a class="line-no" href="#L243">243</a>{</span>
+<span class="source-line" id="L244"><a class="line-no" href="#L244">244</a>    struct lab_message m=a-&gt;current;</span>
+<span class="source-line" id="L245"><a class="line-no" href="#L245">245</a>    m.type=LAB_INSPECT; m.payload_len=0;</span>
+<span class="source-line" id="L246"><a class="line-no" href="#L246">246</a>    if (lab_send(a-&gt;connection,&amp;m,lab_now_ms()+LAB_TIMEOUT_MS)||</span>
+<span class="source-line" id="L247"><a class="line-no" href="#L247">247</a>        tenant_message(a,&amp;m,LAB_INSPECT_REPLY,a-&gt;current.request_id)) return -1;</span>
+<span class="source-line" id="L248"><a class="line-no" href="#L248">248</a>    if (lab_tuple(&amp;m,a-&gt;original.vf,a-&gt;original.session,a-&gt;original.epoch,a-&gt;original.lease_token,a-&gt;original.operation)||</span>
+<span class="source-line" id="L249"><a class="line-no" href="#L249">249</a>        m.ready_gen!=a-&gt;original.ready_gen) { errno=ESTALE; return -1; }</span>
+<span class="source-line" id="L250"><a class="line-no" href="#L250">250</a>    printf(&quot;{\&quot;event\&quot;:\&quot;%s_INSPECT\&quot;,\&quot;vf\&quot;:%u,\&quot;pid\&quot;:%d,\&quot;request\&quot;:%&quot; PRIu64 &quot;,\&quot;sq_crc\&quot;:%u,\&quot;cq_crc\&quot;:%u,\&quot;payload_crc\&quot;:%u}\n&quot;,a-&gt;scenario,a-&gt;vf,a-&gt;child,m.request_id,lab_get32(m.payload),lab_get32(m.payload+4),lab_get32(m.payload+8));</span>
+<span class="source-line" id="L251"><a class="line-no" href="#L251">251</a>    return 0;</span>
+<span class="source-line" id="L252"><a class="line-no" href="#L252">252</a>}</span>
+<span class="source-line" id="L253"><a class="line-no" href="#L253">253</a>/* 呼叫者須先確認 owner 已關閉；此處解除綁定並釋放 lease，不代替 VFIO UNMAP。 */</span>
+<span class="source-line" id="L254"><a class="line-no" href="#L254">254</a>static int release_owner(struct admin *a)</span>
+<span class="source-line" id="L255"><a class="line-no" href="#L255">255</a>{</span>
+<span class="source-line" id="L256"><a class="line-no" href="#L256">256</a>    char path[PATH_MAX]; struct toy_vf_ctl ctl;</span>
+<span class="source-line" id="L257"><a class="line-no" href="#L257">257</a>    if (a-&gt;bound) {</span>
+<span class="source-line" id="L258"><a class="line-no" href="#L258">258</a>        if (lab_write_text(&quot;/sys/bus/pci/drivers/vfio-pci/unbind&quot;,a-&gt;bdf)) return -1;</span>
+<span class="source-line" id="L259"><a class="line-no" href="#L259">259</a>        a-&gt;bound=false;</span>
+<span class="source-line" id="L260"><a class="line-no" href="#L260">260</a>        snprintf(path,sizeof(path),&quot;/sys/bus/pci/devices/%s/driver_override&quot;,a-&gt;bdf);</span>
+<span class="source-line" id="L261"><a class="line-no" href="#L261">261</a>        if (lab_write_text(path,&quot;\n&quot;)) return -1;</span>
+<span class="source-line" id="L262"><a class="line-no" href="#L262">262</a>    }</span>
+<span class="source-line" id="L263"><a class="line-no" href="#L263">263</a>    if (a-&gt;leased) {</span>
+<span class="source-line" id="L264"><a class="line-no" href="#L264">264</a>        if (snapshot(a)||control(a,TOY_LEASE_RELEASE,0,&amp;ctl)) return -1;</span>
+<span class="source-line" id="L265"><a class="line-no" href="#L265">265</a>        a-&gt;lease=0; a-&gt;leased=false;</span>
+<span class="source-line" id="L266"><a class="line-no" href="#L266">266</a>    }</span>
+<span class="source-line" id="L267"><a class="line-no" href="#L267">267</a>    return 0;</span>
+<span class="source-line" id="L268"><a class="line-no" href="#L268">268</a>}</span>
+<span class="source-line" id="L269"><a class="line-no" href="#L269">269</a>static int failed_owner(struct admin *a)</span>
+<span class="source-line" id="L270"><a class="line-no" href="#L270">270</a>{</span>
+<span class="source-line" id="L271"><a class="line-no" href="#L271">271</a>    struct lab_message m=a-&gt;failure;</span>
+<span class="source-line" id="L272"><a class="line-no" href="#L272">272</a>    struct toy_vf_ctl ctl;</span>
+<span class="source-line" id="L273"><a class="line-no" href="#L273">273</a>    unsigned stage=lab_get32(m.payload+4);</span>
+<span class="source-line" id="L274"><a class="line-no" href="#L274">274</a>    if (!a-&gt;owner_error||!*a-&gt;failpoint||m.vf!=a-&gt;vf||m.lease_token!=a-&gt;lease||</span>
+<span class="source-line" id="L275"><a class="line-no" href="#L275">275</a>        lab_get32(m.payload)!=EIO||(stage!=1&amp;&amp;stage!=3)||m.request_id!=(stage==1?2u:4u)||</span>
+<span class="source-line" id="L276"><a class="line-no" href="#L276">276</a>        lab_tuple(&amp;m,a-&gt;original.vf,a-&gt;original.session,a-&gt;original.epoch,a-&gt;original.lease_token,a-&gt;original.operation)||</span>
+<span class="source-line" id="L277"><a class="line-no" href="#L277">277</a>        m.ready_gen!=a-&gt;original.ready_gen) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L278"><a class="line-no" href="#L278">278</a>    if (stage==1) {</span>
+<span class="source-line" id="L279"><a class="line-no" href="#L279">279</a>        if (snapshot(a)||lab_tuple(&amp;m,a-&gt;vf,a-&gt;info.session,a-&gt;info.epoch,a-&gt;lease,a-&gt;operation)||</span>
+<span class="source-line" id="L280"><a class="line-no" href="#L280">280</a>            control(a,TOY_FENCE_VF,0,&amp;ctl)||ctl.outstanding||!(ctl.hw_flags&amp;TOY_HW_FLAGS_FENCED)) return -1;</span>
+<span class="source-line" id="L281"><a class="line-no" href="#L281">281</a>        m.type=LAB_STOP; m.payload_len=16; memset(m.payload,0,16); lab_put32(m.payload+4,ctl.hw_flags);</span>
+<span class="source-line" id="L282"><a class="line-no" href="#L282">282</a>        if (lab_send(a-&gt;connection,&amp;m,lab_now_ms()+LAB_TIMEOUT_MS)) return -1;</span>
+<span class="source-line" id="L283"><a class="line-no" href="#L283">283</a>    }</span>
+<span class="source-line" id="L284"><a class="line-no" href="#L284">284</a>    if (lab_wait(a-&gt;pidfd,POLLIN,lab_now_ms()+LAB_TIMEOUT_MS)) return -1;</span>
+<span class="source-line" id="L285"><a class="line-no" href="#L285">285</a>    int status; pid_t got;</span>
+<span class="source-line" id="L286"><a class="line-no" href="#L286">286</a>    do { got=waitpid(a-&gt;child,&amp;status,0); } while (got&lt;0&amp;&amp;errno==EINTR);</span>
+<span class="source-line" id="L287"><a class="line-no" href="#L287">287</a>    if (got!=a-&gt;child) return -1;</span>
+<span class="source-line" id="L288"><a class="line-no" href="#L288">288</a>    a-&gt;child_reaped=true;</span>
+<span class="source-line" id="L289"><a class="line-no" href="#L289">289</a>    if (!WIFEXITED(status)||WEXITSTATUS(status)!=42) { errno=ECHILD; return -1; }</span>
+<span class="source-line" id="L290"><a class="line-no" href="#L290">290</a>    printf(&quot;{\&quot;event\&quot;:\&quot;T02_OWNER_REAP\&quot;,\&quot;pid\&quot;:%d,\&quot;exit_code\&quot;:42,\&quot;stage\&quot;:%u}\n&quot;,a-&gt;child,stage);</span>
+<span class="source-line" id="L291"><a class="line-no" href="#L291">291</a>    return 0;</span>
+<span class="source-line" id="L292"><a class="line-no" href="#L292">292</a>}</span>
+<span class="source-line" id="L293"><a class="line-no" href="#L293">293</a>static int owner_fault_matrix(const char *program)</span>
+<span class="source-line" id="L294"><a class="line-no" href="#L294">294</a>{</span>
+<span class="source-line" id="L295"><a class="line-no" href="#L295">295</a>    static const struct { const char *name; unsigned hits; } points[]={</span>
+<span class="source-line" id="L296"><a class="line-no" href="#L296">296</a>        {&quot;owner.alloc_buffer&quot;,3},{&quot;owner.map_sq&quot;,1},{&quot;owner.map_cq&quot;,1},{&quot;owner.map_payload&quot;,1},</span>
+<span class="source-line" id="L297"><a class="line-no" href="#L297">297</a>        {&quot;owner.eventfd&quot;,2},{&quot;owner.irq_register&quot;,1},{&quot;owner.unmap&quot;,3},{&quot;owner.short_unmap&quot;,3}};</span>
+<span class="source-line" id="L298"><a class="line-no" href="#L298">298</a>    unsigned cases=0;</span>
+<span class="source-line" id="L299"><a class="line-no" href="#L299">299</a>    for (unsigned p=0;p&lt;sizeof(points)/sizeof(points[0]);p++) for (unsigned hit=1;hit&lt;=points[p].hits;hit++) {</span>
+<span class="source-line" id="L300"><a class="line-no" href="#L300">300</a>        ++cases;</span>
+<span class="source-line" id="L301"><a class="line-no" href="#L301">301</a>        for (unsigned clean=0;clean&lt;2;clean++) {</span>
+<span class="source-line" id="L302"><a class="line-no" href="#L302">302</a>            char hit_text[16]; snprintf(hit_text,sizeof(hit_text),&quot;%u&quot;,clean?1:hit);</span>
+<span class="source-line" id="L303"><a class="line-no" href="#L303">303</a>            printf(&quot;{\&quot;event\&quot;:\&quot;T02_OWNER_START\&quot;,\&quot;case_index\&quot;:%u,\&quot;name\&quot;:\&quot;%s\&quot;,\&quot;hit\&quot;:%u,\&quot;clean_retry\&quot;:%s}\n&quot;,cases,points[p].name,hit,clean?&quot;true&quot;:&quot;false&quot;);</span>
+<span class="source-line" id="L304"><a class="line-no" href="#L304">304</a>            fflush(stdout);</span>
+<span class="source-line" id="L305"><a class="line-no" href="#L305">305</a>            pid_t child=fork(); if (child&lt;0) return 1;</span>
+<span class="source-line" id="L306"><a class="line-no" href="#L306">306</a>            if (!child) {</span>
+<span class="source-line" id="L307"><a class="line-no" href="#L307">307</a>                if (syscall(SYS_close_range,3u,UINT_MAX,0u)) _exit(125);</span>
+<span class="source-line" id="L308"><a class="line-no" href="#L308">308</a>                execl(program,program,&quot;--scenario&quot;,&quot;T02-owner-child&quot;,&quot;--failpoint&quot;,clean?&quot;&quot;:points[p].name,</span>
+<span class="source-line" id="L309"><a class="line-no" href="#L309">309</a>                      &quot;--fail-hit&quot;,hit_text,(char *)NULL);</span>
+<span class="source-line" id="L310"><a class="line-no" href="#L310">310</a>                _exit(127);</span>
+<span class="source-line" id="L311"><a class="line-no" href="#L311">311</a>            }</span>
+<span class="source-line" id="L312"><a class="line-no" href="#L312">312</a>            int status; pid_t got;</span>
+<span class="source-line" id="L313"><a class="line-no" href="#L313">313</a>            do { got=waitpid(child,&amp;status,0); } while (got&lt;0&amp;&amp;errno==EINTR);</span>
+<span class="source-line" id="L314"><a class="line-no" href="#L314">314</a>            if (got!=child||!WIFEXITED(status)||WEXITSTATUS(status)) { puts(&quot;LAB_RESULT=FAIL&quot;); return 1; }</span>
+<span class="source-line" id="L315"><a class="line-no" href="#L315">315</a>        }</span>
+<span class="source-line" id="L316"><a class="line-no" href="#L316">316</a>    }</span>
+<span class="source-line" id="L317"><a class="line-no" href="#L317">317</a>    printf(&quot;{\&quot;event\&quot;:\&quot;M3_CASE\&quot;,\&quot;id\&quot;:\&quot;T02_OWNER\&quot;,\&quot;status\&quot;:\&quot;PASS\&quot;,\&quot;variants\&quot;:%u,\&quot;clean_retries\&quot;:%u,\&quot;partial_pci_enumeration\&quot;:\&quot;NOT_RUN\&quot;}\n&quot;,cases,cases);</span>
+<span class="source-line" id="L318"><a class="line-no" href="#L318">318</a>    puts(&quot;LAB_RESULT=PASS&quot;); return 0;</span>
+<span class="source-line" id="L319"><a class="line-no" href="#L319">319</a>}</span>
+<span class="source-line" id="L320"><a class="line-no" href="#L320">320</a>static int isolated_group(struct admin *a)</span>
+<span class="source-line" id="L321"><a class="line-no" href="#L321">321</a>{</span>
+<span class="source-line" id="L322"><a class="line-no" href="#L322">322</a>    char path[PATH_MAX];</span>
+<span class="source-line" id="L323"><a class="line-no" href="#L323">323</a>    snprintf(path,sizeof(path),&quot;/sys/kernel/iommu_groups/%u/devices&quot;,a-&gt;group);</span>
+<span class="source-line" id="L324"><a class="line-no" href="#L324">324</a>    DIR *directory=opendir(path);</span>
+<span class="source-line" id="L325"><a class="line-no" href="#L325">325</a>    if (!directory) return -1;</span>
+<span class="source-line" id="L326"><a class="line-no" href="#L326">326</a>    struct dirent *entry;</span>
+<span class="source-line" id="L327"><a class="line-no" href="#L327">327</a>    unsigned members=0;</span>
+<span class="source-line" id="L328"><a class="line-no" href="#L328">328</a>    while ((entry=readdir(directory))) {</span>
+<span class="source-line" id="L329"><a class="line-no" href="#L329">329</a>        if (entry-&gt;d_name[0]==&#x27;.&#x27;) continue;</span>
+<span class="source-line" id="L330"><a class="line-no" href="#L330">330</a>        /* 本拓樸要求群組只有自己的 VF，PF 與其他 VF 一律拒絕。 */</span>
+<span class="source-line" id="L331"><a class="line-no" href="#L331">331</a>        if (strcmp(entry-&gt;d_name,a-&gt;bdf)) { closedir(directory); errno=EXDEV; return -1; }</span>
+<span class="source-line" id="L332"><a class="line-no" href="#L332">332</a>        ++members;</span>
+<span class="source-line" id="L333"><a class="line-no" href="#L333">333</a>    }</span>
+<span class="source-line" id="L334"><a class="line-no" href="#L334">334</a>    closedir(directory);</span>
+<span class="source-line" id="L335"><a class="line-no" href="#L335">335</a>    if (members!=1) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L336"><a class="line-no" href="#L336">336</a>    printf(&quot;{\&quot;event\&quot;:\&quot;%s_GROUP\&quot;,\&quot;vf\&quot;:%u,\&quot;bdf\&quot;:\&quot;%s\&quot;,\&quot;group\&quot;:%u,\&quot;members\&quot;:%u}\n&quot;,a-&gt;scenario,a-&gt;vf,a-&gt;bdf,a-&gt;group,members);</span>
+<span class="source-line" id="L337"><a class="line-no" href="#L337">337</a>    return 0;</span>
+<span class="source-line" id="L338"><a class="line-no" href="#L338">338</a>}</span>
+<span class="source-line" id="L339"><a class="line-no" href="#L339">339</a>static int isolated_owner_start(struct admin *a,const char *pf,const char *device,const char *tenant,unsigned entries,unsigned requests)</span>
+<span class="source-line" id="L340"><a class="line-no" href="#L340">340</a>{</span>
+<span class="source-line" id="L341"><a class="line-no" href="#L341">341</a>    char path[PATH_MAX],group_text[32],*end;</span>
+<span class="source-line" id="L342"><a class="line-no" href="#L342">342</a>    struct toy_vf_ctl ctl;</span>
+<span class="source-line" id="L343"><a class="line-no" href="#L343">343</a>    snprintf(a-&gt;directory,sizeof(a-&gt;directory),&quot;/run/lab-%d-vf%u&quot;,getpid(),a-&gt;vf);</span>
+<span class="source-line" id="L344"><a class="line-no" href="#L344">344</a>    if (mkdir(a-&gt;directory,0700)) return -1;</span>
+<span class="source-line" id="L345"><a class="line-no" href="#L345">345</a>    snprintf(a-&gt;socket,sizeof(a-&gt;socket),&quot;%s/tenant.sock&quot;,a-&gt;directory);</span>
+<span class="source-line" id="L346"><a class="line-no" href="#L346">346</a>    snprintf(a-&gt;management_path,sizeof(a-&gt;management_path),&quot;%s/control.sock&quot;,a-&gt;directory);</span>
+<span class="source-line" id="L347"><a class="line-no" href="#L347">347</a>    a-&gt;management=lab_listen(a-&gt;management_path);</span>
+<span class="source-line" id="L348"><a class="line-no" href="#L348">348</a>    a-&gt;pf=open(device,O_RDWR|O_CLOEXEC|O_NONBLOCK);</span>
+<span class="source-line" id="L349"><a class="line-no" href="#L349">349</a>    if (a-&gt;pf&lt;0||a-&gt;management&lt;0) return -1;</span>
+<span class="source-line" id="L350"><a class="line-no" href="#L350">350</a>    snprintf(path,sizeof(path),&quot;/sys/bus/pci/devices/%s/virtfn%u&quot;,pf,a-&gt;vf);</span>
+<span class="source-line" id="L351"><a class="line-no" href="#L351">351</a>    if (lab_link_basename(path,a-&gt;bdf,sizeof(a-&gt;bdf))||snapshot(a)||control(a,TOY_LEASE_ACQUIRE,0,&amp;ctl)) return -1;</span>
+<span class="source-line" id="L352"><a class="line-no" href="#L352">352</a>    a-&gt;lease=ctl.lease_token; a-&gt;leased=true;</span>
+<span class="source-line" id="L353"><a class="line-no" href="#L353">353</a>    snprintf(path,sizeof(path),&quot;/sys/bus/pci/devices/%s/iommu_group&quot;,a-&gt;bdf);</span>
+<span class="source-line" id="L354"><a class="line-no" href="#L354">354</a>    if (lab_link_basename(path,group_text,sizeof(group_text))) return -1;</span>
+<span class="source-line" id="L355"><a class="line-no" href="#L355">355</a>    errno=0; unsigned long group=strtoul(group_text,&amp;end,10);</span>
+<span class="source-line" id="L356"><a class="line-no" href="#L356">356</a>    if (errno||!*group_text||*end||group&gt;UINT_MAX) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L357"><a class="line-no" href="#L357">357</a>    a-&gt;group=(unsigned)group;</span>
+<span class="source-line" id="L358"><a class="line-no" href="#L358">358</a>    if (isolated_group(a)) return -1;</span>
+<span class="source-line" id="L359"><a class="line-no" href="#L359">359</a>    snprintf(path,sizeof(path),&quot;/sys/bus/pci/devices/%s/driver_override&quot;,a-&gt;bdf);</span>
+<span class="source-line" id="L360"><a class="line-no" href="#L360">360</a>    if (lab_write_text(path,&quot;vfio-pci\n&quot;)||lab_write_text(&quot;/sys/bus/pci/drivers_probe&quot;,a-&gt;bdf)) return -1;</span>
+<span class="source-line" id="L361"><a class="line-no" href="#L361">361</a>    a-&gt;bound=true;</span>
+<span class="source-line" id="L362"><a class="line-no" href="#L362">362</a>    return start_owner(a,tenant,a-&gt;group,entries,requests)||owner_prepare(a)?-1:0;</span>
+<span class="source-line" id="L363"><a class="line-no" href="#L363">363</a>}</span>
+<span class="source-line" id="L364"><a class="line-no" href="#L364">364</a>static void isolated_owner_cleanup(struct admin *a)</span>
+<span class="source-line" id="L365"><a class="line-no" href="#L365">365</a>{</span>
+<span class="source-line" id="L366"><a class="line-no" href="#L366">366</a>    struct toy_vf_ctl ctl;</span>
+<span class="source-line" id="L367"><a class="line-no" href="#L367">367</a>    if (a-&gt;leased&amp;&amp;a-&gt;pf&gt;=0&amp;&amp;!a-&gt;child_reaped&amp;&amp;!snapshot(a)) (void)control(a,TOY_FENCE_VF,0,&amp;ctl);</span>
+<span class="source-line" id="L368"><a class="line-no" href="#L368">368</a>    if (a-&gt;child&gt;0&amp;&amp;!a-&gt;child_reaped) {</span>
+<span class="source-line" id="L369"><a class="line-no" href="#L369">369</a>        if (a-&gt;pidfd&gt;=0) (void)syscall(SYS_pidfd_send_signal,a-&gt;pidfd,SIGKILL,NULL,0);</span>
+<span class="source-line" id="L370"><a class="line-no" href="#L370">370</a>        else (void)kill(a-&gt;child,SIGKILL);</span>
+<span class="source-line" id="L371"><a class="line-no" href="#L371">371</a>        int status; while (waitpid(a-&gt;child,&amp;status,0)&lt;0&amp;&amp;errno==EINTR) {}</span>
+<span class="source-line" id="L372"><a class="line-no" href="#L372">372</a>        a-&gt;child_reaped=true;</span>
+<span class="source-line" id="L373"><a class="line-no" href="#L373">373</a>    }</span>
+<span class="source-line" id="L374"><a class="line-no" href="#L374">374</a>    if (a-&gt;pf&gt;=0&amp;&amp;release_owner(a)) fprintf(stderr,&quot;LABD_QUARANTINE vf=%u cleanup_errno=%d\n&quot;,a-&gt;vf,errno);</span>
+<span class="source-line" id="L375"><a class="line-no" href="#L375">375</a>    if (a-&gt;connection&gt;=0) close(a-&gt;connection);</span>
+<span class="source-line" id="L376"><a class="line-no" href="#L376">376</a>    if (a-&gt;listen&gt;=0) close(a-&gt;listen);</span>
+<span class="source-line" id="L377"><a class="line-no" href="#L377">377</a>    if (a-&gt;management&gt;=0) close(a-&gt;management);</span>
+<span class="source-line" id="L378"><a class="line-no" href="#L378">378</a>    if (a-&gt;pidfd&gt;=0) close(a-&gt;pidfd);</span>
+<span class="source-line" id="L379"><a class="line-no" href="#L379">379</a>    if (a-&gt;pf&gt;=0) close(a-&gt;pf);</span>
+<span class="source-line" id="L380"><a class="line-no" href="#L380">380</a>    if (a-&gt;socket[0]) unlink(a-&gt;socket);</span>
+<span class="source-line" id="L381"><a class="line-no" href="#L381">381</a>    if (a-&gt;management_path[0]) unlink(a-&gt;management_path);</span>
+<span class="source-line" id="L382"><a class="line-no" href="#L382">382</a>    if (a-&gt;directory[0]) rmdir(a-&gt;directory);</span>
+<span class="source-line" id="L383"><a class="line-no" href="#L383">383</a>}</span>
+<span class="source-line" id="L384"><a class="line-no" href="#L384">384</a>static int isolation_case(const char *pf,const char *device,const char *tenant,unsigned entries,unsigned requests,unsigned seed)</span>
+<span class="source-line" id="L385"><a class="line-no" href="#L385">385</a>{</span>
+<span class="source-line" id="L386"><a class="line-no" href="#L386">386</a>    struct admin owners[2];</span>
+<span class="source-line" id="L387"><a class="line-no" href="#L387">387</a>    char count_path[PATH_MAX];</span>
+<span class="source-line" id="L388"><a class="line-no" href="#L388">388</a>    bool enabled=false;</span>
+<span class="source-line" id="L389"><a class="line-no" href="#L389">389</a>    int ret=1,saved;</span>
+<span class="source-line" id="L390"><a class="line-no" href="#L390">390</a>    snprintf(count_path,sizeof(count_path),&quot;/sys/bus/pci/devices/%s/sriov_numvfs&quot;,pf);</span>
+<span class="source-line" id="L391"><a class="line-no" href="#L391">391</a>    for (unsigned i=0;i&lt;2;i++) owners[i]=(struct admin){.pf=-1,.listen=-1,.connection=-1,.pidfd=-1,.management=-1,</span>
+<span class="source-line" id="L392"><a class="line-no" href="#L392">392</a>        .vf=i,.failpoint=&quot;&quot;,.fail_hit=1,.scenario=&quot;T04&quot;,.count_path=count_path};</span>
+<span class="source-line" id="L393"><a class="line-no" href="#L393">393</a>    if (lab_write_text(count_path,&quot;4\n&quot;)) goto out;</span>
+<span class="source-line" id="L394"><a class="line-no" href="#L394">394</a>    enabled=true;</span>
+<span class="source-line" id="L395"><a class="line-no" href="#L395">395</a>    for (unsigned i=0;i&lt;2;i++) if (isolated_owner_start(&amp;owners[i],pf,device,tenant,entries,requests)) goto out;</span>
+<span class="source-line" id="L396"><a class="line-no" href="#L396">396</a>    if (owners[0].group==owners[1].group||owners[0].child==owners[1].child||!strcmp(owners[0].bdf,owners[1].bdf)) { errno=EXDEV; goto out; }</span>
+<span class="source-line" id="L397"><a class="line-no" href="#L397">397</a>    /* B 保留初始映射供 A 寫入期間比對，A 再保留完成結果供 B 運作期間比對。 */</span>
+<span class="source-line" id="L398"><a class="line-no" href="#L398">398</a>    if (owner_run(&amp;owners[0])||owner_inspect(&amp;owners[1])||owner_run(&amp;owners[1])||owner_inspect(&amp;owners[0])) goto out;</span>
+<span class="source-line" id="L399"><a class="line-no" href="#L399">399</a>    for (unsigned i=0;i&lt;2;i++) if (owner_stop(&amp;owners[i])||release_owner(&amp;owners[i])) goto out;</span>
+<span class="source-line" id="L400"><a class="line-no" href="#L400">400</a>    if (lab_write_text(count_path,&quot;0\n&quot;)) goto out;</span>
+<span class="source-line" id="L401"><a class="line-no" href="#L401">401</a>    enabled=false;</span>
+<span class="source-line" id="L402"><a class="line-no" href="#L402">402</a>    uint64_t count;</span>
+<span class="source-line" id="L403"><a class="line-no" href="#L403">403</a>    if (lab_read_u64(count_path,&amp;count)||count) { errno=EBUSY; goto out; }</span>
+<span class="source-line" id="L404"><a class="line-no" href="#L404">404</a>    for (unsigned i=0;i&lt;4;i++) {</span>
+<span class="source-line" id="L405"><a class="line-no" href="#L405">405</a>        char path[PATH_MAX]; struct stat st;</span>
+<span class="source-line" id="L406"><a class="line-no" href="#L406">406</a>        snprintf(path,sizeof(path),&quot;/sys/bus/pci/devices/%s/virtfn%u&quot;,pf,i);</span>
+<span class="source-line" id="L407"><a class="line-no" href="#L407">407</a>        if (!lstat(path,&amp;st)||errno!=ENOENT) { errno=EBUSY; goto out; }</span>
+<span class="source-line" id="L408"><a class="line-no" href="#L408">408</a>    }</span>
+<span class="source-line" id="L409"><a class="line-no" href="#L409">409</a>    for (unsigned i=0;i&lt;8;i++) {</span>
+<span class="source-line" id="L410"><a class="line-no" href="#L410">410</a>        struct toy_vf_info info={.hdr=header(sizeof(info)),.vf=i};</span>
+<span class="source-line" id="L411"><a class="line-no" href="#L411">411</a>        if (ioctl(owners[0].pf,TOY_GET_VF,&amp;info)||info.state!=TOY_STATES_FREE||info.reserve||info.outstanding||</span>
+<span class="source-line" id="L412"><a class="line-no" href="#L412">412</a>            info.lease_token||info.hw_flags!=TOY_HW_FLAGS_FENCED) { errno=EIO; goto out; }</span>
+<span class="source-line" id="L413"><a class="line-no" href="#L413">413</a>        printf(&quot;{\&quot;event\&quot;:\&quot;T04_FINAL\&quot;,\&quot;vf\&quot;:%u,\&quot;state\&quot;:%u,\&quot;reserve\&quot;:%u,\&quot;outstanding\&quot;:%u,\&quot;flags\&quot;:%u,\&quot;lease\&quot;:%&quot; PRIu64 &quot;}\n&quot;,i,info.state,info.reserve,info.outstanding,info.hw_flags,(uint64_t)info.lease_token);</span>
+<span class="source-line" id="L414"><a class="line-no" href="#L414">414</a>    }</span>
+<span class="source-line" id="L415"><a class="line-no" href="#L415">415</a>    printf(&quot;{\&quot;event\&quot;:\&quot;M3_CASE\&quot;,\&quot;id\&quot;:\&quot;T04\&quot;,\&quot;status\&quot;:\&quot;PASS\&quot;,\&quot;checks\&quot;:{\&quot;entries\&quot;:%u,\&quot;requests\&quot;:%u,\&quot;seed\&quot;:%u,\&quot;owners\&quot;:2,\&quot;owner_closed\&quot;:true,\&quot;all_free\&quot;:true}}\n&quot;,entries,requests,seed);</span>
+<span class="source-line" id="L416"><a class="line-no" href="#L416">416</a>    puts(&quot;LAB_RESULT=PASS&quot;); ret=0;</span>
+<span class="source-line" id="L417"><a class="line-no" href="#L417">417</a>out:</span>
+<span class="source-line" id="L418"><a class="line-no" href="#L418">418</a>    saved=errno;</span>
+<span class="source-line" id="L419"><a class="line-no" href="#L419">419</a>    for (unsigned i=0;i&lt;2;i++) isolated_owner_cleanup(&amp;owners[i]);</span>
+<span class="source-line" id="L420"><a class="line-no" href="#L420">420</a>    if (enabled&amp;&amp;lab_write_text(count_path,&quot;0\n&quot;)) fprintf(stderr,&quot;LABD_DISABLE_FAILED errno=%d\n&quot;,errno);</span>
+<span class="source-line" id="L421"><a class="line-no" href="#L421">421</a>    if (ret) {</span>
+<span class="source-line" id="L422"><a class="line-no" href="#L422">422</a>        fprintf(stderr,&quot;LABD_ERROR scenario=T04 errno=%d message=%s\n&quot;,saved,strerror(saved));</span>
+<span class="source-line" id="L423"><a class="line-no" href="#L423">423</a>        printf(&quot;{\&quot;event\&quot;:\&quot;M3_CASE\&quot;,\&quot;id\&quot;:\&quot;T04\&quot;,\&quot;status\&quot;:\&quot;FAIL\&quot;,\&quot;errno\&quot;:%d}\n&quot;,saved);</span>
+<span class="source-line" id="L424"><a class="line-no" href="#L424">424</a>        puts(&quot;LAB_RESULT=FAIL&quot;);</span>
+<span class="source-line" id="L425"><a class="line-no" href="#L425">425</a>    }</span>
+<span class="source-line" id="L426"><a class="line-no" href="#L426">426</a>    return ret;</span>
+<span class="source-line" id="L427"><a class="line-no" href="#L427">427</a>}</span>
+<span class="source-line" id="L428"><a class="line-no" href="#L428">428</a>static int dma_fault_counters(struct admin *a,const char *phase,unsigned expected)</span>
+<span class="source-line" id="L429"><a class="line-no" href="#L429">429</a>{</span>
+<span class="source-line" id="L430"><a class="line-no" href="#L430">430</a>    char record[1536],*line;</span>
+<span class="source-line" id="L431"><a class="line-no" href="#L431">431</a>    if (lab_read_text(&quot;/sys/kernel/debug/toy_pf0/vf-stats&quot;,record,sizeof(record))||snapshot(a)) return -1;</span>
+<span class="source-line" id="L432"><a class="line-no" href="#L432">432</a>    for (line=record;line&amp;&amp;*line;line=strchr(line,&#x27;\n&#x27;),line=line?line+1:NULL) {</span>
+<span class="source-line" id="L433"><a class="line-no" href="#L433">433</a>        unsigned vf,desc,cpl,dma,blocked,irq;</span>
+<span class="source-line" id="L434"><a class="line-no" href="#L434">434</a>        if (sscanf(line,&quot;vf=%u stale_desc=%u stale_cpl=%u dma_fault=%u fence_blocked=%u irq_suppressed=%u&quot;,&amp;vf,&amp;desc,&amp;cpl,&amp;dma,&amp;blocked,&amp;irq)!=6) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L435"><a class="line-no" href="#L435">435</a>        if (vf!=a-&gt;vf) continue;</span>
+<span class="source-line" id="L436"><a class="line-no" href="#L436">436</a>        if (dma!=expected||desc||cpl||a-&gt;info.state!=(expected?TOY_STATES_FAILED:TOY_STATES_ACTIVE)||</span>
+<span class="source-line" id="L437"><a class="line-no" href="#L437">437</a>            a-&gt;info.reserve!=8||a-&gt;info.outstanding||a-&gt;info.lease_token!=a-&gt;lease||</span>
+<span class="source-line" id="L438"><a class="line-no" href="#L438">438</a>            (expected&amp;&amp;(a-&gt;info.hw_flags&amp;3u)!=3u)) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L439"><a class="line-no" href="#L439">439</a>        printf(&quot;{\&quot;event\&quot;:\&quot;T05_COUNTERS\&quot;,\&quot;phase\&quot;:\&quot;%s\&quot;,\&quot;vf\&quot;:%u,\&quot;stale_desc\&quot;:%u,\&quot;stale_cpl\&quot;:%u,\&quot;dma_fault\&quot;:%u,\&quot;fence_blocked\&quot;:%u,\&quot;irq_suppressed\&quot;:%u,\&quot;state\&quot;:%u,\&quot;reserve\&quot;:%u,\&quot;outstanding\&quot;:%u,\&quot;flags\&quot;:%u,\&quot;lease\&quot;:%&quot; PRIu64 &quot;}\n&quot;,phase,vf,desc,cpl,dma,blocked,irq,a-&gt;info.state,a-&gt;info.reserve,a-&gt;info.outstanding,a-&gt;info.hw_flags,a-&gt;lease);</span>
+<span class="source-line" id="L440"><a class="line-no" href="#L440">440</a>        return 0;</span>
+<span class="source-line" id="L441"><a class="line-no" href="#L441">441</a>    }</span>
+<span class="source-line" id="L442"><a class="line-no" href="#L442">442</a>    errno=ENOENT; return -1;</span>
+<span class="source-line" id="L443"><a class="line-no" href="#L443">443</a>}</span>
+<span class="source-line" id="L444"><a class="line-no" href="#L444">444</a>static int dma_fault_case(const char *pf,const char *device,const char *tenant,unsigned variant)</span>
+<span class="source-line" id="L445"><a class="line-no" href="#L445">445</a>{</span>
+<span class="source-line" id="L446"><a class="line-no" href="#L446">446</a>    struct admin owners[2];</span>
+<span class="source-line" id="L447"><a class="line-no" href="#L447">447</a>    char count_path[PATH_MAX];</span>
+<span class="source-line" id="L448"><a class="line-no" href="#L448">448</a>    bool enabled=false;</span>
+<span class="source-line" id="L449"><a class="line-no" href="#L449">449</a>    int ret=1,saved;</span>
+<span class="source-line" id="L450"><a class="line-no" href="#L450">450</a>    snprintf(count_path,sizeof(count_path),&quot;/sys/bus/pci/devices/%s/sriov_numvfs&quot;,pf);</span>
+<span class="source-line" id="L451"><a class="line-no" href="#L451">451</a>    for (unsigned i=0;i&lt;2;i++) owners[i]=(struct admin){.pf=-1,.listen=-1,.connection=-1,.pidfd=-1,.management=-1,</span>
+<span class="source-line" id="L452"><a class="line-no" href="#L452">452</a>        .vf=i,.failpoint=&quot;&quot;,.fail_hit=1,.scenario=&quot;T05&quot;,.count_path=count_path,.dma_fault=i?0:variant};</span>
+<span class="source-line" id="L453"><a class="line-no" href="#L453">453</a>    if (!variant||variant&gt;6) { errno=EINVAL; goto out; }</span>
+<span class="source-line" id="L454"><a class="line-no" href="#L454">454</a>    if (lab_write_text(count_path,&quot;4\n&quot;)) goto out;</span>
+<span class="source-line" id="L455"><a class="line-no" href="#L455">455</a>    enabled=true;</span>
+<span class="source-line" id="L456"><a class="line-no" href="#L456">456</a>    for (unsigned i=0;i&lt;2;i++) if (isolated_owner_start(&amp;owners[i],pf,device,tenant,16,4096)||dma_fault_counters(&amp;owners[i],&quot;before&quot;,0)) goto out;</span>
+<span class="source-line" id="L457"><a class="line-no" href="#L457">457</a>    if (owners[0].group==owners[1].group||owners[0].child==owners[1].child) { errno=EXDEV; goto out; }</span>
+<span class="source-line" id="L458"><a class="line-no" href="#L458">458</a>    /* A 觸發真實 IOMMU 失敗後先查 B 原始 guard，再驗證 B 的正常 I/O。 */</span>
+<span class="source-line" id="L459"><a class="line-no" href="#L459">459</a>    if (owner_run(&amp;owners[0])||dma_fault_counters(&amp;owners[0],&quot;after&quot;,1)||owner_inspect(&amp;owners[1])||</span>
+<span class="source-line" id="L460"><a class="line-no" href="#L460">460</a>        owner_run(&amp;owners[1])||dma_fault_counters(&amp;owners[1],&quot;after&quot;,0)||owner_inspect(&amp;owners[0])) goto out;</span>
+<span class="source-line" id="L461"><a class="line-no" href="#L461">461</a>    for (unsigned i=0;i&lt;2;i++) if (owner_stop(&amp;owners[i])||release_owner(&amp;owners[i])) goto out;</span>
+<span class="source-line" id="L462"><a class="line-no" href="#L462">462</a>    int disable=lab_write_text(count_path,&quot;0\n&quot;),disable_errno=disable?errno:0;</span>
+<span class="source-line" id="L463"><a class="line-no" href="#L463">463</a>    uint64_t count;</span>
+<span class="source-line" id="L464"><a class="line-no" href="#L464">464</a>    if (disable||lab_read_u64(count_path,&amp;count)||count) { errno=EPROTO; goto out; }</span>
+<span class="source-line" id="L465"><a class="line-no" href="#L465">465</a>    enabled=false;</span>
+<span class="source-line" id="L466"><a class="line-no" href="#L466">466</a>    for (unsigned i=0;i&lt;4;i++) {</span>
+<span class="source-line" id="L467"><a class="line-no" href="#L467">467</a>        char path[PATH_MAX]; struct stat st;</span>
+<span class="source-line" id="L468"><a class="line-no" href="#L468">468</a>        snprintf(path,sizeof(path),&quot;/sys/bus/pci/devices/%s/virtfn%u&quot;,pf,i);</span>
+<span class="source-line" id="L469"><a class="line-no" href="#L469">469</a>        if (!lstat(path,&amp;st)||errno!=ENOENT) { errno=EBUSY; goto out; }</span>
+<span class="source-line" id="L470"><a class="line-no" href="#L470">470</a>        if (i&lt;2) {</span>
+<span class="source-line" id="L471"><a class="line-no" href="#L471">471</a>            snprintf(path,sizeof(path),&quot;/sys/bus/pci/devices/%s&quot;,owners[i].bdf);</span>
+<span class="source-line" id="L472"><a class="line-no" href="#L472">472</a>            if (!lstat(path,&amp;st)||errno!=ENOENT) { errno=EBUSY; goto out; }</span>
+<span class="source-line" id="L473"><a class="line-no" href="#L473">473</a>        }</span>
+<span class="source-line" id="L474"><a class="line-no" href="#L474">474</a>    }</span>
+<span class="source-line" id="L475"><a class="line-no" href="#L475">475</a>    /* 已驗證的 DESTROY 可釋放 FAILED 配額，KILL latch 必須等全域復原才清除。 */</span>
+<span class="source-line" id="L476"><a class="line-no" href="#L476">476</a>    for (unsigned i=0;i&lt;8;i++) {</span>
+<span class="source-line" id="L477"><a class="line-no" href="#L477">477</a>        struct toy_vf_info info={.hdr=header(sizeof(info)),.vf=i};</span>
+<span class="source-line" id="L478"><a class="line-no" href="#L478">478</a>        if (ioctl(owners[0].pf,TOY_GET_VF,&amp;info)||info.state||info.reserve||info.outstanding||info.lease_token||info.hw_flags!=(i?1u:3u)) { errno=EPROTO; goto out; }</span>
+<span class="source-line" id="L479"><a class="line-no" href="#L479">479</a>        printf(&quot;{\&quot;event\&quot;:\&quot;T05_POST_DISABLE\&quot;,\&quot;vf\&quot;:%u,\&quot;state\&quot;:%u,\&quot;reserve\&quot;:%u,\&quot;flags\&quot;:%u,\&quot;lease\&quot;:%&quot; PRIu64 &quot;}\n&quot;,i,info.state,info.reserve,info.hw_flags,(uint64_t)info.lease_token);</span>
+<span class="source-line" id="L480"><a class="line-no" href="#L480">480</a>    }</span>
+<span class="source-line" id="L481"><a class="line-no" href="#L481">481</a>    struct toy_info info={.hdr=header(sizeof(info))};</span>
+<span class="source-line" id="L482"><a class="line-no" href="#L482">482</a>    struct toy_vf_ctl ctl={.hdr=header(sizeof(ctl)),.vf=TOY_CTL_GLOBAL,.operation=++owners[0].operation};</span>
+<span class="source-line" id="L483"><a class="line-no" href="#L483">483</a>    if (ioctl(owners[0].pf,TOY_GET_INFO,&amp;info)) goto out;</span>
+<span class="source-line" id="L484"><a class="line-no" href="#L484">484</a>    ctl.session=info.session;</span>
+<span class="source-line" id="L485"><a class="line-no" href="#L485">485</a>    if (ioctl(owners[0].pf,TOY_GLOBAL_RECOVER,&amp;ctl)||ctl.session&lt;=info.session) goto out;</span>
+<span class="source-line" id="L486"><a class="line-no" href="#L486">486</a>    printf(&quot;{\&quot;event\&quot;:\&quot;T05_GLOBAL_RECOVER\&quot;,\&quot;before_session\&quot;:%&quot; PRIu64 &quot;,\&quot;after_session\&quot;:%&quot; PRIu64 &quot;,\&quot;disable_errno\&quot;:%d,\&quot;vfs\&quot;:0}\n&quot;,(uint64_t)info.session,(uint64_t)ctl.session,disable_errno);</span>
+<span class="source-line" id="L487"><a class="line-no" href="#L487">487</a>    for (unsigned i=0;i&lt;8;i++) {</span>
+<span class="source-line" id="L488"><a class="line-no" href="#L488">488</a>        struct toy_vf_info final={.hdr=header(sizeof(final)),.vf=i};</span>
+<span class="source-line" id="L489"><a class="line-no" href="#L489">489</a>        if (ioctl(owners[0].pf,TOY_GET_VF,&amp;final)||final.state||final.reserve||final.outstanding||final.lease_token||final.hw_flags!=1) { errno=EPROTO; goto out; }</span>
+<span class="source-line" id="L490"><a class="line-no" href="#L490">490</a>        printf(&quot;{\&quot;event\&quot;:\&quot;T05_FINAL\&quot;,\&quot;vf\&quot;:%u,\&quot;state\&quot;:%u,\&quot;reserve\&quot;:%u,\&quot;outstanding\&quot;:%u,\&quot;flags\&quot;:%u,\&quot;lease\&quot;:%&quot; PRIu64 &quot;}\n&quot;,i,final.state,final.reserve,final.outstanding,final.hw_flags,(uint64_t)final.lease_token);</span>
+<span class="source-line" id="L491"><a class="line-no" href="#L491">491</a>    }</span>
+<span class="source-line" id="L492"><a class="line-no" href="#L492">492</a>    printf(&quot;{\&quot;event\&quot;:\&quot;M3_CASE\&quot;,\&quot;id\&quot;:\&quot;T05\&quot;,\&quot;status\&quot;:\&quot;PASS\&quot;,\&quot;checks\&quot;:{\&quot;variant\&quot;:%u,\&quot;entries\&quot;:16,\&quot;healthy_requests\&quot;:4096,\&quot;owners\&quot;:2,\&quot;owner_closed\&quot;:true,\&quot;all_free\&quot;:true}}\n&quot;,variant);</span>
+<span class="source-line" id="L493"><a class="line-no" href="#L493">493</a>    puts(&quot;LAB_RESULT=PASS&quot;); ret=0;</span>
+<span class="source-line" id="L494"><a class="line-no" href="#L494">494</a>out:</span>
+<span class="source-line" id="L495"><a class="line-no" href="#L495">495</a>    saved=errno;</span>
+<span class="source-line" id="L496"><a class="line-no" href="#L496">496</a>    for (unsigned i=0;i&lt;2;i++) isolated_owner_cleanup(&amp;owners[i]);</span>
+<span class="source-line" id="L497"><a class="line-no" href="#L497">497</a>    if (enabled&amp;&amp;lab_write_text(count_path,&quot;0\n&quot;)) fprintf(stderr,&quot;LABD_DISABLE_FAILED errno=%d\n&quot;,errno);</span>
+<span class="source-line" id="L498"><a class="line-no" href="#L498">498</a>    if (ret) {</span>
+<span class="source-line" id="L499"><a class="line-no" href="#L499">499</a>        fprintf(stderr,&quot;LABD_ERROR scenario=T05 errno=%d message=%s\n&quot;,saved,strerror(saved));</span>
+<span class="source-line" id="L500"><a class="line-no" href="#L500">500</a>        printf(&quot;{\&quot;event\&quot;:\&quot;M3_CASE\&quot;,\&quot;id\&quot;:\&quot;T05\&quot;,\&quot;status\&quot;:\&quot;FAIL\&quot;,\&quot;errno\&quot;:%d}\n&quot;,saved);</span>
+<span class="source-line" id="L501"><a class="line-no" href="#L501">501</a>        puts(&quot;LAB_RESULT=FAIL&quot;);</span>
+<span class="source-line" id="L502"><a class="line-no" href="#L502">502</a>    }</span>
+<span class="source-line" id="L503"><a class="line-no" href="#L503">503</a>    return ret;</span>
+<span class="source-line" id="L504"><a class="line-no" href="#L504">504</a>}</span>
+<span class="source-line" id="L505"><a class="line-no" href="#L505">505</a>static int directory_entries(const char *path)</span>
+<span class="source-line" id="L506"><a class="line-no" href="#L506">506</a>{</span>
+<span class="source-line" id="L507"><a class="line-no" href="#L507">507</a>    DIR *directory=opendir(path);</span>
+<span class="source-line" id="L508"><a class="line-no" href="#L508">508</a>    if (!directory) return -1;</span>
+<span class="source-line" id="L509"><a class="line-no" href="#L509">509</a>    struct dirent *entry;</span>
+<span class="source-line" id="L510"><a class="line-no" href="#L510">510</a>    int count=0;</span>
+<span class="source-line" id="L511"><a class="line-no" href="#L511">511</a>    while ((entry=readdir(directory))) {</span>
+<span class="source-line" id="L512"><a class="line-no" href="#L512">512</a>        if (entry-&gt;d_name[0]==&#x27;.&#x27;) continue;</span>
+<span class="source-line" id="L513"><a class="line-no" href="#L513">513</a>        if (!strcmp(path,&quot;/proc/self/fd&quot;)&amp;&amp;atoi(entry-&gt;d_name)==dirfd(directory)) continue;</span>
+<span class="source-line" id="L514"><a class="line-no" href="#L514">514</a>        ++count;</span>
+<span class="source-line" id="L515"><a class="line-no" href="#L515">515</a>    }</span>
+<span class="source-line" id="L516"><a class="line-no" href="#L516">516</a>    closedir(directory);</span>
+<span class="source-line" id="L517"><a class="line-no" href="#L517">517</a>    return count;</span>
+<span class="source-line" id="L518"><a class="line-no" href="#L518">518</a>}</span>
+<span class="source-line" id="L519"><a class="line-no" href="#L519">519</a>static int lifecycle_quiet(int fd,unsigned cycle,int baseline_fds,int baseline_tasks)</span>
+<span class="source-line" id="L520"><a class="line-no" href="#L520">520</a>{</span>
+<span class="source-line" id="L521"><a class="line-no" href="#L521">521</a>    unsigned contexts,leases,orphaned,events,work,pending,enabled,transaction,drained=0;</span>
+<span class="source-line" id="L522"><a class="line-no" href="#L522">522</a>    char line[256];</span>
+<span class="source-line" id="L523"><a class="line-no" href="#L523">523</a>    struct toy_event event;</span>
+<span class="source-line" id="L524"><a class="line-no" href="#L524">524</a>    int64_t deadline=lab_now_ms()+5000;</span>
+<span class="source-line" id="L525"><a class="line-no" href="#L525">525</a>    for (;;) {</span>
+<span class="source-line" id="L526"><a class="line-no" href="#L526">526</a>        ssize_t got;</span>
+<span class="source-line" id="L527"><a class="line-no" href="#L527">527</a>        do {</span>
+<span class="source-line" id="L528"><a class="line-no" href="#L528">528</a>            got=read(fd,&amp;event,sizeof(event));</span>
+<span class="source-line" id="L529"><a class="line-no" href="#L529">529</a>            if (got==(ssize_t)sizeof(event)) {</span>
+<span class="source-line" id="L530"><a class="line-no" href="#L530">530</a>                if (event.hdr.size!=sizeof(event)||event.type==TOY_EVENT_LOST_EVENTS||++drained&gt;256) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L531"><a class="line-no" href="#L531">531</a>            } else if (got&gt;=0) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L532"><a class="line-no" href="#L532">532</a>        } while (got&gt;0||(got&lt;0&amp;&amp;errno==EINTR));</span>
+<span class="source-line" id="L533"><a class="line-no" href="#L533">533</a>        if (errno!=EAGAIN) return -1;</span>
+<span class="source-line" id="L534"><a class="line-no" href="#L534">534</a>        if (lab_read_text(&quot;/sys/kernel/debug/toy_pf0/lifecycle&quot;,line,sizeof(line))) return -1;</span>
+<span class="source-line" id="L535"><a class="line-no" href="#L535">535</a>        if (sscanf(line,&quot;contexts=%u leases=%u orphaned=%u events=%u work_busy=%u pending_irqs=%u enabled=%u transaction=%u&quot;,</span>
+<span class="source-line" id="L536"><a class="line-no" href="#L536">536</a>                   &amp;contexts,&amp;leases,&amp;orphaned,&amp;events,&amp;work,&amp;pending,&amp;enabled,&amp;transaction)!=8) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L537"><a class="line-no" href="#L537">537</a>        if (contexts!=1||leases||orphaned||enabled||transaction) {</span>
+<span class="source-line" id="L538"><a class="line-no" href="#L538">538</a>            fprintf(stderr,&quot;T01_DRIVER_REJECT %s&quot;,line); errno=EBUSY; return -1;</span>
+<span class="source-line" id="L539"><a class="line-no" href="#L539">539</a>        }</span>
+<span class="source-line" id="L540"><a class="line-no" href="#L540">540</a>        if (!events&amp;&amp;!work&amp;&amp;!pending) break;</span>
+<span class="source-line" id="L541"><a class="line-no" href="#L541">541</a>        if (lab_now_ms()&gt;=deadline) { errno=ETIMEDOUT; return -1; }</span>
+<span class="source-line" id="L542"><a class="line-no" href="#L542">542</a>        usleep(1000);</span>
+<span class="source-line" id="L543"><a class="line-no" href="#L543">543</a>    }</span>
+<span class="source-line" id="L544"><a class="line-no" href="#L544">544</a>    int fds=directory_entries(&quot;/proc/self/fd&quot;),tasks=directory_entries(&quot;/proc/self/task&quot;);</span>
+<span class="source-line" id="L545"><a class="line-no" href="#L545">545</a>    /* waitpid 的 ECHILD 同時確認沒有仍存活或尚未 reap 的子程序，不依賴選配 proc children。 */</span>
+<span class="source-line" id="L546"><a class="line-no" href="#L546">546</a>    int child_status;</span>
+<span class="source-line" id="L547"><a class="line-no" href="#L547">547</a>    pid_t child;</span>
+<span class="source-line" id="L548"><a class="line-no" href="#L548">548</a>    do { child=waitpid(-1,&amp;child_status,WNOHANG); } while (child&lt;0&amp;&amp;errno==EINTR);</span>
+<span class="source-line" id="L549"><a class="line-no" href="#L549">549</a>    if (child!=-1||errno!=ECHILD||fds!=baseline_fds||tasks!=baseline_tasks) {</span>
+<span class="source-line" id="L550"><a class="line-no" href="#L550">550</a>        fprintf(stderr,&quot;T01_PROCESS_REJECT fds=%d baseline_fds=%d tasks=%d baseline_tasks=%d waitpid=%d errno=%d\n&quot;,fds,baseline_fds,tasks,baseline_tasks,child,errno);</span>
+<span class="source-line" id="L551"><a class="line-no" href="#L551">551</a>        errno=EBUSY; return -1;</span>
+<span class="source-line" id="L552"><a class="line-no" href="#L552">552</a>    }</span>
+<span class="source-line" id="L553"><a class="line-no" href="#L553">553</a>    printf(&quot;{\&quot;event\&quot;:\&quot;T01_LIFECYCLE\&quot;,\&quot;cycle\&quot;:%u,\&quot;contexts\&quot;:%u,\&quot;leases\&quot;:%u,\&quot;orphaned\&quot;:%u,\&quot;events\&quot;:%u,\&quot;work_busy\&quot;:%u,\&quot;pending_irqs\&quot;:%u,\&quot;drained\&quot;:%u,\&quot;fds\&quot;:%d,\&quot;baseline_fds\&quot;:%d,\&quot;tasks\&quot;:%d,\&quot;baseline_tasks\&quot;:%d,\&quot;children\&quot;:0}\n&quot;,cycle,contexts,leases,orphaned,events,work,pending,drained,fds,baseline_fds,tasks,baseline_tasks);</span>
+<span class="source-line" id="L554"><a class="line-no" href="#L554">554</a>    return 0;</span>
+<span class="source-line" id="L555"><a class="line-no" href="#L555">555</a>}</span>
+<span class="source-line" id="L556"><a class="line-no" href="#L556">556</a>static int cycle_ledger(int fd,const char *pf,unsigned cycle,bool enabled)</span>
+<span class="source-line" id="L557"><a class="line-no" href="#L557">557</a>{</span>
+<span class="source-line" id="L558"><a class="line-no" href="#L558">558</a>    struct toy_info info={.hdr=header(sizeof(info))};</span>
+<span class="source-line" id="L559"><a class="line-no" href="#L559">559</a>    if (ioctl(fd,TOY_GET_INFO,&amp;info)||info.enabled_vfs!=(enabled?4u:0u)) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L560"><a class="line-no" href="#L560">560</a>    for (unsigned vf=0;vf&lt;8;vf++) {</span>
+<span class="source-line" id="L561"><a class="line-no" href="#L561">561</a>        struct toy_vf_info v={.hdr=header(sizeof(v)),.vf=vf};</span>
+<span class="source-line" id="L562"><a class="line-no" href="#L562">562</a>        unsigned reserve=enabled&amp;&amp;vf&lt;4?8u:0u;</span>
+<span class="source-line" id="L563"><a class="line-no" href="#L563">563</a>        if (ioctl(fd,TOY_GET_VF,&amp;v)||v.reserve!=reserve||v.outstanding||v.lease_token||</span>
+<span class="source-line" id="L564"><a class="line-no" href="#L564">564</a>            v.state!=(reserve?TOY_STATES_ACTIVE:TOY_STATES_FREE)||v.hw_flags!=(reserve?(TOY_HW_FLAGS_FENCED|TOY_HW_FLAGS_PCI_PRESENT):TOY_HW_FLAGS_FENCED)) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L565"><a class="line-no" href="#L565">565</a>        if (!enabled) {</span>
+<span class="source-line" id="L566"><a class="line-no" href="#L566">566</a>            char path[PATH_MAX]; struct stat st;</span>
+<span class="source-line" id="L567"><a class="line-no" href="#L567">567</a>            snprintf(path,sizeof(path),&quot;/sys/bus/pci/devices/%s/virtfn%u&quot;,pf,vf);</span>
+<span class="source-line" id="L568"><a class="line-no" href="#L568">568</a>            if (!lstat(path,&amp;st)||errno!=ENOENT) { errno=EBUSY; return -1; }</span>
+<span class="source-line" id="L569"><a class="line-no" href="#L569">569</a>        }</span>
+<span class="source-line" id="L570"><a class="line-no" href="#L570">570</a>        printf(&quot;{\&quot;event\&quot;:\&quot;T01_LEDGER\&quot;,\&quot;cycle\&quot;:%u,\&quot;enabled\&quot;:%u,\&quot;vf\&quot;:%u,\&quot;state\&quot;:%u,\&quot;reserve\&quot;:%u,\&quot;outstanding\&quot;:%u,\&quot;flags\&quot;:%u,\&quot;lease\&quot;:%&quot; PRIu64 &quot;}\n&quot;,cycle,enabled?4:0,vf,v.state,v.reserve,v.outstanding,v.hw_flags,(uint64_t)v.lease_token);</span>
+<span class="source-line" id="L571"><a class="line-no" href="#L571">571</a>    }</span>
+<span class="source-line" id="L572"><a class="line-no" href="#L572">572</a>    return 0;</span>
+<span class="source-line" id="L573"><a class="line-no" href="#L573">573</a>}</span>
+<span class="source-line" id="L574"><a class="line-no" href="#L574">574</a>static int lifecycle_case(const char *pf,const char *device,const char *tenant)</span>
+<span class="source-line" id="L575"><a class="line-no" href="#L575">575</a>{</span>
+<span class="source-line" id="L576"><a class="line-no" href="#L576">576</a>    char count_path[PATH_MAX];</span>
+<span class="source-line" id="L577"><a class="line-no" href="#L577">577</a>    bool enabled=false;</span>
+<span class="source-line" id="L578"><a class="line-no" href="#L578">578</a>    int ret=1,saved,fd=open(device,O_RDWR|O_NONBLOCK|O_CLOEXEC);</span>
+<span class="source-line" id="L579"><a class="line-no" href="#L579">579</a>    snprintf(count_path,sizeof(count_path),&quot;/sys/bus/pci/devices/%s/sriov_numvfs&quot;,pf);</span>
+<span class="source-line" id="L580"><a class="line-no" href="#L580">580</a>    if (fd&lt;0) goto out;</span>
+<span class="source-line" id="L581"><a class="line-no" href="#L581">581</a>    int baseline_fds=directory_entries(&quot;/proc/self/fd&quot;),baseline_tasks=directory_entries(&quot;/proc/self/task&quot;);</span>
+<span class="source-line" id="L582"><a class="line-no" href="#L582">582</a>    if (baseline_fds&lt;4||baseline_tasks!=1||lab_inventory_checkpoint(&quot;T01&quot;,0,&quot;cold&quot;)) goto out;</span>
+<span class="source-line" id="L583"><a class="line-no" href="#L583">583</a>    /* 暖機也走完整 owner 生命週期，之後另外量測一百次。 */</span>
+<span class="source-line" id="L584"><a class="line-no" href="#L584">584</a>    for (unsigned cycle=0;cycle&lt;=100;cycle++) {</span>
+<span class="source-line" id="L585"><a class="line-no" href="#L585">585</a>        char bdfs[4][32];</span>
+<span class="source-line" id="L586"><a class="line-no" href="#L586">586</a>        struct admin owners[4];</span>
+<span class="source-line" id="L587"><a class="line-no" href="#L587">587</a>        int failed=0,error=0;</span>
+<span class="source-line" id="L588"><a class="line-no" href="#L588">588</a>        for (unsigned vf=0;vf&lt;4;vf++) owners[vf]=(struct admin){.pf=-1,.listen=-1,.connection=-1,.pidfd=-1,.management=-1,</span>
+<span class="source-line" id="L589"><a class="line-no" href="#L589">589</a>            .vf=vf,.failpoint=&quot;&quot;,.fail_hit=1,.scenario=&quot;T01&quot;,.count_path=count_path};</span>
+<span class="source-line" id="L590"><a class="line-no" href="#L590">590</a>        printf(&quot;{\&quot;event\&quot;:\&quot;T01_CYCLE_BEGIN\&quot;,\&quot;cycle\&quot;:%u,\&quot;warmup\&quot;:%s}\n&quot;,cycle,cycle?&quot;false&quot;:&quot;true&quot;);</span>
+<span class="source-line" id="L591"><a class="line-no" href="#L591">591</a>        if (lab_write_text(count_path,&quot;4\n&quot;)) goto out;</span>
+<span class="source-line" id="L592"><a class="line-no" href="#L592">592</a>        enabled=true;</span>
+<span class="source-line" id="L593"><a class="line-no" href="#L593">593</a>        if (cycle_ledger(fd,pf,cycle,true)) goto out;</span>
+<span class="source-line" id="L594"><a class="line-no" href="#L594">594</a>        for (unsigned vf=0;vf&lt;4;vf++) {</span>
+<span class="source-line" id="L595"><a class="line-no" href="#L595">595</a>            printf(&quot;{\&quot;event\&quot;:\&quot;T01_OWNER_BEGIN\&quot;,\&quot;cycle\&quot;:%u,\&quot;vf\&quot;:%u}\n&quot;,cycle,vf);</span>
+<span class="source-line" id="L596"><a class="line-no" href="#L596">596</a>            if (isolated_owner_start(&amp;owners[vf],pf,device,tenant,16,0)||owner_run(&amp;owners[vf])) { failed=1; break; }</span>
+<span class="source-line" id="L597"><a class="line-no" href="#L597">597</a>            strcpy(bdfs[vf],owners[vf].bdf);</span>
+<span class="source-line" id="L598"><a class="line-no" href="#L598">598</a>        }</span>
+<span class="source-line" id="L599"><a class="line-no" href="#L599">599</a>        /* 先通知全部 owner，再等待各自清理；不可讓第一個 FLR 等其他三次串行 close。 */</span>
+<span class="source-line" id="L600"><a class="line-no" href="#L600">600</a>        if (!failed) for (unsigned vf=0;vf&lt;4;vf++)</span>
+<span class="source-line" id="L601"><a class="line-no" href="#L601">601</a>            if (owner_stop_begin(&amp;owners[vf])) { failed=1; break; }</span>
+<span class="source-line" id="L602"><a class="line-no" href="#L602">602</a>        if (!failed) for (unsigned vf=0;vf&lt;4;vf++)</span>
+<span class="source-line" id="L603"><a class="line-no" href="#L603">603</a>            if (owner_stop_finish(&amp;owners[vf])||release_owner(&amp;owners[vf])) { failed=1; break; }</span>
+<span class="source-line" id="L604"><a class="line-no" href="#L604">604</a>        /* 所有 lease 關閉後立即撤掉 PCI functions，再做 socket/目錄清理。 */</span>
+<span class="source-line" id="L605"><a class="line-no" href="#L605">605</a>        if (!failed) {</span>
+<span class="source-line" id="L606"><a class="line-no" href="#L606">606</a>            if (lab_write_text(count_path,&quot;0\n&quot;)) failed=1;</span>
+<span class="source-line" id="L607"><a class="line-no" href="#L607">607</a>            else enabled=false;</span>
+<span class="source-line" id="L608"><a class="line-no" href="#L608">608</a>        }</span>
+<span class="source-line" id="L609"><a class="line-no" href="#L609">609</a>        error=errno;</span>
+<span class="source-line" id="L610"><a class="line-no" href="#L610">610</a>        for (unsigned vf=0;vf&lt;4;vf++) isolated_owner_cleanup(&amp;owners[vf]);</span>
+<span class="source-line" id="L611"><a class="line-no" href="#L611">611</a>        if (failed) { errno=error; goto out; }</span>
+<span class="source-line" id="L612"><a class="line-no" href="#L612">612</a>        for (unsigned vf=0;vf&lt;4;vf++) {</span>
+<span class="source-line" id="L613"><a class="line-no" href="#L613">613</a>            char path[PATH_MAX]; struct stat st;</span>
+<span class="source-line" id="L614"><a class="line-no" href="#L614">614</a>            snprintf(path,sizeof(path),&quot;/sys/bus/pci/devices/%s&quot;,bdfs[vf]);</span>
+<span class="source-line" id="L615"><a class="line-no" href="#L615">615</a>            if (!lstat(path,&amp;st)||errno!=ENOENT) { errno=EBUSY; goto out; }</span>
+<span class="source-line" id="L616"><a class="line-no" href="#L616">616</a>        }</span>
+<span class="source-line" id="L617"><a class="line-no" href="#L617">617</a>        if (cycle_ledger(fd,pf,cycle,false)||lifecycle_quiet(fd,cycle,baseline_fds,baseline_tasks)) goto out;</span>
+<span class="source-line" id="L618"><a class="line-no" href="#L618">618</a>        printf(&quot;{\&quot;event\&quot;:\&quot;T01_CYCLE_END\&quot;,\&quot;cycle\&quot;:%u,\&quot;owners\&quot;:4,\&quot;pci_devices_absent\&quot;:4,\&quot;status\&quot;:\&quot;PASS\&quot;}\n&quot;,cycle);</span>
+<span class="source-line" id="L619"><a class="line-no" href="#L619">619</a>        if (!cycle&amp;&amp;lab_inventory_checkpoint(&quot;T01&quot;,1,&quot;initial&quot;)) goto out;</span>
+<span class="source-line" id="L620"><a class="line-no" href="#L620">620</a>    }</span>
+<span class="source-line" id="L621"><a class="line-no" href="#L621">621</a>    if (lab_inventory_checkpoint(&quot;T01&quot;,2,&quot;final&quot;)) goto out;</span>
+<span class="source-line" id="L622"><a class="line-no" href="#L622">622</a>    puts(&quot;{\&quot;event\&quot;:\&quot;M3_CASE\&quot;,\&quot;id\&quot;:\&quot;T01\&quot;,\&quot;status\&quot;:\&quot;PASS\&quot;,\&quot;cycles\&quot;:100,\&quot;warmup_cycles\&quot;:1,\&quot;owners_per_cycle\&quot;:4,\&quot;remaining_fds\&quot;:0,\&quot;remaining_maps\&quot;:0,\&quot;remaining_work\&quot;:0}&quot;);</span>
+<span class="source-line" id="L623"><a class="line-no" href="#L623">623</a>    puts(&quot;LAB_RESULT=PASS&quot;); ret=0;</span>
+<span class="source-line" id="L624"><a class="line-no" href="#L624">624</a>out:</span>
+<span class="source-line" id="L625"><a class="line-no" href="#L625">625</a>    saved=errno;</span>
+<span class="source-line" id="L626"><a class="line-no" href="#L626">626</a>    if (enabled&amp;&amp;lab_write_text(count_path,&quot;0\n&quot;)) fprintf(stderr,&quot;LABD_DISABLE_FAILED errno=%d\n&quot;,errno);</span>
+<span class="source-line" id="L627"><a class="line-no" href="#L627">627</a>    if (fd&gt;=0) close(fd);</span>
+<span class="source-line" id="L628"><a class="line-no" href="#L628">628</a>    if (ret) {</span>
+<span class="source-line" id="L629"><a class="line-no" href="#L629">629</a>        fprintf(stderr,&quot;LABD_ERROR scenario=T01 errno=%d message=%s\n&quot;,saved,strerror(saved));</span>
+<span class="source-line" id="L630"><a class="line-no" href="#L630">630</a>        printf(&quot;{\&quot;event\&quot;:\&quot;M3_CASE\&quot;,\&quot;id\&quot;:\&quot;T01\&quot;,\&quot;status\&quot;:\&quot;FAIL\&quot;,\&quot;errno\&quot;:%d}\n&quot;,saved);</span>
+<span class="source-line" id="L631"><a class="line-no" href="#L631">631</a>        puts(&quot;LAB_RESULT=FAIL&quot;);</span>
+<span class="source-line" id="L632"><a class="line-no" href="#L632">632</a>    }</span>
+<span class="source-line" id="L633"><a class="line-no" href="#L633">633</a>    return ret;</span>
+<span class="source-line" id="L634"><a class="line-no" href="#L634">634</a>}</span>
+<span class="source-line" id="L635"><a class="line-no" href="#L635">635</a>#include &quot;t06.inc&quot;</span>
+<span class="source-line" id="L636"><a class="line-no" href="#L636">636</a>#include &quot;recovery.inc&quot;</span>
+<span class="source-line" id="L637"><a class="line-no" href="#L637">637</a>int main(int argc,char **argv)</span>
+<span class="source-line" id="L638"><a class="line-no" href="#L638">638</a>{</span>
+<span class="source-line" id="L639"><a class="line-no" href="#L639">639</a>    struct admin a={.pf=-1,.listen=-1,.connection=-1,.pidfd=-1,.management=-1,.failpoint=&quot;&quot;,.fail_hit=1};</span>
+<span class="source-line" id="L640"><a class="line-no" href="#L640">640</a>    const char *pf=&quot;0000:01:00.0&quot;,*device=&quot;/dev/toy_pf0&quot;,*tenant=&quot;/usr/bin/tenant&quot;,*scenario=&quot;T03&quot;;</span>
+<span class="source-line" id="L641"><a class="line-no" href="#L641">641</a>    unsigned entries=16,requests=4096,seed=101;</span>
+<span class="source-line" id="L642"><a class="line-no" href="#L642">642</a>    char path[PATH_MAX],group_text[32],count_path[PATH_MAX];</span>
+<span class="source-line" id="L643"><a class="line-no" href="#L643">643</a>    struct toy_vf_ctl ctl;</span>
+<span class="source-line" id="L644"><a class="line-no" href="#L644">644</a>    bool enabled=false;</span>
+<span class="source-line" id="L645"><a class="line-no" href="#L645">645</a>    int ret=1,saved=0;</span>
+<span class="source-line" id="L646"><a class="line-no" href="#L646">646</a>    setvbuf(stdout,NULL,_IOLBF,0);</span>
+<span class="source-line" id="L647"><a class="line-no" href="#L647">647</a>    for (int i=1;i&lt;argc;i++) {</span>
+<span class="source-line" id="L648"><a class="line-no" href="#L648">648</a>        if (i+1&gt;=argc) { errno=EINVAL; goto out; }</span>
+<span class="source-line" id="L649"><a class="line-no" href="#L649">649</a>        const char *key=argv[i++],*value=argv[i];</span>
+<span class="source-line" id="L650"><a class="line-no" href="#L650">650</a>        if (!strcmp(key,&quot;--pf&quot;)) pf=value;</span>
+<span class="source-line" id="L651"><a class="line-no" href="#L651">651</a>        else if (!strcmp(key,&quot;--device&quot;)) device=value;</span>
+<span class="source-line" id="L652"><a class="line-no" href="#L652">652</a>        else if (!strcmp(key,&quot;--tenant&quot;)) tenant=value;</span>
+<span class="source-line" id="L653"><a class="line-no" href="#L653">653</a>        else if (!strcmp(key,&quot;--scenario&quot;)) scenario=value;</span>
+<span class="source-line" id="L654"><a class="line-no" href="#L654">654</a>        else if (!strcmp(key,&quot;--failpoint&quot;)) a.failpoint=value;</span>
+<span class="source-line" id="L655"><a class="line-no" href="#L655">655</a>        else {</span>
+<span class="source-line" id="L656"><a class="line-no" href="#L656">656</a>            char *end; errno=0; unsigned long n=strtoul(value,&amp;end,0);</span>
+<span class="source-line" id="L657"><a class="line-no" href="#L657">657</a>            if (errno||!*value||*end||n&gt;UINT_MAX) { errno=EINVAL; goto out; }</span>
+<span class="source-line" id="L658"><a class="line-no" href="#L658">658</a>            if (!strcmp(key,&quot;--entries&quot;)) entries=(unsigned)n;</span>
+<span class="source-line" id="L659"><a class="line-no" href="#L659">659</a>            else if (!strcmp(key,&quot;--seed&quot;)) seed=(unsigned)n;</span>
+<span class="source-line" id="L660"><a class="line-no" href="#L660">660</a>            else if (!strcmp(key,&quot;--requests&quot;)) requests=(unsigned)n;</span>
+<span class="source-line" id="L661"><a class="line-no" href="#L661">661</a>            else if (!strcmp(key,&quot;--fail-hit&quot;)&amp;&amp;n) a.fail_hit=(unsigned)n;</span>
+<span class="source-line" id="L662"><a class="line-no" href="#L662">662</a>            else if (!strcmp(key,&quot;--dma-fault&quot;)&amp;&amp;n&lt;=6) a.dma_fault=(unsigned)n;</span>
+<span class="source-line" id="L663"><a class="line-no" href="#L663">663</a>            else { errno=EINVAL; goto out; }</span>
+<span class="source-line" id="L664"><a class="line-no" href="#L664">664</a>        }</span>
+<span class="source-line" id="L665"><a class="line-no" href="#L665">665</a>    }</span>
+<span class="source-line" id="L666"><a class="line-no" href="#L666">666</a>    if (!strcmp(scenario,&quot;T02-owner&quot;)) return owner_fault_matrix(argv[0]);</span>
+<span class="source-line" id="L667"><a class="line-no" href="#L667">667</a>    if (!strcmp(scenario,&quot;T01&quot;)) return lifecycle_case(pf,device,tenant);</span>
+<span class="source-line" id="L668"><a class="line-no" href="#L668">668</a>    if (!strcmp(scenario,&quot;T05&quot;)) return dma_fault_case(pf,device,tenant,a.dma_fault);</span>
+<span class="source-line" id="L669"><a class="line-no" href="#L669">669</a>    if (!strcmp(scenario,&quot;T06&quot;)) return vfio_reset_case(pf,device,tenant);</span>
+<span class="source-line" id="L670"><a class="line-no" href="#L670">670</a>    if (!strcmp(scenario,&quot;T07&quot;)||!strcmp(scenario,&quot;T08&quot;)) return recovery_case(pf,device,tenant,!strcmp(scenario,&quot;T07&quot;)?7:8);</span>
+<span class="source-line" id="L671"><a class="line-no" href="#L671">671</a>    if (strcmp(scenario,&quot;T03&quot;)&amp;&amp;strcmp(scenario,&quot;T04&quot;)&amp;&amp;strcmp(scenario,&quot;T09&quot;)&amp;&amp;strcmp(scenario,&quot;T10&quot;)&amp;&amp;strcmp(scenario,&quot;T02-provision&quot;)&amp;&amp;strcmp(scenario,&quot;T02-pci&quot;)&amp;&amp;strcmp(scenario,&quot;T02-owner-child&quot;)) { errno=EOPNOTSUPP; goto out; }</span>
+<span class="source-line" id="L672"><a class="line-no" href="#L672">672</a>    a.scenario=scenario; a.count_path=count_path;</span>
+<span class="source-line" id="L673"><a class="line-no" href="#L673">673</a>    if (requests&lt;4096||(entries!=16&amp;&amp;entries!=32&amp;&amp;entries!=256)) { errno=EINVAL; goto out; }</span>
+<span class="source-line" id="L674"><a class="line-no" href="#L674">674</a>    if (!strcmp(scenario,&quot;T04&quot;)) return isolation_case(pf,device,tenant,entries,requests,seed);</span>
+<span class="source-line" id="L675"><a class="line-no" href="#L675">675</a>    snprintf(a.directory,sizeof(a.directory),&quot;/run/lab-%d&quot;,getpid());</span>
+<span class="source-line" id="L676"><a class="line-no" href="#L676">676</a>    if (mkdir(a.directory,0700)) goto out;</span>
+<span class="source-line" id="L677"><a class="line-no" href="#L677">677</a>    snprintf(a.socket,sizeof(a.socket),&quot;%s/tenant.sock&quot;,a.directory);</span>
+<span class="source-line" id="L678"><a class="line-no" href="#L678">678</a>    snprintf(a.management_path,sizeof(a.management_path),&quot;%s/control.sock&quot;,a.directory);</span>
+<span class="source-line" id="L679"><a class="line-no" href="#L679">679</a>    a.management=lab_listen(a.management_path); if (a.management&lt;0) goto out;</span>
+<span class="source-line" id="L680"><a class="line-no" href="#L680">680</a>    printf(&quot;{\&quot;event\&quot;:\&quot;M3_ADMIN_SOCKET\&quot;,\&quot;path\&quot;:\&quot;%s\&quot;}\n&quot;,a.management_path);</span>
+<span class="source-line" id="L681"><a class="line-no" href="#L681">681</a>    snprintf(count_path,sizeof(count_path),&quot;/sys/bus/pci/devices/%s/sriov_numvfs&quot;,pf);</span>
+<span class="source-line" id="L682"><a class="line-no" href="#L682">682</a>    a.pf=open(device,O_RDWR|O_CLOEXEC|O_NONBLOCK); if (a.pf&lt;0) goto out;</span>
+<span class="source-line" id="L683"><a class="line-no" href="#L683">683</a>    if (!strcmp(scenario,&quot;T02-provision&quot;)) {</span>
+<span class="source-line" id="L684"><a class="line-no" href="#L684">684</a>        if (!lab_t02_provision(pf,a.pf)) ret=0;</span>
+<span class="source-line" id="L685"><a class="line-no" href="#L685">685</a>        goto out;</span>
+<span class="source-line" id="L686"><a class="line-no" href="#L686">686</a>    }</span>
+<span class="source-line" id="L687"><a class="line-no" href="#L687">687</a>    if (!strcmp(scenario,&quot;T02-pci&quot;)) {</span>
+<span class="source-line" id="L688"><a class="line-no" href="#L688">688</a>        if (!lab_t02_pci(pf,a.pf)) ret=0;</span>
+<span class="source-line" id="L689"><a class="line-no" href="#L689">689</a>        goto out;</span>
+<span class="source-line" id="L690"><a class="line-no" href="#L690">690</a>    }</span>
+<span class="source-line" id="L691"><a class="line-no" href="#L691">691</a>    if (lab_write_text(count_path,&quot;4\n&quot;)) goto out;</span>
+<span class="source-line" id="L692"><a class="line-no" href="#L692">692</a>    enabled=true;</span>
+<span class="source-line" id="L693"><a class="line-no" href="#L693">693</a>    snprintf(path,sizeof(path),&quot;/sys/bus/pci/devices/%s/virtfn0&quot;,pf);</span>
+<span class="source-line" id="L694"><a class="line-no" href="#L694">694</a>    if (lab_link_basename(path,a.bdf,sizeof(a.bdf))||snapshot(&amp;a)||control(&amp;a,TOY_LEASE_ACQUIRE,0,&amp;ctl)) goto out;</span>
+<span class="source-line" id="L695"><a class="line-no" href="#L695">695</a>    a.lease=ctl.lease_token; a.leased=true;</span>
+<span class="source-line" id="L696"><a class="line-no" href="#L696">696</a>    snprintf(path,sizeof(path),&quot;/sys/bus/pci/devices/%s/iommu_group&quot;,a.bdf);</span>
+<span class="source-line" id="L697"><a class="line-no" href="#L697">697</a>    if (lab_link_basename(path,group_text,sizeof(group_text))) goto out;</span>
+<span class="source-line" id="L698"><a class="line-no" href="#L698">698</a>    char *end; errno=0; unsigned long group=strtoul(group_text,&amp;end,10);</span>
+<span class="source-line" id="L699"><a class="line-no" href="#L699">699</a>    if (errno||*end||group&gt;UINT_MAX) { errno=EPROTO; goto out; }</span>
+<span class="source-line" id="L700"><a class="line-no" href="#L700">700</a>    snprintf(path,sizeof(path),&quot;/sys/bus/pci/devices/%s/driver_override&quot;,a.bdf);</span>
+<span class="source-line" id="L701"><a class="line-no" href="#L701">701</a>    if (lab_write_text(path,&quot;vfio-pci\n&quot;)||lab_write_text(&quot;/sys/bus/pci/drivers_probe&quot;,a.bdf)) goto out;</span>
+<span class="source-line" id="L702"><a class="line-no" href="#L702">702</a>    a.bound=true;</span>
+<span class="source-line" id="L703"><a class="line-no" href="#L703">703</a>    if (start_owner(&amp;a,tenant,(unsigned)group,entries,requests)) goto out;</span>
+<span class="source-line" id="L704"><a class="line-no" href="#L704">704</a>    int session_ret=owner_session(&amp;a);</span>
+<span class="source-line" id="L705"><a class="line-no" href="#L705">705</a>    if (*a.failpoint) {</span>
+<span class="source-line" id="L706"><a class="line-no" href="#L706">706</a>        if (!session_ret||failed_owner(&amp;a)) goto out;</span>
+<span class="source-line" id="L707"><a class="line-no" href="#L707">707</a>    } else if (session_ret) goto out;</span>
+<span class="source-line" id="L708"><a class="line-no" href="#L708">708</a>    if (release_owner(&amp;a)) goto out;</span>
+<span class="source-line" id="L709"><a class="line-no" href="#L709">709</a>    if (lab_write_text(count_path,&quot;0\n&quot;)) goto out;</span>
+<span class="source-line" id="L710"><a class="line-no" href="#L710">710</a>    enabled=false;</span>
+<span class="source-line" id="L711"><a class="line-no" href="#L711">711</a>    for (a.vf=0;a.vf&lt;8;a.vf++) {</span>
+<span class="source-line" id="L712"><a class="line-no" href="#L712">712</a>        if (snapshot(&amp;a)||a.info.state!=TOY_STATES_FREE||a.info.reserve||a.info.outstanding||</span>
+<span class="source-line" id="L713"><a class="line-no" href="#L713">713</a>            (a.info.hw_flags&amp;(TOY_HW_FLAGS_PCI_PRESENT|TOY_HW_FLAGS_CONFIG_VALID))||!(a.info.hw_flags&amp;TOY_HW_FLAGS_FENCED)) { errno=EIO; goto out; }</span>
+<span class="source-line" id="L714"><a class="line-no" href="#L714">714</a>    }</span>
+<span class="source-line" id="L715"><a class="line-no" href="#L715">715</a>    if (!strcmp(scenario,&quot;T02-owner-child&quot;)) {</span>
+<span class="source-line" id="L716"><a class="line-no" href="#L716">716</a>        printf(&quot;{\&quot;event\&quot;:\&quot;T02_OWNER_CASE\&quot;,\&quot;name\&quot;:\&quot;%s\&quot;,\&quot;hit\&quot;:%u,\&quot;pid\&quot;:%d,\&quot;owner_closed\&quot;:true,\&quot;all_free\&quot;:true,\&quot;status\&quot;:\&quot;PASS\&quot;}\n&quot;,a.failpoint,a.fail_hit,a.child);</span>
+<span class="source-line" id="L717"><a class="line-no" href="#L717">717</a>    } else {</span>
+<span class="source-line" id="L718"><a class="line-no" href="#L718">718</a>        printf(&quot;{\&quot;event\&quot;:\&quot;M3_CASE\&quot;,\&quot;id\&quot;:\&quot;%s\&quot;,\&quot;scenario\&quot;:\&quot;%s\&quot;,\&quot;variant\&quot;:\&quot;entries-%u\&quot;,\&quot;status\&quot;:\&quot;PASS\&quot;,\&quot;checks\&quot;:{\&quot;entries\&quot;:%u,\&quot;requests\&quot;:%u,\&quot;seed\&quot;:%u,\&quot;owner_closed\&quot;:true,\&quot;all_free\&quot;:true}}\n&quot;,scenario,scenario,entries,entries,requests,seed);</span>
+<span class="source-line" id="L719"><a class="line-no" href="#L719">719</a>        puts(&quot;LAB_RESULT=PASS&quot;);</span>
+<span class="source-line" id="L720"><a class="line-no" href="#L720">720</a>    }</span>
+<span class="source-line" id="L721"><a class="line-no" href="#L721">721</a>    ret=0;</span>
+<span class="source-line" id="L722"><a class="line-no" href="#L722">722</a>out:</span>
+<span class="source-line" id="L723"><a class="line-no" href="#L723">723</a>    saved=errno;</span>
+<span class="source-line" id="L724"><a class="line-no" href="#L724">724</a>    if (ret) fprintf(stderr,&quot;LABD_ERROR scenario=%s errno=%d message=%s\n&quot;,scenario,saved,strerror(saved));</span>
+<span class="source-line" id="L725"><a class="line-no" href="#L725">725</a>    if (a.leased&amp;&amp;a.vf&lt;8&amp;&amp;a.pf&gt;=0&amp;&amp;!a.child_reaped) {</span>
+<span class="source-line" id="L726"><a class="line-no" href="#L726">726</a>        if (!snapshot(&amp;a)) (void)control(&amp;a,TOY_FENCE_VF,0,&amp;ctl);</span>
+<span class="source-line" id="L727"><a class="line-no" href="#L727">727</a>    }</span>
+<span class="source-line" id="L728"><a class="line-no" href="#L728">728</a>    if (a.child&gt;0&amp;&amp;!a.child_reaped) {</span>
+<span class="source-line" id="L729"><a class="line-no" href="#L729">729</a>        if (a.pidfd&gt;=0) (void)syscall(SYS_pidfd_send_signal,a.pidfd,SIGKILL,NULL,0);</span>
+<span class="source-line" id="L730"><a class="line-no" href="#L730">730</a>        else (void)kill(a.child,SIGKILL);</span>
+<span class="source-line" id="L731"><a class="line-no" href="#L731">731</a>        int status; while (waitpid(a.child,&amp;status,0)&lt;0&amp;&amp;errno==EINTR) {}</span>
+<span class="source-line" id="L732"><a class="line-no" href="#L732">732</a>        a.child_reaped=true;</span>
+<span class="source-line" id="L733"><a class="line-no" href="#L733">733</a>    }</span>
+<span class="source-line" id="L734"><a class="line-no" href="#L734">734</a>    if (ret&amp;&amp;a.pf&gt;=0) {</span>
+<span class="source-line" id="L735"><a class="line-no" href="#L735">735</a>        if (release_owner(&amp;a)) fprintf(stderr,&quot;LABD_QUARANTINE cleanup_errno=%d\n&quot;,errno);</span>
+<span class="source-line" id="L736"><a class="line-no" href="#L736">736</a>        else if (enabled&amp;&amp;lab_write_text(count_path,&quot;0\n&quot;)) fprintf(stderr,&quot;LABD_DISABLE_FAILED errno=%d\n&quot;,errno);</span>
+<span class="source-line" id="L737"><a class="line-no" href="#L737">737</a>    }</span>
+<span class="source-line" id="L738"><a class="line-no" href="#L738">738</a>    if (a.connection&gt;=0) close(a.connection);</span>
+<span class="source-line" id="L739"><a class="line-no" href="#L739">739</a>    if (a.listen&gt;=0) close(a.listen);</span>
+<span class="source-line" id="L740"><a class="line-no" href="#L740">740</a>    if (a.management&gt;=0) close(a.management);</span>
+<span class="source-line" id="L741"><a class="line-no" href="#L741">741</a>    if (a.pidfd&gt;=0) close(a.pidfd);</span>
+<span class="source-line" id="L742"><a class="line-no" href="#L742">742</a>    if (a.pf&gt;=0) close(a.pf);</span>
+<span class="source-line" id="L743"><a class="line-no" href="#L743">743</a>    if (a.socket[0]) unlink(a.socket);</span>
+<span class="source-line" id="L744"><a class="line-no" href="#L744">744</a>    if (a.management_path[0]) unlink(a.management_path);</span>
+<span class="source-line" id="L745"><a class="line-no" href="#L745">745</a>    if (a.directory[0]) rmdir(a.directory);</span>
+<span class="source-line" id="L746"><a class="line-no" href="#L746">746</a>    if (ret) { printf(&quot;{\&quot;event\&quot;:\&quot;M3_CASE\&quot;,\&quot;id\&quot;:\&quot;%s\&quot;,\&quot;status\&quot;:\&quot;FAIL\&quot;,\&quot;errno\&quot;:%d}\n&quot;,scenario,saved); puts(&quot;LAB_RESULT=FAIL&quot;); }</span>
+<span class="source-line" id="L747"><a class="line-no" href="#L747">747</a>    return ret;</span>
+<span class="source-line" id="L748"><a class="line-no" href="#L748">748</a>}</span></pre></main></html>

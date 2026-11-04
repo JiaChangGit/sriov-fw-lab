@@ -1,0 +1,7 @@
+[Defines]
+  DEC_SPECIFICATION = 0x00010005
+  PACKAGE_NAME = SriovFwPkg
+  PACKAGE_GUID = 1ef08950-6fbb-4890-90bf-d46f0f18e4a4
+  PACKAGE_VERSION = 1.0
+[Includes]
+  .

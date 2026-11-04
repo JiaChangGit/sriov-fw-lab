@@ -1,0 +1,250 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>guest/tenant/vfio.c</title><style>
+:root{color-scheme:light;--ink:#18293c;--blue:#184d83;--line:#ced9e4;--muted:#526477}
+*{box-sizing:border-box}body{margin:0;background:#f2f5f8;color:var(--ink);font:17px/1.8 system-ui,'Microsoft JhengHei',sans-serif}
+a{color:var(--blue);overflow-wrap:anywhere}header{background:#102e4d;color:#fff;padding:48px max(24px,calc((100vw - 1100px)/2))}
+header p{max-width:850px}header a{color:#b8dcff}.label{letter-spacing:.15em;font-size:13px;color:#b8dcff}
+.layout{max-width:1420px;margin:auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:32px;padding:30px}
+nav{position:sticky;top:20px;align-self:start;max-height:95vh;overflow:auto;font-size:14px}nav a{display:block;margin:12px 0}
+main{min-width:0;background:white;padding:36px 44px;border:1px solid var(--line);border-radius:12px}
+h1{font-size:2rem;line-height:1.35}h2{font-size:1.5rem;margin-top:2em;border-bottom:1px solid var(--line);padding-bottom:10px}h3{font-size:1.1rem}
+p{max-width:95ch}section+section{margin-top:80px;border-top:4px solid var(--blue);padding-top:26px}
+pre{overflow:auto;background:#112c45;color:#eaf3fa;padding:20px;border-radius:8px;font-size:14px;line-height:1.6}
+code{font-family:Consolas,monospace;font-size:.88em}p code,li code,td code{background:#edf3f8;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}
+.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;margin:20px 0;font-size:15px}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf1f8}
+img,svg{max-width:100%;height:auto}.diagram{overflow:auto;margin:20px 0}.diagram svg{min-width:900px;width:100%;display:block}blockquote,.notice{border-left:5px solid #c4841b;background:#fff5df;padding:16px 20px;margin:24px 0}.muted{color:var(--muted)}
+.source-line{display:block;white-space:pre}.source-line:target{background:#355b79}.line-no{display:inline-block;width:5em;color:#9db8ce;text-decoration:none;user-select:none}
+@media(max-width:850px){.layout{display:block;padding:14px}nav{position:static;max-height:none}main{padding:24px 18px}header{padding:30px 20px}h1{font-size:1.65rem}}
+@media print{body{background:white;font-size:11pt}header{color:#18293c;background:white;padding:0}nav{display:none}.layout{display:block;padding:0}main{border:0;padding:0}section{break-before:page}pre{white-space:pre-wrap}a{color:inherit}}
+</style><main><a href="../handbook.html">回教材</a><h1>guest/tenant/vfio.c</h1><p>SHA256 <code>3e2648b2a11a94fd8bb222378fa2b0f17c4fa0516854052dee9789256b3f155f</code></p><pre><span class="source-line" id="L1"><a class="line-no" href="#L1">1</a>/* Classic VFIO TYPE1 的資源操作。每個 lab_vfio 實例各自建立 container/group/device fd。 */</span>
+<span class="source-line" id="L2"><a class="line-no" href="#L2">2</a>#define _GNU_SOURCE</span>
+<span class="source-line" id="L3"><a class="line-no" href="#L3">3</a>#include &quot;vfio.h&quot;</span>
+<span class="source-line" id="L4"><a class="line-no" href="#L4">4</a>#include &quot;toy_regs.h&quot;</span>
+<span class="source-line" id="L5"><a class="line-no" href="#L5">5</a>#include &lt;errno.h&gt;</span>
+<span class="source-line" id="L6"><a class="line-no" href="#L6">6</a>#include &lt;fcntl.h&gt;</span>
+<span class="source-line" id="L7"><a class="line-no" href="#L7">7</a>#include &lt;inttypes.h&gt;</span>
+<span class="source-line" id="L8"><a class="line-no" href="#L8">8</a>#include &lt;limits.h&gt;</span>
+<span class="source-line" id="L9"><a class="line-no" href="#L9">9</a>#include &lt;stdio.h&gt;</span>
+<span class="source-line" id="L10"><a class="line-no" href="#L10">10</a>#include &lt;stdlib.h&gt;</span>
+<span class="source-line" id="L11"><a class="line-no" href="#L11">11</a>#include &lt;string.h&gt;</span>
+<span class="source-line" id="L12"><a class="line-no" href="#L12">12</a>#include &lt;sys/ioctl.h&gt;</span>
+<span class="source-line" id="L13"><a class="line-no" href="#L13">13</a>#include &lt;sys/mman.h&gt;</span>
+<span class="source-line" id="L14"><a class="line-no" href="#L14">14</a>#include &lt;sys/stat.h&gt;</span>
+<span class="source-line" id="L15"><a class="line-no" href="#L15">15</a>#include &lt;sys/sysmacros.h&gt;</span>
+<span class="source-line" id="L16"><a class="line-no" href="#L16">16</a>#include &lt;unistd.h&gt;</span>
+<span class="source-line" id="L17"><a class="line-no" href="#L17">17</a></span>
+<span class="source-line" id="L18"><a class="line-no" href="#L18">18</a>int lab_write_text(const char *path, const char *text)</span>
+<span class="source-line" id="L19"><a class="line-no" href="#L19">19</a>{</span>
+<span class="source-line" id="L20"><a class="line-no" href="#L20">20</a>    size_t length=strlen(text);</span>
+<span class="source-line" id="L21"><a class="line-no" href="#L21">21</a>    int fd=open(path,O_WRONLY|O_CLOEXEC),saved;</span>
+<span class="source-line" id="L22"><a class="line-no" href="#L22">22</a>    ssize_t n;</span>
+<span class="source-line" id="L23"><a class="line-no" href="#L23">23</a>    if(fd&lt;0) return -1;</span>
+<span class="source-line" id="L24"><a class="line-no" href="#L24">24</a>    do { n=write(fd,text,length); } while(n&lt;0 &amp;&amp; errno==EINTR);</span>
+<span class="source-line" id="L25"><a class="line-no" href="#L25">25</a>    saved=errno;</span>
+<span class="source-line" id="L26"><a class="line-no" href="#L26">26</a>    if(close(fd) &amp;&amp; n==(ssize_t)length) return -1;</span>
+<span class="source-line" id="L27"><a class="line-no" href="#L27">27</a>    if(n!=(ssize_t)length) { errno=n&lt;0?saved:EIO; return -1; }</span>
+<span class="source-line" id="L28"><a class="line-no" href="#L28">28</a>    return 0;</span>
+<span class="source-line" id="L29"><a class="line-no" href="#L29">29</a>}</span>
+<span class="source-line" id="L30"><a class="line-no" href="#L30">30</a></span>
+<span class="source-line" id="L31"><a class="line-no" href="#L31">31</a>int lab_read_text(const char *path, char *buffer, size_t length)</span>
+<span class="source-line" id="L32"><a class="line-no" href="#L32">32</a>{</span>
+<span class="source-line" id="L33"><a class="line-no" href="#L33">33</a>    int fd,saved;</span>
+<span class="source-line" id="L34"><a class="line-no" href="#L34">34</a>    ssize_t n;</span>
+<span class="source-line" id="L35"><a class="line-no" href="#L35">35</a>    if(length&lt;2) { errno=EINVAL; return -1; }</span>
+<span class="source-line" id="L36"><a class="line-no" href="#L36">36</a>    fd=open(path,O_RDONLY|O_CLOEXEC);</span>
+<span class="source-line" id="L37"><a class="line-no" href="#L37">37</a>    if(fd&lt;0) return -1;</span>
+<span class="source-line" id="L38"><a class="line-no" href="#L38">38</a>    do { n=read(fd,buffer,length-1); } while(n&lt;0 &amp;&amp; errno==EINTR);</span>
+<span class="source-line" id="L39"><a class="line-no" href="#L39">39</a>    saved=errno;</span>
+<span class="source-line" id="L40"><a class="line-no" href="#L40">40</a>    if(close(fd) &amp;&amp; n&gt;=0) return -1;</span>
+<span class="source-line" id="L41"><a class="line-no" href="#L41">41</a>    if(n&lt;0) { errno=saved; return -1; }</span>
+<span class="source-line" id="L42"><a class="line-no" href="#L42">42</a>    if(n==(ssize_t)length-1) { errno=EOVERFLOW; return -1; }</span>
+<span class="source-line" id="L43"><a class="line-no" href="#L43">43</a>    buffer[n]=0;</span>
+<span class="source-line" id="L44"><a class="line-no" href="#L44">44</a>    return 0;</span>
+<span class="source-line" id="L45"><a class="line-no" href="#L45">45</a>}</span>
+<span class="source-line" id="L46"><a class="line-no" href="#L46">46</a></span>
+<span class="source-line" id="L47"><a class="line-no" href="#L47">47</a>int lab_read_u64(const char *path, uint64_t *value)</span>
+<span class="source-line" id="L48"><a class="line-no" href="#L48">48</a>{</span>
+<span class="source-line" id="L49"><a class="line-no" href="#L49">49</a>    char buffer[128],*end;</span>
+<span class="source-line" id="L50"><a class="line-no" href="#L50">50</a>    unsigned long long n;</span>
+<span class="source-line" id="L51"><a class="line-no" href="#L51">51</a>    if(lab_read_text(path,buffer,sizeof(buffer))) return -1;</span>
+<span class="source-line" id="L52"><a class="line-no" href="#L52">52</a>    errno=0; n=strtoull(buffer,&amp;end,0);</span>
+<span class="source-line" id="L53"><a class="line-no" href="#L53">53</a>    if(errno || end==buffer || (*end &amp;&amp; *end!=&#x27;\n&#x27;)) { errno=EINVAL; return -1; }</span>
+<span class="source-line" id="L54"><a class="line-no" href="#L54">54</a>    *value=n;</span>
+<span class="source-line" id="L55"><a class="line-no" href="#L55">55</a>    return 0;</span>
+<span class="source-line" id="L56"><a class="line-no" href="#L56">56</a>}</span>
+<span class="source-line" id="L57"><a class="line-no" href="#L57">57</a></span>
+<span class="source-line" id="L58"><a class="line-no" href="#L58">58</a>int lab_link_basename(const char *path, char *buffer, size_t length)</span>
+<span class="source-line" id="L59"><a class="line-no" href="#L59">59</a>{</span>
+<span class="source-line" id="L60"><a class="line-no" href="#L60">60</a>    char target[PATH_MAX],*base;</span>
+<span class="source-line" id="L61"><a class="line-no" href="#L61">61</a>    ssize_t n=readlink(path,target,sizeof(target)-1);</span>
+<span class="source-line" id="L62"><a class="line-no" href="#L62">62</a>    if(n&lt;0) return -1;</span>
+<span class="source-line" id="L63"><a class="line-no" href="#L63">63</a>    if(n==(ssize_t)sizeof(target)-1) { errno=EOVERFLOW; return -1; }</span>
+<span class="source-line" id="L64"><a class="line-no" href="#L64">64</a>    target[n]=0; base=strrchr(target,&#x27;/&#x27;); base=base?base+1:target;</span>
+<span class="source-line" id="L65"><a class="line-no" href="#L65">65</a>    if(strlen(base)&gt;=length) { errno=ENAMETOOLONG; return -1; }</span>
+<span class="source-line" id="L66"><a class="line-no" href="#L66">66</a>    strcpy(buffer,base);</span>
+<span class="source-line" id="L67"><a class="line-no" href="#L67">67</a>    return 0;</span>
+<span class="source-line" id="L68"><a class="line-no" href="#L68">68</a>}</span>
+<span class="source-line" id="L69"><a class="line-no" href="#L69">69</a></span>
+<span class="source-line" id="L70"><a class="line-no" href="#L70">70</a>int lab_ensure_char(const char *sysfs_dev, const char *path)</span>
+<span class="source-line" id="L71"><a class="line-no" href="#L71">71</a>{</span>
+<span class="source-line" id="L72"><a class="line-no" href="#L72">72</a>    char text[64];</span>
+<span class="source-line" id="L73"><a class="line-no" href="#L73">73</a>    unsigned major_num,minor_num;</span>
+<span class="source-line" id="L74"><a class="line-no" href="#L74">74</a>    struct stat st;</span>
+<span class="source-line" id="L75"><a class="line-no" href="#L75">75</a>    if(!stat(path,&amp;st)) {</span>
+<span class="source-line" id="L76"><a class="line-no" href="#L76">76</a>        if(S_ISCHR(st.st_mode)) return 0;</span>
+<span class="source-line" id="L77"><a class="line-no" href="#L77">77</a>        errno=EINVAL; return -1;</span>
+<span class="source-line" id="L78"><a class="line-no" href="#L78">78</a>    }</span>
+<span class="source-line" id="L79"><a class="line-no" href="#L79">79</a>    if(errno!=ENOENT || lab_read_text(sysfs_dev,text,sizeof(text))) return -1;</span>
+<span class="source-line" id="L80"><a class="line-no" href="#L80">80</a>    if(sscanf(text,&quot;%u:%u&quot;,&amp;major_num,&amp;minor_num)!=2) { errno=EINVAL; return -1; }</span>
+<span class="source-line" id="L81"><a class="line-no" href="#L81">81</a>    return mknod(path,S_IFCHR|0600,makedev(major_num,minor_num));</span>
+<span class="source-line" id="L82"><a class="line-no" href="#L82">82</a>}</span>
+<span class="source-line" id="L83"><a class="line-no" href="#L83">83</a></span>
+<span class="source-line" id="L84"><a class="line-no" href="#L84">84</a>void lab_vfio_init(struct lab_vfio *vf)</span>
+<span class="source-line" id="L85"><a class="line-no" href="#L85">85</a>{</span>
+<span class="source-line" id="L86"><a class="line-no" href="#L86">86</a>    memset(vf,0,sizeof(*vf)); vf-&gt;container=-1; vf-&gt;group=-1; vf-&gt;device=-1;</span>
+<span class="source-line" id="L87"><a class="line-no" href="#L87">87</a>}</span>
+<span class="source-line" id="L88"><a class="line-no" href="#L88">88</a></span>
+<span class="source-line" id="L89"><a class="line-no" href="#L89">89</a>static int region(int device, unsigned index, struct vfio_region_info *info)</span>
+<span class="source-line" id="L90"><a class="line-no" href="#L90">90</a>{</span>
+<span class="source-line" id="L91"><a class="line-no" href="#L91">91</a>    memset(info,0,sizeof(*info)); info-&gt;argsz=sizeof(*info); info-&gt;index=index;</span>
+<span class="source-line" id="L92"><a class="line-no" href="#L92">92</a>    return ioctl(device,VFIO_DEVICE_GET_REGION_INFO,info);</span>
+<span class="source-line" id="L93"><a class="line-no" href="#L93">93</a>}</span>
+<span class="source-line" id="L94"><a class="line-no" href="#L94">94</a></span>
+<span class="source-line" id="L95"><a class="line-no" href="#L95">95</a>static int iommu_info(struct lab_vfio *vf)</span>
+<span class="source-line" id="L96"><a class="line-no" href="#L96">96</a>{</span>
+<span class="source-line" id="L97"><a class="line-no" href="#L97">97</a>    unsigned char buffer[16384] __attribute__((aligned(8)));</span>
+<span class="source-line" id="L98"><a class="line-no" href="#L98">98</a>    struct vfio_iommu_type1_info *info=(void *)buffer;</span>
+<span class="source-line" id="L99"><a class="line-no" href="#L99">99</a>    uint32_t offset,seen[64],count=0;</span>
+<span class="source-line" id="L100"><a class="line-no" href="#L100">100</a>    uint64_t page=(uint64_t)vf-&gt;bytes;</span>
+<span class="source-line" id="L101"><a class="line-no" href="#L101">101</a>    int found=0;</span>
+<span class="source-line" id="L102"><a class="line-no" href="#L102">102</a>    memset(buffer,0,sizeof(buffer)); info-&gt;argsz=sizeof(buffer);</span>
+<span class="source-line" id="L103"><a class="line-no" href="#L103">103</a>    if(ioctl(vf-&gt;container,VFIO_IOMMU_GET_INFO,info)) return -1;</span>
+<span class="source-line" id="L104"><a class="line-no" href="#L104">104</a>    if(info-&gt;argsz&lt;sizeof(*info) || info-&gt;argsz&gt;sizeof(buffer) || !(info-&gt;flags&amp;VFIO_IOMMU_INFO_PGSIZES) || !(info-&gt;iova_pgsizes&amp;page)) {</span>
+<span class="source-line" id="L105"><a class="line-no" href="#L105">105</a>        errno=EPROTO; return -1;</span>
+<span class="source-line" id="L106"><a class="line-no" href="#L106">106</a>    }</span>
+<span class="source-line" id="L107"><a class="line-no" href="#L107">107</a>    vf-&gt;page_sizes=info-&gt;iova_pgsizes;</span>
+<span class="source-line" id="L108"><a class="line-no" href="#L108">108</a>    offset=info-&gt;cap_offset;</span>
+<span class="source-line" id="L109"><a class="line-no" href="#L109">109</a>    while(offset) {</span>
+<span class="source-line" id="L110"><a class="line-no" href="#L110">110</a>        const struct vfio_info_cap_header *header;</span>
+<span class="source-line" id="L111"><a class="line-no" href="#L111">111</a>        unsigned j;</span>
+<span class="source-line" id="L112"><a class="line-no" href="#L112">112</a>        if(count==64 || offset&gt;info-&gt;argsz-sizeof(*header) || (offset&amp;3U)) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L113"><a class="line-no" href="#L113">113</a>        for(j=0;j&lt;count;++j) if(seen[j]==offset) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L114"><a class="line-no" href="#L114">114</a>        seen[count++]=offset;</span>
+<span class="source-line" id="L115"><a class="line-no" href="#L115">115</a>        header=(const void *)(buffer+offset);</span>
+<span class="source-line" id="L116"><a class="line-no" href="#L116">116</a>        if(header-&gt;id==VFIO_IOMMU_TYPE1_INFO_CAP_IOVA_RANGE) {</span>
+<span class="source-line" id="L117"><a class="line-no" href="#L117">117</a>            const struct vfio_iommu_type1_info_cap_iova_range *range=(const void *)header;</span>
+<span class="source-line" id="L118"><a class="line-no" href="#L118">118</a>            size_t available=info-&gt;argsz-offset;</span>
+<span class="source-line" id="L119"><a class="line-no" href="#L119">119</a>            if(available&lt;sizeof(*range) || header-&gt;version!=1 ||</span>
+<span class="source-line" id="L120"><a class="line-no" href="#L120">120</a>               range-&gt;nr_iovas&gt;(available-sizeof(*range))/sizeof(range-&gt;iova_ranges[0])) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L121"><a class="line-no" href="#L121">121</a>            for(j=0;j&lt;range-&gt;nr_iovas;++j) {</span>
+<span class="source-line" id="L122"><a class="line-no" href="#L122">122</a>                uint64_t start=range-&gt;iova_ranges[j].start,end=range-&gt;iova_ranges[j].end,choice;</span>
+<span class="source-line" id="L123"><a class="line-no" href="#L123">123</a>                printf(&quot;{\&quot;event\&quot;:\&quot;iova_range\&quot;,\&quot;vf\&quot;:\&quot;%s\&quot;,\&quot;start\&quot;:\&quot;0x%&quot; PRIx64 &quot;\&quot;,\&quot;end\&quot;:\&quot;0x%&quot; PRIx64 &quot;\&quot;}\n&quot;,vf-&gt;bdf,start,end);</span>
+<span class="source-line" id="L124"><a class="line-no" href="#L124">124</a>                if(start&gt;UINT64_MAX-(page-1)) continue;</span>
+<span class="source-line" id="L125"><a class="line-no" href="#L125">125</a>                choice=(start+page-1)&amp;~(page-1);</span>
+<span class="source-line" id="L126"><a class="line-no" href="#L126">126</a>                if(choice&lt;0x100000 &amp;&amp; end&gt;=0x100000+page-1) choice=0x100000;</span>
+<span class="source-line" id="L127"><a class="line-no" href="#L127">127</a>                if(!found &amp;&amp; choice&lt;=end &amp;&amp; page-1&lt;=end-choice) { vf-&gt;iova=choice; found=1; }</span>
+<span class="source-line" id="L128"><a class="line-no" href="#L128">128</a>            }</span>
+<span class="source-line" id="L129"><a class="line-no" href="#L129">129</a>        }</span>
+<span class="source-line" id="L130"><a class="line-no" href="#L130">130</a>        offset=header-&gt;next;</span>
+<span class="source-line" id="L131"><a class="line-no" href="#L131">131</a>    }</span>
+<span class="source-line" id="L132"><a class="line-no" href="#L132">132</a>    if(!found) { errno=ENOTSUP; return -1; }</span>
+<span class="source-line" id="L133"><a class="line-no" href="#L133">133</a>    return 0;</span>
+<span class="source-line" id="L134"><a class="line-no" href="#L134">134</a>}</span>
+<span class="source-line" id="L135"><a class="line-no" href="#L135">135</a></span>
+<span class="source-line" id="L136"><a class="line-no" href="#L136">136</a>/* 逐步填入已取得的資源；中途失敗仍由呼叫者呼叫 lab_vfio_close，不能只 free 結構。 */</span>
+<span class="source-line" id="L137"><a class="line-no" href="#L137">137</a>int lab_vfio_open(struct lab_vfio *vf, const char *bdf, unsigned group_id)</span>
+<span class="source-line" id="L138"><a class="line-no" href="#L138">138</a>{</span>
+<span class="source-line" id="L139"><a class="line-no" href="#L139">139</a>    char path[PATH_MAX],node[128],sysdev[128];</span>
+<span class="source-line" id="L140"><a class="line-no" href="#L140">140</a>    struct vfio_group_status group={.argsz=sizeof(group)};</span>
+<span class="source-line" id="L141"><a class="line-no" href="#L141">141</a>    struct vfio_irq_info irq={.argsz=sizeof(irq),.index=VFIO_PCI_MSIX_IRQ_INDEX};</span>
+<span class="source-line" id="L142"><a class="line-no" href="#L142">142</a>    long page=sysconf(_SC_PAGESIZE);</span>
+<span class="source-line" id="L143"><a class="line-no" href="#L143">143</a>    uint32_t magic=0,identity=0;</span>
+<span class="source-line" id="L144"><a class="line-no" href="#L144">144</a>    if(strlen(bdf)&gt;=sizeof(vf-&gt;bdf) || page&lt;=0 || ((unsigned long)page&amp;((unsigned long)page-1))) { errno=EINVAL; return -1; }</span>
+<span class="source-line" id="L145"><a class="line-no" href="#L145">145</a>    strcpy(vf-&gt;bdf,bdf); vf-&gt;group_id=group_id; vf-&gt;bytes=(size_t)page;</span>
+<span class="source-line" id="L146"><a class="line-no" href="#L146">146</a>    snprintf(path,sizeof(path),&quot;/sys/bus/pci/devices/%s/driver_override&quot;,bdf);</span>
+<span class="source-line" id="L147"><a class="line-no" href="#L147">147</a>    if(lab_write_text(path,&quot;vfio-pci\n&quot;)) return -1;</span>
+<span class="source-line" id="L148"><a class="line-no" href="#L148">148</a>    if(lab_write_text(&quot;/sys/bus/pci/drivers_probe&quot;,bdf)) return -1;</span>
+<span class="source-line" id="L149"><a class="line-no" href="#L149">149</a>    vf-&gt;bound=1;</span>
+<span class="source-line" id="L150"><a class="line-no" href="#L150">150</a>    snprintf(path,sizeof(path),&quot;/sys/bus/pci/devices/%s/driver&quot;,bdf);</span>
+<span class="source-line" id="L151"><a class="line-no" href="#L151">151</a>    if(lab_link_basename(path,node,sizeof(node)) || strcmp(node,&quot;vfio-pci&quot;)) { errno=ENODEV; return -1; }</span>
+<span class="source-line" id="L152"><a class="line-no" href="#L152">152</a>    if(mkdir(&quot;/dev/vfio&quot;,0755) &amp;&amp; errno!=EEXIST) return -1;</span>
+<span class="source-line" id="L153"><a class="line-no" href="#L153">153</a>    if(lab_ensure_char(&quot;/sys/class/misc/vfio/dev&quot;,&quot;/dev/vfio/vfio&quot;)) return -1;</span>
+<span class="source-line" id="L154"><a class="line-no" href="#L154">154</a>    snprintf(node,sizeof(node),&quot;/dev/vfio/%u&quot;,group_id);</span>
+<span class="source-line" id="L155"><a class="line-no" href="#L155">155</a>    snprintf(sysdev,sizeof(sysdev),&quot;/sys/class/vfio/%u/dev&quot;,group_id);</span>
+<span class="source-line" id="L156"><a class="line-no" href="#L156">156</a>    if(lab_ensure_char(sysdev,node)) return -1;</span>
+<span class="source-line" id="L157"><a class="line-no" href="#L157">157</a>    vf-&gt;container=open(&quot;/dev/vfio/vfio&quot;,O_RDWR|O_CLOEXEC);</span>
+<span class="source-line" id="L158"><a class="line-no" href="#L158">158</a>    if(vf-&gt;container&lt;0) return -1;</span>
+<span class="source-line" id="L159"><a class="line-no" href="#L159">159</a>    if(ioctl(vf-&gt;container,VFIO_GET_API_VERSION)!=VFIO_API_VERSION ||</span>
+<span class="source-line" id="L160"><a class="line-no" href="#L160">160</a>       ioctl(vf-&gt;container,VFIO_CHECK_EXTENSION,VFIO_TYPE1_IOMMU)&lt;=0) { errno=ENOTSUP; return -1; }</span>
+<span class="source-line" id="L161"><a class="line-no" href="#L161">161</a>    vf-&gt;group=open(node,O_RDWR|O_CLOEXEC);</span>
+<span class="source-line" id="L162"><a class="line-no" href="#L162">162</a>    if(vf-&gt;group&lt;0 || ioctl(vf-&gt;group,VFIO_GROUP_GET_STATUS,&amp;group)) return -1;</span>
+<span class="source-line" id="L163"><a class="line-no" href="#L163">163</a>    if(!(group.flags&amp;VFIO_GROUP_FLAGS_VIABLE)) { errno=EBUSY; return -1; }</span>
+<span class="source-line" id="L164"><a class="line-no" href="#L164">164</a>    if(ioctl(vf-&gt;group,VFIO_GROUP_SET_CONTAINER,&amp;vf-&gt;container)) return -1;</span>
+<span class="source-line" id="L165"><a class="line-no" href="#L165">165</a>    vf-&gt;attached=1;</span>
+<span class="source-line" id="L166"><a class="line-no" href="#L166">166</a>    if(ioctl(vf-&gt;container,VFIO_SET_IOMMU,VFIO_TYPE1_IOMMU)) return -1;</span>
+<span class="source-line" id="L167"><a class="line-no" href="#L167">167</a>    vf-&gt;device=ioctl(vf-&gt;group,VFIO_GROUP_GET_DEVICE_FD,bdf);</span>
+<span class="source-line" id="L168"><a class="line-no" href="#L168">168</a>    if(vf-&gt;device&lt;0) return -1;</span>
+<span class="source-line" id="L169"><a class="line-no" href="#L169">169</a>    if(fcntl(vf-&gt;device,F_SETFD,FD_CLOEXEC)) return -1;</span>
+<span class="source-line" id="L170"><a class="line-no" href="#L170">170</a>    vf-&gt;info.argsz=sizeof(vf-&gt;info);</span>
+<span class="source-line" id="L171"><a class="line-no" href="#L171">171</a>    if(ioctl(vf-&gt;device,VFIO_DEVICE_GET_INFO,&amp;vf-&gt;info)) return -1;</span>
+<span class="source-line" id="L172"><a class="line-no" href="#L172">172</a>    if(!(vf-&gt;info.flags&amp;VFIO_DEVICE_FLAGS_PCI) || !(vf-&gt;info.flags&amp;VFIO_DEVICE_FLAGS_RESET) ||</span>
+<span class="source-line" id="L173"><a class="line-no" href="#L173">173</a>        vf-&gt;info.num_regions&lt;=VFIO_PCI_CONFIG_REGION_INDEX || vf-&gt;info.num_irqs&lt;=VFIO_PCI_MSIX_IRQ_INDEX) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L174"><a class="line-no" href="#L174">174</a>    if(region(vf-&gt;device,VFIO_PCI_BAR0_REGION_INDEX,&amp;vf-&gt;bar0) ||</span>
+<span class="source-line" id="L175"><a class="line-no" href="#L175">175</a>       region(vf-&gt;device,VFIO_PCI_BAR2_REGION_INDEX,&amp;vf-&gt;bar2) ||</span>
+<span class="source-line" id="L176"><a class="line-no" href="#L176">176</a>       region(vf-&gt;device,VFIO_PCI_CONFIG_REGION_INDEX,&amp;vf-&gt;config) ||</span>
+<span class="source-line" id="L177"><a class="line-no" href="#L177">177</a>       ioctl(vf-&gt;device,VFIO_DEVICE_GET_IRQ_INFO,&amp;irq)) return -1;</span>
+<span class="source-line" id="L178"><a class="line-no" href="#L178">178</a>    if(vf-&gt;bar0.size!=TOY_LIMITS_VF_BAR0_BYTES || vf-&gt;bar2.size!=TOY_LIMITS_BAR2_BYTES ||</span>
+<span class="source-line" id="L179"><a class="line-no" href="#L179">179</a>       irq.count!=TOY_LIMITS_VECTORS_PER_FUNCTION || !(irq.flags&amp;VFIO_IRQ_INFO_EVENTFD)) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L180"><a class="line-no" href="#L180">180</a>    if(pread(vf-&gt;device,&amp;identity,sizeof(identity),(off_t)vf-&gt;config.offset)!=(ssize_t)sizeof(identity) ||</span>
+<span class="source-line" id="L181"><a class="line-no" href="#L181">181</a>       identity!=(TOY_PCI_VENDOR|(TOY_PCI_VF&lt;&lt;16))) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L182"><a class="line-no" href="#L182">182</a>    if(pread(vf-&gt;device,&amp;magic,sizeof(magic),(off_t)vf-&gt;bar0.offset)!=(ssize_t)sizeof(magic) || magic!=TOY_VF_MAGIC_VALUE) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L183"><a class="line-no" href="#L183">183</a>    if(iommu_info(vf)) return -1;</span>
+<span class="source-line" id="L184"><a class="line-no" href="#L184">184</a>    printf(&quot;{\&quot;event\&quot;:\&quot;vfio_open\&quot;,\&quot;vf\&quot;:\&quot;%s\&quot;,\&quot;group\&quot;:%u,\&quot;container_fd\&quot;:%d,\&quot;group_fd\&quot;:%d,\&quot;device_fd\&quot;:%d,\&quot;vectors\&quot;:%u,\&quot;page_sizes\&quot;:\&quot;0x%&quot; PRIx64 &quot;\&quot;,\&quot;reset_supported\&quot;:true}\n&quot;,</span>
+<span class="source-line" id="L185"><a class="line-no" href="#L185">185</a>           bdf,group_id,vf-&gt;container,vf-&gt;group,vf-&gt;device,irq.count,vf-&gt;page_sizes);</span>
+<span class="source-line" id="L186"><a class="line-no" href="#L186">186</a>    return 0;</span>
+<span class="source-line" id="L187"><a class="line-no" href="#L187">187</a>}</span>
+<span class="source-line" id="L188"><a class="line-no" href="#L188">188</a></span>
+<span class="source-line" id="L189"><a class="line-no" href="#L189">189</a>int lab_vfio_map_probe(struct lab_vfio *vf)</span>
+<span class="source-line" id="L190"><a class="line-no" href="#L190">190</a>{</span>
+<span class="source-line" id="L191"><a class="line-no" href="#L191">191</a>    struct vfio_iommu_type1_dma_map map={.argsz=sizeof(map),.flags=VFIO_DMA_MAP_FLAG_READ|VFIO_DMA_MAP_FLAG_WRITE};</span>
+<span class="source-line" id="L192"><a class="line-no" href="#L192">192</a>    vf-&gt;buffer=mmap(NULL,vf-&gt;bytes,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);</span>
+<span class="source-line" id="L193"><a class="line-no" href="#L193">193</a>    if(vf-&gt;buffer==MAP_FAILED) { vf-&gt;buffer=NULL; return -1; }</span>
+<span class="source-line" id="L194"><a class="line-no" href="#L194">194</a>    memset(vf-&gt;buffer,(int)(vf-&gt;group_id&amp;255U),vf-&gt;bytes);</span>
+<span class="source-line" id="L195"><a class="line-no" href="#L195">195</a>    map.vaddr=(uint64_t)(uintptr_t)vf-&gt;buffer; map.iova=vf-&gt;iova; map.size=vf-&gt;bytes;</span>
+<span class="source-line" id="L196"><a class="line-no" href="#L196">196</a>    if(ioctl(vf-&gt;container,VFIO_IOMMU_MAP_DMA,&amp;map)) return -1;</span>
+<span class="source-line" id="L197"><a class="line-no" href="#L197">197</a>    vf-&gt;mapped=1;</span>
+<span class="source-line" id="L198"><a class="line-no" href="#L198">198</a>    printf(&quot;{\&quot;event\&quot;:\&quot;vfio_map\&quot;,\&quot;vf\&quot;:\&quot;%s\&quot;,\&quot;iova\&quot;:\&quot;0x%&quot; PRIx64 &quot;\&quot;,\&quot;size\&quot;:%zu,\&quot;permissions\&quot;:\&quot;READ_WRITE\&quot;}\n&quot;,vf-&gt;bdf,vf-&gt;iova,vf-&gt;bytes);</span>
+<span class="source-line" id="L199"><a class="line-no" href="#L199">199</a>    return 0;</span>
+<span class="source-line" id="L200"><a class="line-no" href="#L200">200</a>}</span>
+<span class="source-line" id="L201"><a class="line-no" href="#L201">201</a></span>
+<span class="source-line" id="L202"><a class="line-no" href="#L202">202</a>/* 依已取得的欄位回收部分初始化狀態；任何一步失敗都保留失敗回傳值。 */</span>
+<span class="source-line" id="L203"><a class="line-no" href="#L203">203</a>int lab_vfio_close(struct lab_vfio *vf)</span>
+<span class="source-line" id="L204"><a class="line-no" href="#L204">204</a>{</span>
+<span class="source-line" id="L205"><a class="line-no" href="#L205">205</a>    char path[PATH_MAX];</span>
+<span class="source-line" id="L206"><a class="line-no" href="#L206">206</a>    int failed=0;</span>
+<span class="source-line" id="L207"><a class="line-no" href="#L207">207</a>    if(vf-&gt;mapped) {</span>
+<span class="source-line" id="L208"><a class="line-no" href="#L208">208</a>        struct vfio_iommu_type1_dma_unmap unmap={.argsz=sizeof(unmap),.iova=vf-&gt;iova,.size=vf-&gt;bytes};</span>
+<span class="source-line" id="L209"><a class="line-no" href="#L209">209</a>        if(ioctl(vf-&gt;container,VFIO_IOMMU_UNMAP_DMA,&amp;unmap) || unmap.size!=vf-&gt;bytes) {</span>
+<span class="source-line" id="L210"><a class="line-no" href="#L210">210</a>            fprintf(stderr,&quot;VFIO_UNMAP_FAILED vf=%s actual=%&quot; PRIu64 &quot; expected=%zu errno=%d\n&quot;,vf-&gt;bdf,(uint64_t)unmap.size,vf-&gt;bytes,errno);</span>
+<span class="source-line" id="L211"><a class="line-no" href="#L211">211</a>            failed=1;</span>
+<span class="source-line" id="L212"><a class="line-no" href="#L212">212</a>        } else {</span>
+<span class="source-line" id="L213"><a class="line-no" href="#L213">213</a>            vf-&gt;mapped=0;</span>
+<span class="source-line" id="L214"><a class="line-no" href="#L214">214</a>            printf(&quot;{\&quot;event\&quot;:\&quot;vfio_unmap\&quot;,\&quot;vf\&quot;:\&quot;%s\&quot;,\&quot;size\&quot;:%zu}\n&quot;,vf-&gt;bdf,vf-&gt;bytes);</span>
+<span class="source-line" id="L215"><a class="line-no" href="#L215">215</a>        }</span>
+<span class="source-line" id="L216"><a class="line-no" href="#L216">216</a>    }</span>
+<span class="source-line" id="L217"><a class="line-no" href="#L217">217</a>    /* UNMAP 失敗時先關 owner fds，使 VFIO 撤銷映射後才釋放 userspace RAM。 */</span>
+<span class="source-line" id="L218"><a class="line-no" href="#L218">218</a>    if(vf-&gt;device&gt;=0) { if(close(vf-&gt;device)) failed=1; vf-&gt;device=-1; }</span>
+<span class="source-line" id="L219"><a class="line-no" href="#L219">219</a>    if(vf-&gt;attached) { if(ioctl(vf-&gt;group,VFIO_GROUP_UNSET_CONTAINER)) failed=1; else vf-&gt;attached=0; }</span>
+<span class="source-line" id="L220"><a class="line-no" href="#L220">220</a>    if(vf-&gt;group&gt;=0) { if(close(vf-&gt;group)) failed=1; vf-&gt;group=-1; }</span>
+<span class="source-line" id="L221"><a class="line-no" href="#L221">221</a>    if(vf-&gt;container&gt;=0) { if(close(vf-&gt;container)) failed=1; vf-&gt;container=-1; }</span>
+<span class="source-line" id="L222"><a class="line-no" href="#L222">222</a>    vf-&gt;mapped=0;</span>
+<span class="source-line" id="L223"><a class="line-no" href="#L223">223</a>    if(vf-&gt;buffer) { if(munmap(vf-&gt;buffer,vf-&gt;bytes)) failed=1; vf-&gt;buffer=NULL; }</span>
+<span class="source-line" id="L224"><a class="line-no" href="#L224">224</a>    if(vf-&gt;bound) {</span>
+<span class="source-line" id="L225"><a class="line-no" href="#L225">225</a>        if(lab_write_text(&quot;/sys/bus/pci/drivers/vfio-pci/unbind&quot;,vf-&gt;bdf)) failed=1;</span>
+<span class="source-line" id="L226"><a class="line-no" href="#L226">226</a>        else vf-&gt;bound=0;</span>
+<span class="source-line" id="L227"><a class="line-no" href="#L227">227</a>    }</span>
+<span class="source-line" id="L228"><a class="line-no" href="#L228">228</a>    if(vf-&gt;bdf[0]) {</span>
+<span class="source-line" id="L229"><a class="line-no" href="#L229">229</a>        snprintf(path,sizeof(path),&quot;/sys/bus/pci/devices/%s/driver_override&quot;,vf-&gt;bdf);</span>
+<span class="source-line" id="L230"><a class="line-no" href="#L230">230</a>        if(lab_write_text(path,&quot;\n&quot;)) failed=1;</span>
+<span class="source-line" id="L231"><a class="line-no" href="#L231">231</a>    }</span>
+<span class="source-line" id="L232"><a class="line-no" href="#L232">232</a>    return failed?-1:0;</span>
+<span class="source-line" id="L233"><a class="line-no" href="#L233">233</a>}</span></pre></main></html>

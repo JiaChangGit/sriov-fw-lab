@@ -1,0 +1,812 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>guest/pf/toy_pf.c</title><style>
+:root{color-scheme:light;--ink:#18293c;--blue:#184d83;--line:#ced9e4;--muted:#526477}
+*{box-sizing:border-box}body{margin:0;background:#f2f5f8;color:var(--ink);font:17px/1.8 system-ui,'Microsoft JhengHei',sans-serif}
+a{color:var(--blue);overflow-wrap:anywhere}header{background:#102e4d;color:#fff;padding:48px max(24px,calc((100vw - 1100px)/2))}
+header p{max-width:850px}header a{color:#b8dcff}.label{letter-spacing:.15em;font-size:13px;color:#b8dcff}
+.layout{max-width:1420px;margin:auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:32px;padding:30px}
+nav{position:sticky;top:20px;align-self:start;max-height:95vh;overflow:auto;font-size:14px}nav a{display:block;margin:12px 0}
+main{min-width:0;background:white;padding:36px 44px;border:1px solid var(--line);border-radius:12px}
+h1{font-size:2rem;line-height:1.35}h2{font-size:1.5rem;margin-top:2em;border-bottom:1px solid var(--line);padding-bottom:10px}h3{font-size:1.1rem}
+p{max-width:95ch}section+section{margin-top:80px;border-top:4px solid var(--blue);padding-top:26px}
+pre{overflow:auto;background:#112c45;color:#eaf3fa;padding:20px;border-radius:8px;font-size:14px;line-height:1.6}
+code{font-family:Consolas,monospace;font-size:.88em}p code,li code,td code{background:#edf3f8;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}
+.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;margin:20px 0;font-size:15px}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf1f8}
+img,svg{max-width:100%;height:auto}.diagram{overflow:auto;margin:20px 0}.diagram svg{min-width:900px;width:100%;display:block}blockquote,.notice{border-left:5px solid #c4841b;background:#fff5df;padding:16px 20px;margin:24px 0}.muted{color:var(--muted)}
+.source-line{display:block;white-space:pre}.source-line:target{background:#355b79}.line-no{display:inline-block;width:5em;color:#9db8ce;text-decoration:none;user-select:none}
+@media(max-width:850px){.layout{display:block;padding:14px}nav{position:static;max-height:none}main{padding:24px 18px}header{padding:30px 20px}h1{font-size:1.65rem}}
+@media print{body{background:white;font-size:11pt}header{color:#18293c;background:white;padding:0}nav{display:none}.layout{display:block;padding:0}main{border:0;padding:0}section{break-before:page}pre{white-space:pre-wrap}a{color:inherit}}
+</style><main><a href="../handbook.html">回教材</a><h1>guest/pf/toy_pf.c</h1><p>SHA256 <code>fc99abb0b14e9c6f7b5b7125dd976c55aa9450219728dc95cbdbd36114f4976a</code></p><pre><span class="source-line" id="L1"><a class="line-no" href="#L1">1</a>// SPDX-License-Identifier: GPL-2.0</span>
+<span class="source-line" id="L2"><a class="line-no" href="#L2">2</a>/* PF 只協調 host transaction；VF FSM 與 ledger 唯一由裝置持有。 */</span>
+<span class="source-line" id="L3"><a class="line-no" href="#L3">3</a>#include &lt;linux/module.h&gt;</span>
+<span class="source-line" id="L4"><a class="line-no" href="#L4">4</a>#include &lt;linux/pci.h&gt;</span>
+<span class="source-line" id="L5"><a class="line-no" href="#L5">5</a>#include &lt;linux/interrupt.h&gt;</span>
+<span class="source-line" id="L6"><a class="line-no" href="#L6">6</a>#include &lt;linux/miscdevice.h&gt;</span>
+<span class="source-line" id="L7"><a class="line-no" href="#L7">7</a>#include &lt;linux/fs.h&gt;</span>
+<span class="source-line" id="L8"><a class="line-no" href="#L8">8</a>#include &lt;linux/uaccess.h&gt;</span>
+<span class="source-line" id="L9"><a class="line-no" href="#L9">9</a>#include &lt;linux/kref.h&gt;</span>
+<span class="source-line" id="L10"><a class="line-no" href="#L10">10</a>#include &lt;linux/mutex.h&gt;</span>
+<span class="source-line" id="L11"><a class="line-no" href="#L11">11</a>#include &lt;linux/completion.h&gt;</span>
+<span class="source-line" id="L12"><a class="line-no" href="#L12">12</a>#include &lt;linux/delay.h&gt;</span>
+<span class="source-line" id="L13"><a class="line-no" href="#L13">13</a>#include &lt;linux/slab.h&gt;</span>
+<span class="source-line" id="L14"><a class="line-no" href="#L14">14</a>#include &lt;linux/io.h&gt;</span>
+<span class="source-line" id="L15"><a class="line-no" href="#L15">15</a>#include &lt;linux/compat.h&gt;</span>
+<span class="source-line" id="L16"><a class="line-no" href="#L16">16</a>#include &lt;linux/poll.h&gt;</span>
+<span class="source-line" id="L17"><a class="line-no" href="#L17">17</a>#include &lt;linux/workqueue.h&gt;</span>
+<span class="source-line" id="L18"><a class="line-no" href="#L18">18</a>#include &lt;linux/debugfs.h&gt;</span>
+<span class="source-line" id="L19"><a class="line-no" href="#L19">19</a>#include &lt;linux/seq_file.h&gt;</span>
+<span class="source-line" id="L20"><a class="line-no" href="#L20">20</a>#include &quot;toy_regs.h&quot;</span>
+<span class="source-line" id="L21"><a class="line-no" href="#L21">21</a>#include &quot;toy_uapi.h&quot;</span>
+<span class="source-line" id="L22"><a class="line-no" href="#L22">22</a></span>
+<span class="source-line" id="L23"><a class="line-no" href="#L23">23</a>#define TOY_MBX_TIMEOUT_MS 5000</span>
+<span class="source-line" id="L24"><a class="line-no" href="#L24">24</a>#define TOY_PROTOCOL_MAJOR (TOY_ABI_VERSION &gt;&gt; 16)</span>
+<span class="source-line" id="L25"><a class="line-no" href="#L25">25</a>#define TOY_PROTOCOL_MINOR (TOY_ABI_VERSION &amp; 0xffffu)</span>
+<span class="source-line" id="L26"><a class="line-no" href="#L26">26</a></span>
+<span class="source-line" id="L27"><a class="line-no" href="#L27">27</a>struct toy_file;</span>
+<span class="source-line" id="L28"><a class="line-no" href="#L28">28</a>struct toy_lease {</span>
+<span class="source-line" id="L29"><a class="line-no" href="#L29">29</a>    struct toy_file *owner;</span>
+<span class="source-line" id="L30"><a class="line-no" href="#L30">30</a>    u64 token;</span>
+<span class="source-line" id="L31"><a class="line-no" href="#L31">31</a>    u64 fence_epoch;</span>
+<span class="source-line" id="L32"><a class="line-no" href="#L32">32</a>    u64 fence_session;</span>
+<span class="source-line" id="L33"><a class="line-no" href="#L33">33</a>    bool fence_valid;</span>
+<span class="source-line" id="L34"><a class="line-no" href="#L34">34</a>    bool orphaned;</span>
+<span class="source-line" id="L35"><a class="line-no" href="#L35">35</a>};</span>
+<span class="source-line" id="L36"><a class="line-no" href="#L36">36</a></span>
+<span class="source-line" id="L37"><a class="line-no" href="#L37">37</a>struct toy_failpoint {</span>
+<span class="source-line" id="L38"><a class="line-no" href="#L38">38</a>    char name[64];</span>
+<span class="source-line" id="L39"><a class="line-no" href="#L39">39</a>    u32 hit;</span>
+<span class="source-line" id="L40"><a class="line-no" href="#L40">40</a>    u32 seen;</span>
+<span class="source-line" id="L41"><a class="line-no" href="#L41">41</a>    bool fired;</span>
+<span class="source-line" id="L42"><a class="line-no" href="#L42">42</a>};</span>
+<span class="source-line" id="L43"><a class="line-no" href="#L43">43</a></span>
+<span class="source-line" id="L44"><a class="line-no" href="#L44">44</a>struct toy_file {</span>
+<span class="source-line" id="L45"><a class="line-no" href="#L45">45</a>    struct toy_pf *pf;</span>
+<span class="source-line" id="L46"><a class="line-no" href="#L46">46</a>    struct list_head link;</span>
+<span class="source-line" id="L47"><a class="line-no" href="#L47">47</a>    spinlock_t event_lock;</span>
+<span class="source-line" id="L48"><a class="line-no" href="#L48">48</a>    wait_queue_head_t event_wait;</span>
+<span class="source-line" id="L49"><a class="line-no" href="#L49">49</a>    struct mutex read_mutex;</span>
+<span class="source-line" id="L50"><a class="line-no" href="#L50">50</a>    struct toy_event events[TOY_EVENT_CAPACITY];</span>
+<span class="source-line" id="L51"><a class="line-no" href="#L51">51</a>    struct toy_event stash;</span>
+<span class="source-line" id="L52"><a class="line-no" href="#L52">52</a>    unsigned int head, count;</span>
+<span class="source-line" id="L53"><a class="line-no" href="#L53">53</a>    u32 lost;</span>
+<span class="source-line" id="L54"><a class="line-no" href="#L54">54</a>    u64 event_seq;</span>
+<span class="source-line" id="L55"><a class="line-no" href="#L55">55</a>    bool stash_valid;</span>
+<span class="source-line" id="L56"><a class="line-no" href="#L56">56</a>    bool replay_valid;</span>
+<span class="source-line" id="L57"><a class="line-no" href="#L57">57</a>    unsigned int replay_cmd;</span>
+<span class="source-line" id="L58"><a class="line-no" href="#L58">58</a>    struct toy_vf_ctl request, result;</span>
+<span class="source-line" id="L59"><a class="line-no" href="#L59">59</a>    int result_errno;</span>
+<span class="source-line" id="L60"><a class="line-no" href="#L60">60</a>};</span>
+<span class="source-line" id="L61"><a class="line-no" href="#L61">61</a></span>
+<span class="source-line" id="L62"><a class="line-no" href="#L62">62</a>struct toy_pf {</span>
+<span class="source-line" id="L63"><a class="line-no" href="#L63">63</a>    struct pci_dev *pdev;</span>
+<span class="source-line" id="L64"><a class="line-no" href="#L64">64</a>    void __iomem *bar;</span>
+<span class="source-line" id="L65"><a class="line-no" href="#L65">65</a>    struct mutex admin_mutex;</span>
+<span class="source-line" id="L66"><a class="line-no" href="#L66">66</a>    struct mutex mbx_mutex;</span>
+<span class="source-line" id="L67"><a class="line-no" href="#L67">67</a>    struct completion mbx_done;</span>
+<span class="source-line" id="L68"><a class="line-no" href="#L68">68</a>    struct completion transaction_done;</span>
+<span class="source-line" id="L69"><a class="line-no" href="#L69">69</a>    struct kref ref;</span>
+<span class="source-line" id="L70"><a class="line-no" href="#L70">70</a>    struct miscdevice misc;</span>
+<span class="source-line" id="L71"><a class="line-no" href="#L71">71</a>    bool accepting;</span>
+<span class="source-line" id="L72"><a class="line-no" href="#L72">72</a>    bool dying;</span>
+<span class="source-line" id="L73"><a class="line-no" href="#L73">73</a>    unsigned int irq_count;</span>
+<span class="source-line" id="L74"><a class="line-no" href="#L74">74</a>    u32 seq;</span>
+<span class="source-line" id="L75"><a class="line-no" href="#L75">75</a>    u32 fence_token;</span>
+<span class="source-line" id="L76"><a class="line-no" href="#L76">76</a>    unsigned int enabled;</span>
+<span class="source-line" id="L77"><a class="line-no" href="#L77">77</a>    bool transaction;</span>
+<span class="source-line" id="L78"><a class="line-no" href="#L78">78</a>    u64 next_lease;</span>
+<span class="source-line" id="L79"><a class="line-no" href="#L79">79</a>    struct toy_lease leases[TOY_PCI_TOTAL_VFS];</span>
+<span class="source-line" id="L80"><a class="line-no" href="#L80">80</a>    struct toy_vf_info observed[TOY_PCI_TOTAL_VFS];</span>
+<span class="source-line" id="L81"><a class="line-no" href="#L81">81</a>    u32 observed_fault[TOY_PCI_TOTAL_VFS];</span>
+<span class="source-line" id="L82"><a class="line-no" href="#L82">82</a>    struct list_head files;</span>
+<span class="source-line" id="L83"><a class="line-no" href="#L83">83</a>    struct work_struct notify_work;</span>
+<span class="source-line" id="L84"><a class="line-no" href="#L84">84</a>    atomic_t pending_events;</span>
+<span class="source-line" id="L85"><a class="line-no" href="#L85">85</a>    struct dentry *debugfs;</span>
+<span class="source-line" id="L86"><a class="line-no" href="#L86">86</a>    struct toy_failpoint failpoints[2];</span>
+<span class="source-line" id="L87"><a class="line-no" href="#L87">87</a>};</span>
+<span class="source-line" id="L88"><a class="line-no" href="#L88">88</a></span>
+<span class="source-line" id="L89"><a class="line-no" href="#L89">89</a>static char forward_failpoint[64];</span>
+<span class="source-line" id="L90"><a class="line-no" href="#L90">90</a>static char unwind_failpoint[64];</span>
+<span class="source-line" id="L91"><a class="line-no" href="#L91">91</a>static uint forward_hit = 1, unwind_hit = 1;</span>
+<span class="source-line" id="L92"><a class="line-no" href="#L92">92</a>static atomic_t forward_seen = ATOMIC_INIT(0), unwind_seen = ATOMIC_INIT(0);</span>
+<span class="source-line" id="L93"><a class="line-no" href="#L93">93</a>module_param_string(forward_failpoint, forward_failpoint, sizeof(forward_failpoint), 0400);</span>
+<span class="source-line" id="L94"><a class="line-no" href="#L94">94</a>module_param_string(unwind_failpoint, unwind_failpoint, sizeof(unwind_failpoint), 0400);</span>
+<span class="source-line" id="L95"><a class="line-no" href="#L95">95</a>module_param(forward_hit, uint, 0400);</span>
+<span class="source-line" id="L96"><a class="line-no" href="#L96">96</a>module_param(unwind_hit, uint, 0400);</span>
+<span class="source-line" id="L97"><a class="line-no" href="#L97">97</a></span>
+<span class="source-line" id="L98"><a class="line-no" href="#L98">98</a>static const char *const toy_fail_names[] = {</span>
+<span class="source-line" id="L99"><a class="line-no" href="#L99">99</a>    &quot;probe.alloc_ctx&quot;, &quot;probe.enable_mem&quot;, &quot;probe.request_regions&quot;, &quot;probe.map_bar&quot;,</span>
+<span class="source-line" id="L100"><a class="line-no" href="#L100">100</a>    &quot;probe.validate_caps&quot;, &quot;probe.alloc_vectors&quot;, &quot;probe.request_irq0&quot;, &quot;probe.request_irq1&quot;,</span>
+<span class="source-line" id="L101"><a class="line-no" href="#L101">101</a>    &quot;probe.version_neg&quot;, &quot;probe.misc_register&quot;, &quot;provision.host_record&quot;,</span>
+<span class="source-line" id="L102"><a class="line-no" href="#L102">102</a>    &quot;provision.pci_enable&quot;, &quot;provision.after_pci_enable&quot;, &quot;unwind.destroy&quot;,</span>
+<span class="source-line" id="L103"><a class="line-no" href="#L103">103</a>};</span>
+<span class="source-line" id="L104"><a class="line-no" href="#L104">104</a></span>
+<span class="source-line" id="L105"><a class="line-no" href="#L105">105</a>static bool toy_fail_name_valid(const char *name)</span>
+<span class="source-line" id="L106"><a class="line-no" href="#L106">106</a>{</span>
+<span class="source-line" id="L107"><a class="line-no" href="#L107">107</a>    unsigned int i;</span>
+<span class="source-line" id="L108"><a class="line-no" href="#L108">108</a>    for (i = 0; i &lt; ARRAY_SIZE(toy_fail_names); ++i)</span>
+<span class="source-line" id="L109"><a class="line-no" href="#L109">109</a>        if (!strcmp(name, toy_fail_names[i]))</span>
+<span class="source-line" id="L110"><a class="line-no" href="#L110">110</a>            return true;</span>
+<span class="source-line" id="L111"><a class="line-no" href="#L111">111</a>    return false;</span>
+<span class="source-line" id="L112"><a class="line-no" href="#L112">112</a>}</span>
+<span class="source-line" id="L113"><a class="line-no" href="#L113">113</a></span>
+<span class="source-line" id="L114"><a class="line-no" href="#L114">114</a>/* 所有呼叫點皆由 probe 序列化或持有 admin_mutex；雙槽獨立計次。 */</span>
+<span class="source-line" id="L115"><a class="line-no" href="#L115">115</a>static bool toy_fail(struct toy_pf *pf, const char *name)</span>
+<span class="source-line" id="L116"><a class="line-no" href="#L116">116</a>{</span>
+<span class="source-line" id="L117"><a class="line-no" href="#L117">117</a>    unsigned int i;</span>
+<span class="source-line" id="L118"><a class="line-no" href="#L118">118</a>    bool hit = false;</span>
+<span class="source-line" id="L119"><a class="line-no" href="#L119">119</a>    if (!strcmp(name, forward_failpoint) &amp;&amp; atomic_inc_return(&amp;forward_seen) == forward_hit)</span>
+<span class="source-line" id="L120"><a class="line-no" href="#L120">120</a>        hit = true;</span>
+<span class="source-line" id="L121"><a class="line-no" href="#L121">121</a>    if (!strcmp(name, unwind_failpoint) &amp;&amp; atomic_inc_return(&amp;unwind_seen) == unwind_hit)</span>
+<span class="source-line" id="L122"><a class="line-no" href="#L122">122</a>        hit = true;</span>
+<span class="source-line" id="L123"><a class="line-no" href="#L123">123</a>    if (pf)</span>
+<span class="source-line" id="L124"><a class="line-no" href="#L124">124</a>        for (i = 0; i &lt; ARRAY_SIZE(pf-&gt;failpoints); ++i) {</span>
+<span class="source-line" id="L125"><a class="line-no" href="#L125">125</a>            struct toy_failpoint *fp = &amp;pf-&gt;failpoints[i];</span>
+<span class="source-line" id="L126"><a class="line-no" href="#L126">126</a>            if (!fp-&gt;fired &amp;&amp; !strcmp(fp-&gt;name, name) &amp;&amp; ++fp-&gt;seen == fp-&gt;hit) {</span>
+<span class="source-line" id="L127"><a class="line-no" href="#L127">127</a>                fp-&gt;fired = true;</span>
+<span class="source-line" id="L128"><a class="line-no" href="#L128">128</a>                hit = true;</span>
+<span class="source-line" id="L129"><a class="line-no" href="#L129">129</a>            }</span>
+<span class="source-line" id="L130"><a class="line-no" href="#L130">130</a>        }</span>
+<span class="source-line" id="L131"><a class="line-no" href="#L131">131</a>    if (hit)</span>
+<span class="source-line" id="L132"><a class="line-no" href="#L132">132</a>        pr_info(&quot;TOY_FAILPOINT_HIT name=%s\n&quot;, name);</span>
+<span class="source-line" id="L133"><a class="line-no" href="#L133">133</a>    return hit;</span>
+<span class="source-line" id="L134"><a class="line-no" href="#L134">134</a>}</span>
+<span class="source-line" id="L135"><a class="line-no" href="#L135">135</a></span>
+<span class="source-line" id="L136"><a class="line-no" href="#L136">136</a>static int toy_status_errno(u32 status)</span>
+<span class="source-line" id="L137"><a class="line-no" href="#L137">137</a>{</span>
+<span class="source-line" id="L138"><a class="line-no" href="#L138">138</a>    switch (status) {</span>
+<span class="source-line" id="L139"><a class="line-no" href="#L139">139</a>    case TOY_STATUSES_OK: return 0;</span>
+<span class="source-line" id="L140"><a class="line-no" href="#L140">140</a>    case TOY_STATUSES_INVAL: return -EINVAL;</span>
+<span class="source-line" id="L141"><a class="line-no" href="#L141">141</a>    case TOY_STATUSES_NOSPC: return -ENOSPC;</span>
+<span class="source-line" id="L142"><a class="line-no" href="#L142">142</a>    case TOY_STATUSES_STATE: return -EBUSY;</span>
+<span class="source-line" id="L143"><a class="line-no" href="#L143">143</a>    case TOY_STATUSES_FENCED: return -EACCES;</span>
+<span class="source-line" id="L144"><a class="line-no" href="#L144">144</a>    case TOY_STATUSES_DMA: return -EIO;</span>
+<span class="source-line" id="L145"><a class="line-no" href="#L145">145</a>    case TOY_STATUSES_TIMEOUT: return -ETIMEDOUT;</span>
+<span class="source-line" id="L146"><a class="line-no" href="#L146">146</a>    case TOY_STATUSES_UNSUP: return -EOPNOTSUPP;</span>
+<span class="source-line" id="L147"><a class="line-no" href="#L147">147</a>    case TOY_STATUSES_NO_NEG: return -EPROTO;</span>
+<span class="source-line" id="L148"><a class="line-no" href="#L148">148</a>    case TOY_STATUSES_SEQ_CONFLICT: return -EPROTO;</span>
+<span class="source-line" id="L149"><a class="line-no" href="#L149">149</a>    case TOY_STATUSES_STALE_SEQ: return -ESTALE;</span>
+<span class="source-line" id="L150"><a class="line-no" href="#L150">150</a>    case TOY_STATUSES_BUSY: return -EBUSY;</span>
+<span class="source-line" id="L151"><a class="line-no" href="#L151">151</a>    case TOY_STATUSES_OVERFLOW: return -EOVERFLOW;</span>
+<span class="source-line" id="L152"><a class="line-no" href="#L152">152</a>    case TOY_STATUSES_BAD_DESC: return -EINVAL;</span>
+<span class="source-line" id="L153"><a class="line-no" href="#L153">153</a>    case TOY_STATUSES_BAD_QUEUE: return -EINVAL;</span>
+<span class="source-line" id="L154"><a class="line-no" href="#L154">154</a>    case TOY_STATUSES_IO: return -EIO;</span>
+<span class="source-line" id="L155"><a class="line-no" href="#L155">155</a>    default: return -EPROTO;</span>
+<span class="source-line" id="L156"><a class="line-no" href="#L156">156</a>    }</span>
+<span class="source-line" id="L157"><a class="line-no" href="#L157">157</a>}</span>
+<span class="source-line" id="L158"><a class="line-no" href="#L158">158</a></span>
+<span class="source-line" id="L159"><a class="line-no" href="#L159">159</a>static u32 toy_read(struct toy_pf *pf, u32 reg)</span>
+<span class="source-line" id="L160"><a class="line-no" href="#L160">160</a>{</span>
+<span class="source-line" id="L161"><a class="line-no" href="#L161">161</a>    return ioread32(pf-&gt;bar + reg);</span>
+<span class="source-line" id="L162"><a class="line-no" href="#L162">162</a>}</span>
+<span class="source-line" id="L163"><a class="line-no" href="#L163">163</a></span>
+<span class="source-line" id="L164"><a class="line-no" href="#L164">164</a>static void toy_write(struct toy_pf *pf, u32 reg, u32 value)</span>
+<span class="source-line" id="L165"><a class="line-no" href="#L165">165</a>{</span>
+<span class="source-line" id="L166"><a class="line-no" href="#L166">166</a>    iowrite32(value, pf-&gt;bar + reg);</span>
+<span class="source-line" id="L167"><a class="line-no" href="#L167">167</a>}</span>
+<span class="source-line" id="L168"><a class="line-no" href="#L168">168</a></span>
+<span class="source-line" id="L169"><a class="line-no" href="#L169">169</a>static u64 toy_read64(struct toy_pf *pf, u32 low)</span>
+<span class="source-line" id="L170"><a class="line-no" href="#L170">170</a>{</span>
+<span class="source-line" id="L171"><a class="line-no" href="#L171">171</a>    /* 呼叫者必須已在 admin_mutex 下完成 SNAPSHOT。 */</span>
+<span class="source-line" id="L172"><a class="line-no" href="#L172">172</a>    u32 lo = toy_read(pf, low);</span>
+<span class="source-line" id="L173"><a class="line-no" href="#L173">173</a>    u32 hi = toy_read(pf, low + 4);</span>
+<span class="source-line" id="L174"><a class="line-no" href="#L174">174</a>    return ((u64)hi &lt;&lt; 32) | lo;</span>
+<span class="source-line" id="L175"><a class="line-no" href="#L175">175</a>}</span>
+<span class="source-line" id="L176"><a class="line-no" href="#L176">176</a></span>
+<span class="source-line" id="L177"><a class="line-no" href="#L177">177</a>static void toy_fence_all(struct toy_pf *pf)</span>
+<span class="source-line" id="L178"><a class="line-no" href="#L178">178</a>{</span>
+<span class="source-line" id="L179"><a class="line-no" href="#L179">179</a>    unsigned int vf;</span>
+<span class="source-line" id="L180"><a class="line-no" href="#L180">180</a>    toy_write(pf, TOY_PF_CONTROL, TOY_PF_CONTROL_FENCE_ALL);</span>
+<span class="source-line" id="L181"><a class="line-no" href="#L181">181</a>    (void)toy_read(pf, TOY_PF_HW_RESULT);</span>
+<span class="source-line" id="L182"><a class="line-no" href="#L182">182</a>    toy_write(pf, TOY_PF_SNAPSHOT, 1);</span>
+<span class="source-line" id="L183"><a class="line-no" href="#L183">183</a>    for (vf = 0; vf &lt; TOY_PCI_TOTAL_VFS; ++vf) {</span>
+<span class="source-line" id="L184"><a class="line-no" href="#L184">184</a>        u32 flags = toy_read(pf, TOY_VF_VIEW(vf, TOY_PF_VF_VIEW_HW_STATUS));</span>
+<span class="source-line" id="L185"><a class="line-no" href="#L185">185</a>        if (!(flags &amp; TOY_HW_FLAGS_FENCED))</span>
+<span class="source-line" id="L186"><a class="line-no" href="#L186">186</a>            dev_err(&amp;pf-&gt;pdev-&gt;dev, &quot;FENCE_ALL_READBACK vf=%u flags=%#x\n&quot;, vf, flags);</span>
+<span class="source-line" id="L187"><a class="line-no" href="#L187">187</a>    }</span>
+<span class="source-line" id="L188"><a class="line-no" href="#L188">188</a>}</span>
+<span class="source-line" id="L189"><a class="line-no" href="#L189">189</a></span>
+<span class="source-line" id="L190"><a class="line-no" href="#L190">190</a>static void toy_kill(struct toy_pf *pf, unsigned int vf);</span>
+<span class="source-line" id="L191"><a class="line-no" href="#L191">191</a></span>
+<span class="source-line" id="L192"><a class="line-no" href="#L192">192</a>static int toy_fence_status(struct toy_pf *pf, unsigned int vf, u32 *fw_status)</span>
+<span class="source-line" id="L193"><a class="line-no" href="#L193">193</a>{</span>
+<span class="source-line" id="L194"><a class="line-no" href="#L194">194</a>    u32 result, flags;</span>
+<span class="source-line" id="L195"><a class="line-no" href="#L195">195</a>    if (pf-&gt;fence_token == U32_MAX) {</span>
+<span class="source-line" id="L196"><a class="line-no" href="#L196">196</a>        toy_kill(pf, vf);</span>
+<span class="source-line" id="L197"><a class="line-no" href="#L197">197</a>        *fw_status = TOY_STATUSES_OVERFLOW;</span>
+<span class="source-line" id="L198"><a class="line-no" href="#L198">198</a>        return -EOVERFLOW;</span>
+<span class="source-line" id="L199"><a class="line-no" href="#L199">199</a>    }</span>
+<span class="source-line" id="L200"><a class="line-no" href="#L200">200</a>    toy_write(pf, TOY_PF_FENCE_TOKEN, ++pf-&gt;fence_token);</span>
+<span class="source-line" id="L201"><a class="line-no" href="#L201">201</a>    toy_write(pf, TOY_VF_VIEW(vf, TOY_PF_VF_VIEW_HW_CTL), TOY_VF_HW_CONTROL_FENCE_BEGIN);</span>
+<span class="source-line" id="L202"><a class="line-no" href="#L202">202</a>    result = toy_read(pf, TOY_PF_HW_RESULT);</span>
+<span class="source-line" id="L203"><a class="line-no" href="#L203">203</a>    *fw_status = result;</span>
+<span class="source-line" id="L204"><a class="line-no" href="#L204">204</a>    toy_write(pf, TOY_PF_SNAPSHOT, 1);</span>
+<span class="source-line" id="L205"><a class="line-no" href="#L205">205</a>    flags = toy_read(pf, TOY_VF_VIEW(vf, TOY_PF_VF_VIEW_HW_STATUS));</span>
+<span class="source-line" id="L206"><a class="line-no" href="#L206">206</a>    if (result)</span>
+<span class="source-line" id="L207"><a class="line-no" href="#L207">207</a>        return toy_status_errno(result);</span>
+<span class="source-line" id="L208"><a class="line-no" href="#L208">208</a>    return flags &amp; TOY_HW_FLAGS_FENCED ? 0 : -EIO;</span>
+<span class="source-line" id="L209"><a class="line-no" href="#L209">209</a>}</span>
+<span class="source-line" id="L210"><a class="line-no" href="#L210">210</a></span>
+<span class="source-line" id="L211"><a class="line-no" href="#L211">211</a>static int toy_fence(struct toy_pf *pf, unsigned int vf)</span>
+<span class="source-line" id="L212"><a class="line-no" href="#L212">212</a>{</span>
+<span class="source-line" id="L213"><a class="line-no" href="#L213">213</a>    u32 status;</span>
+<span class="source-line" id="L214"><a class="line-no" href="#L214">214</a>    return toy_fence_status(pf, vf, &amp;status);</span>
+<span class="source-line" id="L215"><a class="line-no" href="#L215">215</a>}</span>
+<span class="source-line" id="L216"><a class="line-no" href="#L216">216</a></span>
+<span class="source-line" id="L217"><a class="line-no" href="#L217">217</a>static void toy_kill(struct toy_pf *pf, unsigned int vf)</span>
+<span class="source-line" id="L218"><a class="line-no" href="#L218">218</a>{</span>
+<span class="source-line" id="L219"><a class="line-no" href="#L219">219</a>    toy_write(pf, TOY_VF_VIEW(vf, TOY_PF_VF_VIEW_HW_CTL), TOY_VF_HW_CONTROL_KILL);</span>
+<span class="source-line" id="L220"><a class="line-no" href="#L220">220</a>    (void)toy_read(pf, TOY_PF_HW_RESULT);</span>
+<span class="source-line" id="L221"><a class="line-no" href="#L221">221</a>    toy_write(pf, TOY_PF_SNAPSHOT, 1);</span>
+<span class="source-line" id="L222"><a class="line-no" href="#L222">222</a>    if (!(toy_read(pf, TOY_VF_VIEW(vf, TOY_PF_VF_VIEW_HW_STATUS)) &amp; TOY_HW_FLAGS_KILLED))</span>
+<span class="source-line" id="L223"><a class="line-no" href="#L223">223</a>        dev_err(&amp;pf-&gt;pdev-&gt;dev, &quot;KILL_READBACK_FAILED vf=%u\n&quot;, vf);</span>
+<span class="source-line" id="L224"><a class="line-no" href="#L224">224</a>}</span>
+<span class="source-line" id="L225"><a class="line-no" href="#L225">225</a></span>
+<span class="source-line" id="L226"><a class="line-no" href="#L226">226</a>/* 呼叫者持有 admin_mutex，再取得 mbx_mutex。IRQ 只完成通知，不拿這兩把 mutex。 */</span>
+<span class="source-line" id="L227"><a class="line-no" href="#L227">227</a>static int toy_mailbox_status(struct toy_pf *pf, u32 opcode, u32 target,</span>
+<span class="source-line" id="L228"><a class="line-no" href="#L228">228</a>                             const u32 args[4], u32 reply[4], u32 *fw_status)</span>
+<span class="source-line" id="L229"><a class="line-no" href="#L229">229</a>{</span>
+<span class="source-line" id="L230"><a class="line-no" href="#L230">230</a>    unsigned long deadline;</span>
+<span class="source-line" id="L231"><a class="line-no" href="#L231">231</a>    u32 seq, status;</span>
+<span class="source-line" id="L232"><a class="line-no" href="#L232">232</a>    unsigned int i, retries = 0;</span>
+<span class="source-line" id="L233"><a class="line-no" href="#L233">233</a>    int ret = -ETIMEDOUT;</span>
+<span class="source-line" id="L234"><a class="line-no" href="#L234">234</a>    /* IRQ completion 不取得 admin/mbx 鎖，poll 是掉 IRQ 時的必要後備。 */</span>
+<span class="source-line" id="L235"><a class="line-no" href="#L235">235</a>    mutex_lock(&amp;pf-&gt;mbx_mutex);</span>
+<span class="source-line" id="L236"><a class="line-no" href="#L236">236</a>    *fw_status = TOY_STATUSES_TIMEOUT;</span>
+<span class="source-line" id="L237"><a class="line-no" href="#L237">237</a>    if (pf-&gt;seq == U32_MAX) {</span>
+<span class="source-line" id="L238"><a class="line-no" href="#L238">238</a>        ret = -EOVERFLOW;</span>
+<span class="source-line" id="L239"><a class="line-no" href="#L239">239</a>        *fw_status = TOY_STATUSES_OVERFLOW;</span>
+<span class="source-line" id="L240"><a class="line-no" href="#L240">240</a>        toy_fence_all(pf);</span>
+<span class="source-line" id="L241"><a class="line-no" href="#L241">241</a>        goto out;</span>
+<span class="source-line" id="L242"><a class="line-no" href="#L242">242</a>    }</span>
+<span class="source-line" id="L243"><a class="line-no" href="#L243">243</a>    status = toy_read(pf, TOY_PF_MBX_STATUS);</span>
+<span class="source-line" id="L244"><a class="line-no" href="#L244">244</a>    if (status == TOY_MBX_STATUS_BUSY) {</span>
+<span class="source-line" id="L245"><a class="line-no" href="#L245">245</a>        ret = -EBUSY;</span>
+<span class="source-line" id="L246"><a class="line-no" href="#L246">246</a>        *fw_status = TOY_STATUSES_BUSY;</span>
+<span class="source-line" id="L247"><a class="line-no" href="#L247">247</a>        goto out;</span>
+<span class="source-line" id="L248"><a class="line-no" href="#L248">248</a>    }</span>
+<span class="source-line" id="L249"><a class="line-no" href="#L249">249</a>    if (status == TOY_MBX_STATUS_DONE)</span>
+<span class="source-line" id="L250"><a class="line-no" href="#L250">250</a>        toy_write(pf, TOY_PF_MBX_ACK, 1);</span>
+<span class="source-line" id="L251"><a class="line-no" href="#L251">251</a>    seq = ++pf-&gt;seq;</span>
+<span class="source-line" id="L252"><a class="line-no" href="#L252">252</a>    reinit_completion(&amp;pf-&gt;mbx_done);</span>
+<span class="source-line" id="L253"><a class="line-no" href="#L253">253</a>    toy_write(pf, TOY_PF_MBX_SEQ, seq);</span>
+<span class="source-line" id="L254"><a class="line-no" href="#L254">254</a>    toy_write(pf, TOY_PF_MBX_OPCODE, opcode);</span>
+<span class="source-line" id="L255"><a class="line-no" href="#L255">255</a>    toy_write(pf, TOY_PF_MBX_TARGET, target);</span>
+<span class="source-line" id="L256"><a class="line-no" href="#L256">256</a>    for (i = 0; i &lt; 4; ++i)</span>
+<span class="source-line" id="L257"><a class="line-no" href="#L257">257</a>        toy_write(pf, TOY_PF_MBX_ARG0 + 4 * i, args ? args[i] : 0);</span>
+<span class="source-line" id="L258"><a class="line-no" href="#L258">258</a>    toy_write(pf, TOY_PF_MBX_SUBMIT, 1);</span>
+<span class="source-line" id="L259"><a class="line-no" href="#L259">259</a>    deadline = jiffies + msecs_to_jiffies(TOY_MBX_TIMEOUT_MS);</span>
+<span class="source-line" id="L260"><a class="line-no" href="#L260">260</a>    do {</span>
+<span class="source-line" id="L261"><a class="line-no" href="#L261">261</a>        status = toy_read(pf, TOY_PF_MBX_STATUS);</span>
+<span class="source-line" id="L262"><a class="line-no" href="#L262">262</a>        if (status == TOY_MBX_STATUS_DONE &amp;&amp; toy_read(pf, TOY_PF_MBX_ACK_SEQ) == seq) {</span>
+<span class="source-line" id="L263"><a class="line-no" href="#L263">263</a>            u32 fw_result = toy_read(pf, TOY_PF_MBX_RESULT);</span>
+<span class="source-line" id="L264"><a class="line-no" href="#L264">264</a>            *fw_status = fw_result;</span>
+<span class="source-line" id="L265"><a class="line-no" href="#L265">265</a>            if (reply)</span>
+<span class="source-line" id="L266"><a class="line-no" href="#L266">266</a>                for (i = 0; i &lt; 4; ++i)</span>
+<span class="source-line" id="L267"><a class="line-no" href="#L267">267</a>                    reply[i] = toy_read(pf, TOY_PF_MBX_REPLY0 + 4 * i);</span>
+<span class="source-line" id="L268"><a class="line-no" href="#L268">268</a>            toy_write(pf, TOY_PF_MBX_ACK, 1);</span>
+<span class="source-line" id="L269"><a class="line-no" href="#L269">269</a>            ret = toy_status_errno(fw_result);</span>
+<span class="source-line" id="L270"><a class="line-no" href="#L270">270</a>            break;</span>
+<span class="source-line" id="L271"><a class="line-no" href="#L271">271</a>        }</span>
+<span class="source-line" id="L272"><a class="line-no" href="#L272">272</a>        /* ACK 遺失且裝置已回 IDLE 時，重送完全相同的 request，不重做 fence。 */</span>
+<span class="source-line" id="L273"><a class="line-no" href="#L273">273</a>        if (status == TOY_MBX_STATUS_IDLE &amp;&amp; retries &lt; 2) {</span>
+<span class="source-line" id="L274"><a class="line-no" href="#L274">274</a>            ++retries;</span>
+<span class="source-line" id="L275"><a class="line-no" href="#L275">275</a>            toy_write(pf, TOY_PF_MBX_SUBMIT, 1);</span>
+<span class="source-line" id="L276"><a class="line-no" href="#L276">276</a>            dev_info(&amp;pf-&gt;pdev-&gt;dev, &quot;MAILBOX_RETRY seq=%u attempt=%u\n&quot;, seq, retries);</span>
+<span class="source-line" id="L277"><a class="line-no" href="#L277">277</a>        }</span>
+<span class="source-line" id="L278"><a class="line-no" href="#L278">278</a>        wait_for_completion_timeout(&amp;pf-&gt;mbx_done, msecs_to_jiffies(1));</span>
+<span class="source-line" id="L279"><a class="line-no" href="#L279">279</a>    } while (time_before(jiffies, deadline));</span>
+<span class="source-line" id="L280"><a class="line-no" href="#L280">280</a>    if (ret)</span>
+<span class="source-line" id="L281"><a class="line-no" href="#L281">281</a>        dev_err(&amp;pf-&gt;pdev-&gt;dev, &quot;MAILBOX_ERROR seq=%u opcode=%u target=%u errno=%d\n&quot;,</span>
+<span class="source-line" id="L282"><a class="line-no" href="#L282">282</a>                seq, opcode, target, ret);</span>
+<span class="source-line" id="L283"><a class="line-no" href="#L283">283</a>out:</span>
+<span class="source-line" id="L284"><a class="line-no" href="#L284">284</a>    mutex_unlock(&amp;pf-&gt;mbx_mutex);</span>
+<span class="source-line" id="L285"><a class="line-no" href="#L285">285</a>    return ret;</span>
+<span class="source-line" id="L286"><a class="line-no" href="#L286">286</a>}</span>
+<span class="source-line" id="L287"><a class="line-no" href="#L287">287</a></span>
+<span class="source-line" id="L288"><a class="line-no" href="#L288">288</a>static int toy_mailbox(struct toy_pf *pf, u32 opcode, u32 target,</span>
+<span class="source-line" id="L289"><a class="line-no" href="#L289">289</a>                       const u32 args[4], u32 reply[4])</span>
+<span class="source-line" id="L290"><a class="line-no" href="#L290">290</a>{</span>
+<span class="source-line" id="L291"><a class="line-no" href="#L291">291</a>    u32 status;</span>
+<span class="source-line" id="L292"><a class="line-no" href="#L292">292</a>    return toy_mailbox_status(pf, opcode, target, args, reply, &amp;status);</span>
+<span class="source-line" id="L293"><a class="line-no" href="#L293">293</a>}</span>
+<span class="source-line" id="L294"><a class="line-no" href="#L294">294</a></span>
+<span class="source-line" id="L295"><a class="line-no" href="#L295">295</a>/* 中斷脈絡只 ACK、喚醒 mailbox 等待者及排 work；需要管理鎖的通知整理留給 workqueue。 */</span>
+<span class="source-line" id="L296"><a class="line-no" href="#L296">296</a>static irqreturn_t toy_irq(int irq, void *data)</span>
+<span class="source-line" id="L297"><a class="line-no" href="#L297">297</a>{</span>
+<span class="source-line" id="L298"><a class="line-no" href="#L298">298</a>    struct toy_pf *pf = data;</span>
+<span class="source-line" id="L299"><a class="line-no" href="#L299">299</a>    u32 events = toy_read(pf, TOY_PF_EVENT);</span>
+<span class="source-line" id="L300"><a class="line-no" href="#L300">300</a>    if (!events)</span>
+<span class="source-line" id="L301"><a class="line-no" href="#L301">301</a>        return IRQ_NONE;</span>
+<span class="source-line" id="L302"><a class="line-no" href="#L302">302</a>    toy_write(pf, TOY_PF_EVENT, events);</span>
+<span class="source-line" id="L303"><a class="line-no" href="#L303">303</a>    if (events &amp; TOY_PF_EVENTS_MBX_DONE)</span>
+<span class="source-line" id="L304"><a class="line-no" href="#L304">304</a>        complete(&amp;pf-&gt;mbx_done);</span>
+<span class="source-line" id="L305"><a class="line-no" href="#L305">305</a>    if (events &amp; (TOY_PF_EVENTS_FLR_EVENT | TOY_PF_EVENTS_VF_HEALTH)) {</span>
+<span class="source-line" id="L306"><a class="line-no" href="#L306">306</a>        atomic_or(events, &amp;pf-&gt;pending_events);</span>
+<span class="source-line" id="L307"><a class="line-no" href="#L307">307</a>        if (!READ_ONCE(pf-&gt;dying))</span>
+<span class="source-line" id="L308"><a class="line-no" href="#L308">308</a>            schedule_work(&amp;pf-&gt;notify_work);</span>
+<span class="source-line" id="L309"><a class="line-no" href="#L309">309</a>    }</span>
+<span class="source-line" id="L310"><a class="line-no" href="#L310">310</a>    return IRQ_HANDLED;</span>
+<span class="source-line" id="L311"><a class="line-no" href="#L311">311</a>}</span>
+<span class="source-line" id="L312"><a class="line-no" href="#L312">312</a></span>
+<span class="source-line" id="L313"><a class="line-no" href="#L313">313</a>static int toy_verify_free(struct toy_pf *pf, unsigned int vf)</span>
+<span class="source-line" id="L314"><a class="line-no" href="#L314">314</a>{</span>
+<span class="source-line" id="L315"><a class="line-no" href="#L315">315</a>    u32 offset = TOY_VF_VIEW(vf, 0);</span>
+<span class="source-line" id="L316"><a class="line-no" href="#L316">316</a>    u32 state, reserve, outstanding, flags;</span>
+<span class="source-line" id="L317"><a class="line-no" href="#L317">317</a>    toy_write(pf, TOY_PF_SNAPSHOT, 1);</span>
+<span class="source-line" id="L318"><a class="line-no" href="#L318">318</a>    state = toy_read(pf, offset + TOY_PF_VF_VIEW_STATE);</span>
+<span class="source-line" id="L319"><a class="line-no" href="#L319">319</a>    reserve = toy_read(pf, offset + TOY_PF_VF_VIEW_RESERVE);</span>
+<span class="source-line" id="L320"><a class="line-no" href="#L320">320</a>    outstanding = toy_read(pf, offset + TOY_PF_VF_VIEW_OUTSTANDING);</span>
+<span class="source-line" id="L321"><a class="line-no" href="#L321">321</a>    flags = toy_read(pf, offset + TOY_PF_VF_VIEW_HW_STATUS);</span>
+<span class="source-line" id="L322"><a class="line-no" href="#L322">322</a>    if (state != TOY_STATES_FREE || reserve || outstanding ||</span>
+<span class="source-line" id="L323"><a class="line-no" href="#L323">323</a>        (flags &amp; (TOY_HW_FLAGS_CONFIG_VALID | TOY_HW_FLAGS_PCI_PRESENT)) ||</span>
+<span class="source-line" id="L324"><a class="line-no" href="#L324">324</a>        !(flags &amp; TOY_HW_FLAGS_FENCED)) {</span>
+<span class="source-line" id="L325"><a class="line-no" href="#L325">325</a>        dev_err(&amp;pf-&gt;pdev-&gt;dev,</span>
+<span class="source-line" id="L326"><a class="line-no" href="#L326">326</a>                &quot;FREE_VERIFY_FAILED vf=%u state=%u reserve=%u outstanding=%u flags=%#x\n&quot;,</span>
+<span class="source-line" id="L327"><a class="line-no" href="#L327">327</a>                vf, state, reserve, outstanding, flags);</span>
+<span class="source-line" id="L328"><a class="line-no" href="#L328">328</a>        return -EIO;</span>
+<span class="source-line" id="L329"><a class="line-no" href="#L329">329</a>    }</span>
+<span class="source-line" id="L330"><a class="line-no" href="#L330">330</a>    dev_info(&amp;pf-&gt;pdev-&gt;dev, &quot;FREE_VERIFIED vf=%u reserve=0 outstanding=0 flags=%#x\n&quot;, vf, flags);</span>
+<span class="source-line" id="L331"><a class="line-no" href="#L331">331</a>    return 0;</span>
+<span class="source-line" id="L332"><a class="line-no" href="#L332">332</a>}</span>
+<span class="source-line" id="L333"><a class="line-no" href="#L333">333</a></span>
+<span class="source-line" id="L334"><a class="line-no" href="#L334">334</a>static int toy_destroy_slot(struct toy_pf *pf, unsigned int vf)</span>
+<span class="source-line" id="L335"><a class="line-no" href="#L335">335</a>{</span>
+<span class="source-line" id="L336"><a class="line-no" href="#L336">336</a>    int ret = toy_fence(pf, vf);</span>
+<span class="source-line" id="L337"><a class="line-no" href="#L337">337</a>    if (!ret &amp;&amp; toy_fail(pf, &quot;unwind.destroy&quot;))</span>
+<span class="source-line" id="L338"><a class="line-no" href="#L338">338</a>        ret = -EIO;</span>
+<span class="source-line" id="L339"><a class="line-no" href="#L339">339</a>    if (!ret)</span>
+<span class="source-line" id="L340"><a class="line-no" href="#L340">340</a>        ret = toy_mailbox(pf, TOY_OPCODES_DESTROY, vf, NULL, NULL);</span>
+<span class="source-line" id="L341"><a class="line-no" href="#L341">341</a>    if (!ret)</span>
+<span class="source-line" id="L342"><a class="line-no" href="#L342">342</a>        ret = toy_verify_free(pf, vf);</span>
+<span class="source-line" id="L343"><a class="line-no" href="#L343">343</a>    if (ret) {</span>
+<span class="source-line" id="L344"><a class="line-no" href="#L344">344</a>        unsigned long deadline = jiffies + msecs_to_jiffies(TOY_MBX_TIMEOUT_MS);</span>
+<span class="source-line" id="L345"><a class="line-no" href="#L345">345</a>        toy_kill(pf, vf);</span>
+<span class="source-line" id="L346"><a class="line-no" href="#L346">346</a>        /* firmware 存活時會觀察 KILL 並以合法事件收斂；逾時仍保留配額。 */</span>
+<span class="source-line" id="L347"><a class="line-no" href="#L347">347</a>        do {</span>
+<span class="source-line" id="L348"><a class="line-no" href="#L348">348</a>            toy_write(pf, TOY_PF_SNAPSHOT, 1);</span>
+<span class="source-line" id="L349"><a class="line-no" href="#L349">349</a>            if (toy_read(pf, TOY_VF_VIEW(vf, TOY_PF_VF_VIEW_STATE)) == TOY_STATES_FAILED)</span>
+<span class="source-line" id="L350"><a class="line-no" href="#L350">350</a>                break;</span>
+<span class="source-line" id="L351"><a class="line-no" href="#L351">351</a>            usleep_range(1000, 2000);</span>
+<span class="source-line" id="L352"><a class="line-no" href="#L352">352</a>        } while (time_before(jiffies, deadline));</span>
+<span class="source-line" id="L353"><a class="line-no" href="#L353">353</a>        dev_err(&amp;pf-&gt;pdev-&gt;dev, &quot;DESTROY_RETAINED vf=%u errno=%d\n&quot;, vf, ret);</span>
+<span class="source-line" id="L354"><a class="line-no" href="#L354">354</a>    }</span>
+<span class="source-line" id="L355"><a class="line-no" href="#L355">355</a>    return ret;</span>
+<span class="source-line" id="L356"><a class="line-no" href="#L356">356</a>}</span>
+<span class="source-line" id="L357"><a class="line-no" href="#L357">357</a></span>
+<span class="source-line" id="L358"><a class="line-no" href="#L358">358</a>static int toy_sriov_configure(struct pci_dev *pdev, int count)</span>
+<span class="source-line" id="L359"><a class="line-no" href="#L359">359</a>{</span>
+<span class="source-line" id="L360"><a class="line-no" href="#L360">360</a>    struct toy_pf *pf = pci_get_drvdata(pdev);</span>
+<span class="source-line" id="L361"><a class="line-no" href="#L361">361</a>    const u32 args[4] = { 8, 0, 0, 0 };</span>
+<span class="source-line" id="L362"><a class="line-no" href="#L362">362</a>    unsigned int i, provisioned = 0;</span>
+<span class="source-line" id="L363"><a class="line-no" href="#L363">363</a>    int ret = 0, cleanup_ret;</span>
+<span class="source-line" id="L364"><a class="line-no" href="#L364">364</a>    if (!pf || count &lt; 0 || count &gt; TOY_PCI_TOTAL_VFS)</span>
+<span class="source-line" id="L365"><a class="line-no" href="#L365">365</a>        return -EINVAL;</span>
+<span class="source-line" id="L366"><a class="line-no" href="#L366">366</a>    mutex_lock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L367"><a class="line-no" href="#L367">367</a>    if (!pf-&gt;accepting || pf-&gt;dying) {</span>
+<span class="source-line" id="L368"><a class="line-no" href="#L368">368</a>        ret = -ENODEV;</span>
+<span class="source-line" id="L369"><a class="line-no" href="#L369">369</a>        goto out;</span>
+<span class="source-line" id="L370"><a class="line-no" href="#L370">370</a>    }</span>
+<span class="source-line" id="L371"><a class="line-no" href="#L371">371</a>    if (pf-&gt;transaction) {</span>
+<span class="source-line" id="L372"><a class="line-no" href="#L372">372</a>        ret = -EBUSY;</span>
+<span class="source-line" id="L373"><a class="line-no" href="#L373">373</a>        goto out;</span>
+<span class="source-line" id="L374"><a class="line-no" href="#L374">374</a>    }</span>
+<span class="source-line" id="L375"><a class="line-no" href="#L375">375</a>    if (count &amp;&amp; pf-&gt;enabled) {</span>
+<span class="source-line" id="L376"><a class="line-no" href="#L376">376</a>        ret = count == pf-&gt;enabled ? count : -EBUSY;</span>
+<span class="source-line" id="L377"><a class="line-no" href="#L377">377</a>        goto out;</span>
+<span class="source-line" id="L378"><a class="line-no" href="#L378">378</a>    }</span>
+<span class="source-line" id="L379"><a class="line-no" href="#L379">379</a>    if (!count) {</span>
+<span class="source-line" id="L380"><a class="line-no" href="#L380">380</a>        for (i = 0; i &lt; TOY_PCI_TOTAL_VFS; ++i)</span>
+<span class="source-line" id="L381"><a class="line-no" href="#L381">381</a>            if (pf-&gt;leases[i].token) {</span>
+<span class="source-line" id="L382"><a class="line-no" href="#L382">382</a>                ret = -EBUSY;</span>
+<span class="source-line" id="L383"><a class="line-no" href="#L383">383</a>                goto out;</span>
+<span class="source-line" id="L384"><a class="line-no" href="#L384">384</a>            }</span>
+<span class="source-line" id="L385"><a class="line-no" href="#L385">385</a>        if (pci_vfs_assigned(pdev)) {</span>
+<span class="source-line" id="L386"><a class="line-no" href="#L386">386</a>            ret = -EBUSY;</span>
+<span class="source-line" id="L387"><a class="line-no" href="#L387">387</a>            goto out;</span>
+<span class="source-line" id="L388"><a class="line-no" href="#L388">388</a>        }</span>
+<span class="source-line" id="L389"><a class="line-no" href="#L389">389</a>        for (i = 0; i &lt; pf-&gt;enabled; ++i) {</span>
+<span class="source-line" id="L390"><a class="line-no" href="#L390">390</a>            ret = toy_fence(pf, i);</span>
+<span class="source-line" id="L391"><a class="line-no" href="#L391">391</a>            if (ret)</span>
+<span class="source-line" id="L392"><a class="line-no" href="#L392">392</a>                goto out;</span>
+<span class="source-line" id="L393"><a class="line-no" href="#L393">393</a>        }</span>
+<span class="source-line" id="L394"><a class="line-no" href="#L394">394</a>        pf-&gt;transaction = true;</span>
+<span class="source-line" id="L395"><a class="line-no" href="#L395">395</a>        reinit_completion(&amp;pf-&gt;transaction_done);</span>
+<span class="source-line" id="L396"><a class="line-no" href="#L396">396</a>        /* PCI/VFIO 可能等待 owner；不能持有 worker 或控制 fd 需要的鎖。 */</span>
+<span class="source-line" id="L397"><a class="line-no" href="#L397">397</a>        mutex_unlock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L398"><a class="line-no" href="#L398">398</a>        pci_disable_sriov(pdev);</span>
+<span class="source-line" id="L399"><a class="line-no" href="#L399">399</a>        mutex_lock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L400"><a class="line-no" href="#L400">400</a>        if (pf-&gt;dying) {</span>
+<span class="source-line" id="L401"><a class="line-no" href="#L401">401</a>            ret = -ENODEV;</span>
+<span class="source-line" id="L402"><a class="line-no" href="#L402">402</a>            goto transaction_done;</span>
+<span class="source-line" id="L403"><a class="line-no" href="#L403">403</a>        }</span>
+<span class="source-line" id="L404"><a class="line-no" href="#L404">404</a>        for (i = pf-&gt;enabled; i &gt; 0; --i) {</span>
+<span class="source-line" id="L405"><a class="line-no" href="#L405">405</a>            cleanup_ret = toy_destroy_slot(pf, i - 1);</span>
+<span class="source-line" id="L406"><a class="line-no" href="#L406">406</a>            if (cleanup_ret &amp;&amp; !ret)</span>
+<span class="source-line" id="L407"><a class="line-no" href="#L407">407</a>                ret = cleanup_ret;</span>
+<span class="source-line" id="L408"><a class="line-no" href="#L408">408</a>        }</span>
+<span class="source-line" id="L409"><a class="line-no" href="#L409">409</a>        pf-&gt;enabled = 0;</span>
+<span class="source-line" id="L410"><a class="line-no" href="#L410">410</a>        goto transaction_done;</span>
+<span class="source-line" id="L411"><a class="line-no" href="#L411">411</a>    }</span>
+<span class="source-line" id="L412"><a class="line-no" href="#L412">412</a>    pf-&gt;transaction = true;</span>
+<span class="source-line" id="L413"><a class="line-no" href="#L413">413</a>    reinit_completion(&amp;pf-&gt;transaction_done);</span>
+<span class="source-line" id="L414"><a class="line-no" href="#L414">414</a>    for (i = 0; i &lt; count; ++i) {</span>
+<span class="source-line" id="L415"><a class="line-no" href="#L415">415</a>        ret = toy_mailbox(pf, TOY_OPCODES_PROVISION, i, args, NULL);</span>
+<span class="source-line" id="L416"><a class="line-no" href="#L416">416</a>        if (ret)</span>
+<span class="source-line" id="L417"><a class="line-no" href="#L417">417</a>            goto unwind;</span>
+<span class="source-line" id="L418"><a class="line-no" href="#L418">418</a>        ++provisioned;</span>
+<span class="source-line" id="L419"><a class="line-no" href="#L419">419</a>        if (toy_fail(pf, &quot;provision.host_record&quot;)) {</span>
+<span class="source-line" id="L420"><a class="line-no" href="#L420">420</a>            ret = -ENOMEM;</span>
+<span class="source-line" id="L421"><a class="line-no" href="#L421">421</a>            goto unwind;</span>
+<span class="source-line" id="L422"><a class="line-no" href="#L422">422</a>        }</span>
+<span class="source-line" id="L423"><a class="line-no" href="#L423">423</a>    }</span>
+<span class="source-line" id="L424"><a class="line-no" href="#L424">424</a>    if (toy_fail(pf, &quot;provision.pci_enable&quot;)) {</span>
+<span class="source-line" id="L425"><a class="line-no" href="#L425">425</a>        ret = -EIO;</span>
+<span class="source-line" id="L426"><a class="line-no" href="#L426">426</a>        goto unwind;</span>
+<span class="source-line" id="L427"><a class="line-no" href="#L427">427</a>    }</span>
+<span class="source-line" id="L428"><a class="line-no" href="#L428">428</a>    mutex_unlock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L429"><a class="line-no" href="#L429">429</a>    ret = pci_enable_sriov(pdev, count);</span>
+<span class="source-line" id="L430"><a class="line-no" href="#L430">430</a>    mutex_lock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L431"><a class="line-no" href="#L431">431</a>    if (ret)</span>
+<span class="source-line" id="L432"><a class="line-no" href="#L432">432</a>        goto unwind;</span>
+<span class="source-line" id="L433"><a class="line-no" href="#L433">433</a>    if (pf-&gt;dying || toy_fail(pf, &quot;provision.after_pci_enable&quot;)) {</span>
+<span class="source-line" id="L434"><a class="line-no" href="#L434">434</a>        ret = pf-&gt;dying ? -ENODEV : -EIO;</span>
+<span class="source-line" id="L435"><a class="line-no" href="#L435">435</a>        mutex_unlock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L436"><a class="line-no" href="#L436">436</a>        pci_disable_sriov(pdev);</span>
+<span class="source-line" id="L437"><a class="line-no" href="#L437">437</a>        mutex_lock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L438"><a class="line-no" href="#L438">438</a>        goto unwind;</span>
+<span class="source-line" id="L439"><a class="line-no" href="#L439">439</a>    }</span>
+<span class="source-line" id="L440"><a class="line-no" href="#L440">440</a>    pf-&gt;enabled = count;</span>
+<span class="source-line" id="L441"><a class="line-no" href="#L441">441</a>    ret = count;</span>
+<span class="source-line" id="L442"><a class="line-no" href="#L442">442</a>    goto transaction_done;</span>
+<span class="source-line" id="L443"><a class="line-no" href="#L443">443</a>unwind:</span>
+<span class="source-line" id="L444"><a class="line-no" href="#L444">444</a>    /* PCI core 的失敗返回已完成枚舉 unwind；ledger 依反向次序撤銷。 */</span>
+<span class="source-line" id="L445"><a class="line-no" href="#L445">445</a>    while (provisioned) {</span>
+<span class="source-line" id="L446"><a class="line-no" href="#L446">446</a>        cleanup_ret = toy_destroy_slot(pf, --provisioned);</span>
+<span class="source-line" id="L447"><a class="line-no" href="#L447">447</a>        if (cleanup_ret)</span>
+<span class="source-line" id="L448"><a class="line-no" href="#L448">448</a>            dev_err(&amp;pdev-&gt;dev, &quot;PROVISION_UNWIND_RETAINED vf=%u errno=%d\n&quot;,</span>
+<span class="source-line" id="L449"><a class="line-no" href="#L449">449</a>                    provisioned, cleanup_ret);</span>
+<span class="source-line" id="L450"><a class="line-no" href="#L450">450</a>    }</span>
+<span class="source-line" id="L451"><a class="line-no" href="#L451">451</a>transaction_done:</span>
+<span class="source-line" id="L452"><a class="line-no" href="#L452">452</a>    pf-&gt;transaction = false;</span>
+<span class="source-line" id="L453"><a class="line-no" href="#L453">453</a>    complete_all(&amp;pf-&gt;transaction_done);</span>
+<span class="source-line" id="L454"><a class="line-no" href="#L454">454</a>out:</span>
+<span class="source-line" id="L455"><a class="line-no" href="#L455">455</a>    mutex_unlock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L456"><a class="line-no" href="#L456">456</a>    return ret;</span>
+<span class="source-line" id="L457"><a class="line-no" href="#L457">457</a>}</span>
+<span class="source-line" id="L458"><a class="line-no" href="#L458">458</a></span>
+<span class="source-line" id="L459"><a class="line-no" href="#L459">459</a>static void toy_release_ref(struct kref *ref)</span>
+<span class="source-line" id="L460"><a class="line-no" href="#L460">460</a>{</span>
+<span class="source-line" id="L461"><a class="line-no" href="#L461">461</a>    struct toy_pf *pf = container_of(ref, struct toy_pf, ref);</span>
+<span class="source-line" id="L462"><a class="line-no" href="#L462">462</a>    kfree(pf);</span>
+<span class="source-line" id="L463"><a class="line-no" href="#L463">463</a>}</span>
+<span class="source-line" id="L464"><a class="line-no" href="#L464">464</a></span>
+<span class="source-line" id="L465"><a class="line-no" href="#L465">465</a>#include &quot;toy_control.inc&quot;</span>
+<span class="source-line" id="L466"><a class="line-no" href="#L466">466</a></span>
+<span class="source-line" id="L467"><a class="line-no" href="#L467">467</a>/* inode 只保存 PF；已開啟的 debugfs fd 以 kref 跨越 remove。 */</span>
+<span class="source-line" id="L468"><a class="line-no" href="#L468">468</a>static int toy_debug_open(struct inode *inode, struct file *file)</span>
+<span class="source-line" id="L469"><a class="line-no" href="#L469">469</a>{</span>
+<span class="source-line" id="L470"><a class="line-no" href="#L470">470</a>    struct toy_pf *pf = inode-&gt;i_private;</span>
+<span class="source-line" id="L471"><a class="line-no" href="#L471">471</a>    int ret = 0;</span>
+<span class="source-line" id="L472"><a class="line-no" href="#L472">472</a>    mutex_lock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L473"><a class="line-no" href="#L473">473</a>    if (pf-&gt;dying)</span>
+<span class="source-line" id="L474"><a class="line-no" href="#L474">474</a>        ret = -ENODEV;</span>
+<span class="source-line" id="L475"><a class="line-no" href="#L475">475</a>    else {</span>
+<span class="source-line" id="L476"><a class="line-no" href="#L476">476</a>        kref_get(&amp;pf-&gt;ref);</span>
+<span class="source-line" id="L477"><a class="line-no" href="#L477">477</a>        file-&gt;private_data = pf;</span>
+<span class="source-line" id="L478"><a class="line-no" href="#L478">478</a>    }</span>
+<span class="source-line" id="L479"><a class="line-no" href="#L479">479</a>    mutex_unlock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L480"><a class="line-no" href="#L480">480</a>    return ret;</span>
+<span class="source-line" id="L481"><a class="line-no" href="#L481">481</a>}</span>
+<span class="source-line" id="L482"><a class="line-no" href="#L482">482</a></span>
+<span class="source-line" id="L483"><a class="line-no" href="#L483">483</a>static int toy_debug_release(struct inode *inode, struct file *file)</span>
+<span class="source-line" id="L484"><a class="line-no" href="#L484">484</a>{</span>
+<span class="source-line" id="L485"><a class="line-no" href="#L485">485</a>    kref_put(&amp;((struct toy_pf *)file-&gt;private_data)-&gt;ref, toy_release_ref);</span>
+<span class="source-line" id="L486"><a class="line-no" href="#L486">486</a>    return 0;</span>
+<span class="source-line" id="L487"><a class="line-no" href="#L487">487</a>}</span>
+<span class="source-line" id="L488"><a class="line-no" href="#L488">488</a></span>
+<span class="source-line" id="L489"><a class="line-no" href="#L489">489</a>static unsigned int toy_debug_slot(struct file *file)</span>
+<span class="source-line" id="L490"><a class="line-no" href="#L490">490</a>{</span>
+<span class="source-line" id="L491"><a class="line-no" href="#L491">491</a>    return !strcmp(file-&gt;f_path.dentry-&gt;d_name.name, &quot;unwind&quot;);</span>
+<span class="source-line" id="L492"><a class="line-no" href="#L492">492</a>}</span>
+<span class="source-line" id="L493"><a class="line-no" href="#L493">493</a></span>
+<span class="source-line" id="L494"><a class="line-no" href="#L494">494</a>static ssize_t toy_debug_read(struct file *file, char __user *buffer,</span>
+<span class="source-line" id="L495"><a class="line-no" href="#L495">495</a>                              size_t length, loff_t *offset)</span>
+<span class="source-line" id="L496"><a class="line-no" href="#L496">496</a>{</span>
+<span class="source-line" id="L497"><a class="line-no" href="#L497">497</a>    struct toy_pf *pf = file-&gt;private_data;</span>
+<span class="source-line" id="L498"><a class="line-no" href="#L498">498</a>    struct toy_failpoint *fp = &amp;pf-&gt;failpoints[toy_debug_slot(file)];</span>
+<span class="source-line" id="L499"><a class="line-no" href="#L499">499</a>    char record[160];</span>
+<span class="source-line" id="L500"><a class="line-no" href="#L500">500</a>    int size;</span>
+<span class="source-line" id="L501"><a class="line-no" href="#L501">501</a>    mutex_lock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L502"><a class="line-no" href="#L502">502</a>    if (pf-&gt;dying) {</span>
+<span class="source-line" id="L503"><a class="line-no" href="#L503">503</a>        mutex_unlock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L504"><a class="line-no" href="#L504">504</a>        return -ENODEV;</span>
+<span class="source-line" id="L505"><a class="line-no" href="#L505">505</a>    }</span>
+<span class="source-line" id="L506"><a class="line-no" href="#L506">506</a>    size = scnprintf(record, sizeof(record), &quot;name=%s hit=%u seen=%u fired=%u\n&quot;,</span>
+<span class="source-line" id="L507"><a class="line-no" href="#L507">507</a>                      fp-&gt;name[0] ? fp-&gt;name : &quot;off&quot;, fp-&gt;hit, fp-&gt;seen, fp-&gt;fired);</span>
+<span class="source-line" id="L508"><a class="line-no" href="#L508">508</a>    mutex_unlock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L509"><a class="line-no" href="#L509">509</a>    return simple_read_from_buffer(buffer, length, offset, record, size);</span>
+<span class="source-line" id="L510"><a class="line-no" href="#L510">510</a>}</span>
+<span class="source-line" id="L511"><a class="line-no" href="#L511">511</a></span>
+<span class="source-line" id="L512"><a class="line-no" href="#L512">512</a>static ssize_t toy_debug_write(struct file *file, const char __user *buffer,</span>
+<span class="source-line" id="L513"><a class="line-no" href="#L513">513</a>                               size_t length, loff_t *offset)</span>
+<span class="source-line" id="L514"><a class="line-no" href="#L514">514</a>{</span>
+<span class="source-line" id="L515"><a class="line-no" href="#L515">515</a>    struct toy_pf *pf = file-&gt;private_data;</span>
+<span class="source-line" id="L516"><a class="line-no" href="#L516">516</a>    struct toy_failpoint *fp = &amp;pf-&gt;failpoints[toy_debug_slot(file)];</span>
+<span class="source-line" id="L517"><a class="line-no" href="#L517">517</a>    char record[96], name[64], trailing;</span>
+<span class="source-line" id="L518"><a class="line-no" href="#L518">518</a>    unsigned int hit;</span>
+<span class="source-line" id="L519"><a class="line-no" href="#L519">519</a>    int ret = length;</span>
+<span class="source-line" id="L520"><a class="line-no" href="#L520">520</a>    if (!length || length &gt;= sizeof(record))</span>
+<span class="source-line" id="L521"><a class="line-no" href="#L521">521</a>        return -EINVAL;</span>
+<span class="source-line" id="L522"><a class="line-no" href="#L522">522</a>    if (copy_from_user(record, buffer, length))</span>
+<span class="source-line" id="L523"><a class="line-no" href="#L523">523</a>        return -EFAULT;</span>
+<span class="source-line" id="L524"><a class="line-no" href="#L524">524</a>    if (memchr(record, 0, length))</span>
+<span class="source-line" id="L525"><a class="line-no" href="#L525">525</a>        return -EINVAL;</span>
+<span class="source-line" id="L526"><a class="line-no" href="#L526">526</a>    record[length] = 0;</span>
+<span class="source-line" id="L527"><a class="line-no" href="#L527">527</a>    if (sscanf(record, &quot;%63s %u %c&quot;, name, &amp;hit, &amp;trailing) != 2 || !hit ||</span>
+<span class="source-line" id="L528"><a class="line-no" href="#L528">528</a>        (strcmp(name, &quot;off&quot;) &amp;&amp; !toy_fail_name_valid(name)))</span>
+<span class="source-line" id="L529"><a class="line-no" href="#L529">529</a>        return -EINVAL;</span>
+<span class="source-line" id="L530"><a class="line-no" href="#L530">530</a>    mutex_lock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L531"><a class="line-no" href="#L531">531</a>    if (pf-&gt;dying)</span>
+<span class="source-line" id="L532"><a class="line-no" href="#L532">532</a>        ret = -ENODEV;</span>
+<span class="source-line" id="L533"><a class="line-no" href="#L533">533</a>    else if (pf-&gt;transaction)</span>
+<span class="source-line" id="L534"><a class="line-no" href="#L534">534</a>        ret = -EBUSY;</span>
+<span class="source-line" id="L535"><a class="line-no" href="#L535">535</a>    else {</span>
+<span class="source-line" id="L536"><a class="line-no" href="#L536">536</a>        memset(fp, 0, sizeof(*fp));</span>
+<span class="source-line" id="L537"><a class="line-no" href="#L537">537</a>        if (strcmp(name, &quot;off&quot;))</span>
+<span class="source-line" id="L538"><a class="line-no" href="#L538">538</a>            strscpy(fp-&gt;name, name, sizeof(fp-&gt;name));</span>
+<span class="source-line" id="L539"><a class="line-no" href="#L539">539</a>        fp-&gt;hit = hit;</span>
+<span class="source-line" id="L540"><a class="line-no" href="#L540">540</a>        dev_info(&amp;pf-&gt;pdev-&gt;dev, &quot;FAILPOINT_ARM slot=%u name=%s hit=%u\n&quot;,</span>
+<span class="source-line" id="L541"><a class="line-no" href="#L541">541</a>                 toy_debug_slot(file), name, hit);</span>
+<span class="source-line" id="L542"><a class="line-no" href="#L542">542</a>    }</span>
+<span class="source-line" id="L543"><a class="line-no" href="#L543">543</a>    mutex_unlock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L544"><a class="line-no" href="#L544">544</a>    return ret;</span>
+<span class="source-line" id="L545"><a class="line-no" href="#L545">545</a>}</span>
+<span class="source-line" id="L546"><a class="line-no" href="#L546">546</a></span>
+<span class="source-line" id="L547"><a class="line-no" href="#L547">547</a>static const struct file_operations toy_debug_fops = {</span>
+<span class="source-line" id="L548"><a class="line-no" href="#L548">548</a>    .owner = THIS_MODULE, .open = toy_debug_open, .release = toy_debug_release,</span>
+<span class="source-line" id="L549"><a class="line-no" href="#L549">549</a>    .read = toy_debug_read, .write = toy_debug_write, .llseek = default_llseek,</span>
+<span class="source-line" id="L550"><a class="line-no" href="#L550">550</a>};</span>
+<span class="source-line" id="L551"><a class="line-no" href="#L551">551</a></span>
+<span class="source-line" id="L552"><a class="line-no" href="#L552">552</a>/* 只讀生命週期觀測；不清空 queue 或等待 worker，避免讓量測改變結果。 */</span>
+<span class="source-line" id="L553"><a class="line-no" href="#L553">553</a>static ssize_t toy_lifecycle_read(struct file *file, char __user *buffer,</span>
+<span class="source-line" id="L554"><a class="line-no" href="#L554">554</a>                                  size_t length, loff_t *offset)</span>
+<span class="source-line" id="L555"><a class="line-no" href="#L555">555</a>{</span>
+<span class="source-line" id="L556"><a class="line-no" href="#L556">556</a>    struct toy_pf *pf = file-&gt;private_data;</span>
+<span class="source-line" id="L557"><a class="line-no" href="#L557">557</a>    struct toy_file *ctx;</span>
+<span class="source-line" id="L558"><a class="line-no" href="#L558">558</a>    unsigned int files = 0, leases = 0, orphaned = 0, events = 0, i;</span>
+<span class="source-line" id="L559"><a class="line-no" href="#L559">559</a>    char record[256];</span>
+<span class="source-line" id="L560"><a class="line-no" href="#L560">560</a>    int size;</span>
+<span class="source-line" id="L561"><a class="line-no" href="#L561">561</a>    mutex_lock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L562"><a class="line-no" href="#L562">562</a>    if (pf-&gt;dying) {</span>
+<span class="source-line" id="L563"><a class="line-no" href="#L563">563</a>        mutex_unlock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L564"><a class="line-no" href="#L564">564</a>        return -ENODEV;</span>
+<span class="source-line" id="L565"><a class="line-no" href="#L565">565</a>    }</span>
+<span class="source-line" id="L566"><a class="line-no" href="#L566">566</a>    list_for_each_entry(ctx, &amp;pf-&gt;files, link) {</span>
+<span class="source-line" id="L567"><a class="line-no" href="#L567">567</a>        unsigned long flags;</span>
+<span class="source-line" id="L568"><a class="line-no" href="#L568">568</a>        ++files;</span>
+<span class="source-line" id="L569"><a class="line-no" href="#L569">569</a>        spin_lock_irqsave(&amp;ctx-&gt;event_lock, flags);</span>
+<span class="source-line" id="L570"><a class="line-no" href="#L570">570</a>        events += ctx-&gt;count + !!ctx-&gt;lost + ctx-&gt;stash_valid;</span>
+<span class="source-line" id="L571"><a class="line-no" href="#L571">571</a>        spin_unlock_irqrestore(&amp;ctx-&gt;event_lock, flags);</span>
+<span class="source-line" id="L572"><a class="line-no" href="#L572">572</a>    }</span>
+<span class="source-line" id="L573"><a class="line-no" href="#L573">573</a>    for (i = 0; i &lt; TOY_PCI_TOTAL_VFS; ++i) {</span>
+<span class="source-line" id="L574"><a class="line-no" href="#L574">574</a>        leases += !!pf-&gt;leases[i].token;</span>
+<span class="source-line" id="L575"><a class="line-no" href="#L575">575</a>        orphaned += pf-&gt;leases[i].orphaned;</span>
+<span class="source-line" id="L576"><a class="line-no" href="#L576">576</a>    }</span>
+<span class="source-line" id="L577"><a class="line-no" href="#L577">577</a>    size = scnprintf(record, sizeof(record),</span>
+<span class="source-line" id="L578"><a class="line-no" href="#L578">578</a>        &quot;contexts=%u leases=%u orphaned=%u events=%u work_busy=%u pending_irqs=%u enabled=%u transaction=%u\n&quot;,</span>
+<span class="source-line" id="L579"><a class="line-no" href="#L579">579</a>        files, leases, orphaned, events, work_busy(&amp;pf-&gt;notify_work),</span>
+<span class="source-line" id="L580"><a class="line-no" href="#L580">580</a>        (unsigned int)atomic_read(&amp;pf-&gt;pending_events), pf-&gt;enabled, pf-&gt;transaction);</span>
+<span class="source-line" id="L581"><a class="line-no" href="#L581">581</a>    mutex_unlock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L582"><a class="line-no" href="#L582">582</a>    return simple_read_from_buffer(buffer, length, offset, record, size);</span>
+<span class="source-line" id="L583"><a class="line-no" href="#L583">583</a>}</span>
+<span class="source-line" id="L584"><a class="line-no" href="#L584">584</a></span>
+<span class="source-line" id="L585"><a class="line-no" href="#L585">585</a>static const struct file_operations toy_lifecycle_fops = {</span>
+<span class="source-line" id="L586"><a class="line-no" href="#L586">586</a>    .owner = THIS_MODULE, .open = toy_debug_open, .release = toy_debug_release,</span>
+<span class="source-line" id="L587"><a class="line-no" href="#L587">587</a>    .read = toy_lifecycle_read, .llseek = default_llseek,</span>
+<span class="source-line" id="L588"><a class="line-no" href="#L588">588</a>};</span>
+<span class="source-line" id="L589"><a class="line-no" href="#L589">589</a></span>
+<span class="source-line" id="L590"><a class="line-no" href="#L590">590</a>static ssize_t toy_stats_read(struct file *file, char __user *buffer,</span>
+<span class="source-line" id="L591"><a class="line-no" href="#L591">591</a>                              size_t length, loff_t *offset)</span>
+<span class="source-line" id="L592"><a class="line-no" href="#L592">592</a>{</span>
+<span class="source-line" id="L593"><a class="line-no" href="#L593">593</a>    struct toy_pf *pf = file-&gt;private_data;</span>
+<span class="source-line" id="L594"><a class="line-no" href="#L594">594</a>    char record[1536];</span>
+<span class="source-line" id="L595"><a class="line-no" href="#L595">595</a>    int used = 0;</span>
+<span class="source-line" id="L596"><a class="line-no" href="#L596">596</a>    unsigned int vf;</span>
+<span class="source-line" id="L597"><a class="line-no" href="#L597">597</a>    mutex_lock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L598"><a class="line-no" href="#L598">598</a>    if (pf-&gt;dying) {</span>
+<span class="source-line" id="L599"><a class="line-no" href="#L599">599</a>        mutex_unlock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L600"><a class="line-no" href="#L600">600</a>        return -ENODEV;</span>
+<span class="source-line" id="L601"><a class="line-no" href="#L601">601</a>    }</span>
+<span class="source-line" id="L602"><a class="line-no" href="#L602">602</a>    /* 同一個硬體 snapshot 提供所有 VF 的唯讀健康計數。 */</span>
+<span class="source-line" id="L603"><a class="line-no" href="#L603">603</a>    toy_write(pf, TOY_PF_SNAPSHOT, 1);</span>
+<span class="source-line" id="L604"><a class="line-no" href="#L604">604</a>    for (vf = 0; vf &lt; TOY_PCI_TOTAL_VFS; ++vf)</span>
+<span class="source-line" id="L605"><a class="line-no" href="#L605">605</a>        used += scnprintf(record + used, sizeof(record) - used,</span>
+<span class="source-line" id="L606"><a class="line-no" href="#L606">606</a>            &quot;vf=%u stale_desc=%u stale_cpl=%u dma_fault=%u fence_blocked=%u irq_suppressed=%u\n&quot;,</span>
+<span class="source-line" id="L607"><a class="line-no" href="#L607">607</a>            vf, toy_read(pf, TOY_VF_VIEW(vf, TOY_PF_VF_VIEW_STALE_DESC)),</span>
+<span class="source-line" id="L608"><a class="line-no" href="#L608">608</a>            toy_read(pf, TOY_VF_VIEW(vf, TOY_PF_VF_VIEW_STALE_CPL)),</span>
+<span class="source-line" id="L609"><a class="line-no" href="#L609">609</a>            toy_read(pf, TOY_VF_VIEW(vf, TOY_PF_VF_VIEW_DMA_FAULT)),</span>
+<span class="source-line" id="L610"><a class="line-no" href="#L610">610</a>            toy_read(pf, TOY_VF_VIEW(vf, TOY_PF_VF_VIEW_FENCE_BLOCKED)),</span>
+<span class="source-line" id="L611"><a class="line-no" href="#L611">611</a>            toy_read(pf, TOY_VF_VIEW(vf, TOY_PF_VF_VIEW_IRQ_SUPPRESSED)));</span>
+<span class="source-line" id="L612"><a class="line-no" href="#L612">612</a>    mutex_unlock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L613"><a class="line-no" href="#L613">613</a>    return simple_read_from_buffer(buffer, length, offset, record, used);</span>
+<span class="source-line" id="L614"><a class="line-no" href="#L614">614</a>}</span>
+<span class="source-line" id="L615"><a class="line-no" href="#L615">615</a></span>
+<span class="source-line" id="L616"><a class="line-no" href="#L616">616</a>static const struct file_operations toy_stats_fops = {</span>
+<span class="source-line" id="L617"><a class="line-no" href="#L617">617</a>    .owner = THIS_MODULE, .open = toy_debug_open, .release = toy_debug_release,</span>
+<span class="source-line" id="L618"><a class="line-no" href="#L618">618</a>    .read = toy_stats_read, .llseek = default_llseek,</span>
+<span class="source-line" id="L619"><a class="line-no" href="#L619">619</a>};</span>
+<span class="source-line" id="L620"><a class="line-no" href="#L620">620</a></span>
+<span class="source-line" id="L621"><a class="line-no" href="#L621">621</a>/* 依序取得 PCI、BAR、IRQ 與控制節點；每個 goto 都只釋放此前已成功取得的資源。 */</span>
+<span class="source-line" id="L622"><a class="line-no" href="#L622">622</a>static int toy_probe(struct pci_dev *pdev, const struct pci_device_id *id)</span>
+<span class="source-line" id="L623"><a class="line-no" href="#L623">623</a>{</span>
+<span class="source-line" id="L624"><a class="line-no" href="#L624">624</a>    struct toy_pf *pf;</span>
+<span class="source-line" id="L625"><a class="line-no" href="#L625">625</a>    const u32 version_args[4] = { TOY_PROTOCOL_MAJOR, TOY_PROTOCOL_MINOR, TOY_PROTOCOL_MINOR, 0 };</span>
+<span class="source-line" id="L626"><a class="line-no" href="#L626">626</a>    u32 version_reply[4];</span>
+<span class="source-line" id="L627"><a class="line-no" href="#L627">627</a>    int ret, i;</span>
+<span class="source-line" id="L628"><a class="line-no" href="#L628">628</a>    if (!forward_hit || !unwind_hit ||</span>
+<span class="source-line" id="L629"><a class="line-no" href="#L629">629</a>        (forward_failpoint[0] &amp;&amp; !toy_fail_name_valid(forward_failpoint)) ||</span>
+<span class="source-line" id="L630"><a class="line-no" href="#L630">630</a>        (unwind_failpoint[0] &amp;&amp; !toy_fail_name_valid(unwind_failpoint)))</span>
+<span class="source-line" id="L631"><a class="line-no" href="#L631">631</a>        return -EINVAL;</span>
+<span class="source-line" id="L632"><a class="line-no" href="#L632">632</a>    if (toy_fail(NULL, &quot;probe.alloc_ctx&quot;))</span>
+<span class="source-line" id="L633"><a class="line-no" href="#L633">633</a>        return -ENOMEM;</span>
+<span class="source-line" id="L634"><a class="line-no" href="#L634">634</a>    pf = kzalloc(sizeof(*pf), GFP_KERNEL);</span>
+<span class="source-line" id="L635"><a class="line-no" href="#L635">635</a>    if (!pf)</span>
+<span class="source-line" id="L636"><a class="line-no" href="#L636">636</a>        return -ENOMEM;</span>
+<span class="source-line" id="L637"><a class="line-no" href="#L637">637</a>    pf-&gt;pdev = pdev;</span>
+<span class="source-line" id="L638"><a class="line-no" href="#L638">638</a>    mutex_init(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L639"><a class="line-no" href="#L639">639</a>    mutex_init(&amp;pf-&gt;mbx_mutex);</span>
+<span class="source-line" id="L640"><a class="line-no" href="#L640">640</a>    init_completion(&amp;pf-&gt;mbx_done);</span>
+<span class="source-line" id="L641"><a class="line-no" href="#L641">641</a>    init_completion(&amp;pf-&gt;transaction_done);</span>
+<span class="source-line" id="L642"><a class="line-no" href="#L642">642</a>    complete_all(&amp;pf-&gt;transaction_done);</span>
+<span class="source-line" id="L643"><a class="line-no" href="#L643">643</a>    INIT_LIST_HEAD(&amp;pf-&gt;files);</span>
+<span class="source-line" id="L644"><a class="line-no" href="#L644">644</a>    INIT_WORK(&amp;pf-&gt;notify_work, toy_notify_work);</span>
+<span class="source-line" id="L645"><a class="line-no" href="#L645">645</a>    atomic_set(&amp;pf-&gt;pending_events, 0);</span>
+<span class="source-line" id="L646"><a class="line-no" href="#L646">646</a>    pf-&gt;failpoints[0].hit = pf-&gt;failpoints[1].hit = 1;</span>
+<span class="source-line" id="L647"><a class="line-no" href="#L647">647</a>    kref_init(&amp;pf-&gt;ref);</span>
+<span class="source-line" id="L648"><a class="line-no" href="#L648">648</a>    ret = toy_fail(pf, &quot;probe.enable_mem&quot;) ? -EIO : pci_enable_device_mem(pdev);</span>
+<span class="source-line" id="L649"><a class="line-no" href="#L649">649</a>    if (ret)</span>
+<span class="source-line" id="L650"><a class="line-no" href="#L650">650</a>        goto free_context;</span>
+<span class="source-line" id="L651"><a class="line-no" href="#L651">651</a>    ret = toy_fail(pf, &quot;probe.request_regions&quot;) ? -EBUSY : pci_request_regions(pdev, &quot;toy_pf&quot;);</span>
+<span class="source-line" id="L652"><a class="line-no" href="#L652">652</a>    if (ret)</span>
+<span class="source-line" id="L653"><a class="line-no" href="#L653">653</a>        goto disable_device;</span>
+<span class="source-line" id="L654"><a class="line-no" href="#L654">654</a>    if (pci_resource_len(pdev, 0) != TOY_LIMITS_PF_BAR0_BYTES ||</span>
+<span class="source-line" id="L655"><a class="line-no" href="#L655">655</a>        !(pci_resource_flags(pdev, 0) &amp; IORESOURCE_MEM)) {</span>
+<span class="source-line" id="L656"><a class="line-no" href="#L656">656</a>        ret = -ENODEV;</span>
+<span class="source-line" id="L657"><a class="line-no" href="#L657">657</a>        goto release_regions;</span>
+<span class="source-line" id="L658"><a class="line-no" href="#L658">658</a>    }</span>
+<span class="source-line" id="L659"><a class="line-no" href="#L659">659</a>    if (!toy_fail(pf, &quot;probe.map_bar&quot;))</span>
+<span class="source-line" id="L660"><a class="line-no" href="#L660">660</a>        pf-&gt;bar = pci_iomap(pdev, 0, 0);</span>
+<span class="source-line" id="L661"><a class="line-no" href="#L661">661</a>    if (!pf-&gt;bar) {</span>
+<span class="source-line" id="L662"><a class="line-no" href="#L662">662</a>        ret = -ENOMEM;</span>
+<span class="source-line" id="L663"><a class="line-no" href="#L663">663</a>        goto release_regions;</span>
+<span class="source-line" id="L664"><a class="line-no" href="#L664">664</a>    }</span>
+<span class="source-line" id="L665"><a class="line-no" href="#L665">665</a>    if (toy_fail(pf, &quot;probe.validate_caps&quot;) ||</span>
+<span class="source-line" id="L666"><a class="line-no" href="#L666">666</a>        toy_read(pf, TOY_PF_MAGIC) != TOY_PF_MAGIC_VALUE ||</span>
+<span class="source-line" id="L667"><a class="line-no" href="#L667">667</a>        toy_read(pf, TOY_PF_ABI) != TOY_ABI_VERSION ||</span>
+<span class="source-line" id="L668"><a class="line-no" href="#L668">668</a>        toy_read(pf, TOY_PF_CAP_VFS) != TOY_PCI_TOTAL_VFS ||</span>
+<span class="source-line" id="L669"><a class="line-no" href="#L669">669</a>        toy_read(pf, TOY_PF_CAP_QUEUES) != TOY_LIMITS_QUEUES ||</span>
+<span class="source-line" id="L670"><a class="line-no" href="#L670">670</a>        toy_read(pf, TOY_PF_CAP_VECTORS) != TOY_LIMITS_VF_VECTORS ||</span>
+<span class="source-line" id="L671"><a class="line-no" href="#L671">671</a>        toy_read(pf, TOY_PF_CAP_CREDIT) != TOY_LIMITS_CREDITS) {</span>
+<span class="source-line" id="L672"><a class="line-no" href="#L672">672</a>        ret = -EPROTO;</span>
+<span class="source-line" id="L673"><a class="line-no" href="#L673">673</a>        goto unmap;</span>
+<span class="source-line" id="L674"><a class="line-no" href="#L674">674</a>    }</span>
+<span class="source-line" id="L675"><a class="line-no" href="#L675">675</a>    /* 同一 machine 的 driver rebind 不可從零重用去重序號。 */</span>
+<span class="source-line" id="L676"><a class="line-no" href="#L676">676</a>    pf-&gt;seq = toy_read(pf, TOY_PF_MBX_ACK_SEQ);</span>
+<span class="source-line" id="L677"><a class="line-no" href="#L677">677</a>    pf-&gt;fence_token = toy_read(pf, TOY_PF_FENCE_TOKEN);</span>
+<span class="source-line" id="L678"><a class="line-no" href="#L678">678</a>    ret = toy_fail(pf, &quot;probe.alloc_vectors&quot;) ? -ENOMEM :</span>
+<span class="source-line" id="L679"><a class="line-no" href="#L679">679</a>          pci_alloc_irq_vectors(pdev, 2, 2, PCI_IRQ_MSIX);</span>
+<span class="source-line" id="L680"><a class="line-no" href="#L680">680</a>    if (ret &lt; 0)</span>
+<span class="source-line" id="L681"><a class="line-no" href="#L681">681</a>        goto unmap;</span>
+<span class="source-line" id="L682"><a class="line-no" href="#L682">682</a>    for (i = 0; i &lt; 2; ++i) {</span>
+<span class="source-line" id="L683"><a class="line-no" href="#L683">683</a>        ret = toy_fail(pf, i ? &quot;probe.request_irq1&quot; : &quot;probe.request_irq0&quot;) ? -EIO :</span>
+<span class="source-line" id="L684"><a class="line-no" href="#L684">684</a>              request_irq(pci_irq_vector(pdev, i), toy_irq, 0, &quot;toy_pf&quot;, pf);</span>
+<span class="source-line" id="L685"><a class="line-no" href="#L685">685</a>        if (ret)</span>
+<span class="source-line" id="L686"><a class="line-no" href="#L686">686</a>            goto free_irqs;</span>
+<span class="source-line" id="L687"><a class="line-no" href="#L687">687</a>        ++pf-&gt;irq_count;</span>
+<span class="source-line" id="L688"><a class="line-no" href="#L688">688</a>    }</span>
+<span class="source-line" id="L689"><a class="line-no" href="#L689">689</a>    pci_set_master(pdev);</span>
+<span class="source-line" id="L690"><a class="line-no" href="#L690">690</a>    pci_set_drvdata(pdev, pf);</span>
+<span class="source-line" id="L691"><a class="line-no" href="#L691">691</a>    mutex_lock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L692"><a class="line-no" href="#L692">692</a>    ret = toy_fail(pf, &quot;probe.version_neg&quot;) ? -EIO :</span>
+<span class="source-line" id="L693"><a class="line-no" href="#L693">693</a>          toy_mailbox(pf, TOY_OPCODES_VERSION_NEG, TOY_GLOBAL, version_args, version_reply);</span>
+<span class="source-line" id="L694"><a class="line-no" href="#L694">694</a>    if (!ret &amp;&amp; version_reply[0] != TOY_ABI_VERSION)</span>
+<span class="source-line" id="L695"><a class="line-no" href="#L695">695</a>        ret = -EPROTO;</span>
+<span class="source-line" id="L696"><a class="line-no" href="#L696">696</a>    mutex_unlock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L697"><a class="line-no" href="#L697">697</a>    if (ret)</span>
+<span class="source-line" id="L698"><a class="line-no" href="#L698">698</a>        goto clear_master;</span>
+<span class="source-line" id="L699"><a class="line-no" href="#L699">699</a>    pf-&gt;misc.minor = MISC_DYNAMIC_MINOR;</span>
+<span class="source-line" id="L700"><a class="line-no" href="#L700">700</a>    pf-&gt;misc.name = &quot;toy_pf0&quot;;</span>
+<span class="source-line" id="L701"><a class="line-no" href="#L701">701</a>    pf-&gt;misc.fops = &amp;toy_fops;</span>
+<span class="source-line" id="L702"><a class="line-no" href="#L702">702</a>    pf-&gt;misc.mode = 0600;</span>
+<span class="source-line" id="L703"><a class="line-no" href="#L703">703</a>    pf-&gt;misc.parent = &amp;pdev-&gt;dev;</span>
+<span class="source-line" id="L704"><a class="line-no" href="#L704">704</a>    pf-&gt;accepting = true;</span>
+<span class="source-line" id="L705"><a class="line-no" href="#L705">705</a>    ret = toy_fail(pf, &quot;probe.misc_register&quot;) ? -EIO : misc_register(&amp;pf-&gt;misc);</span>
+<span class="source-line" id="L706"><a class="line-no" href="#L706">706</a>    if (ret)</span>
+<span class="source-line" id="L707"><a class="line-no" href="#L707">707</a>        goto clear_master;</span>
+<span class="source-line" id="L708"><a class="line-no" href="#L708">708</a>    pf-&gt;debugfs = debugfs_create_dir(&quot;toy_pf0&quot;, NULL);</span>
+<span class="source-line" id="L709"><a class="line-no" href="#L709">709</a>    debugfs_create_file(&quot;forward&quot;, 0600, pf-&gt;debugfs, pf, &amp;toy_debug_fops);</span>
+<span class="source-line" id="L710"><a class="line-no" href="#L710">710</a>    debugfs_create_file(&quot;unwind&quot;, 0600, pf-&gt;debugfs, pf, &amp;toy_debug_fops);</span>
+<span class="source-line" id="L711"><a class="line-no" href="#L711">711</a>    debugfs_create_file(&quot;lifecycle&quot;, 0400, pf-&gt;debugfs, pf, &amp;toy_lifecycle_fops);</span>
+<span class="source-line" id="L712"><a class="line-no" href="#L712">712</a>    debugfs_create_file(&quot;vf-stats&quot;, 0400, pf-&gt;debugfs, pf, &amp;toy_stats_fops);</span>
+<span class="source-line" id="L713"><a class="line-no" href="#L713">713</a>    dev_info(&amp;pdev-&gt;dev, &quot;TOY_PF_READY abi=1.0 vectors=2 total_vfs=8\n&quot;);</span>
+<span class="source-line" id="L714"><a class="line-no" href="#L714">714</a>    return 0;</span>
+<span class="source-line" id="L715"><a class="line-no" href="#L715">715</a>clear_master:</span>
+<span class="source-line" id="L716"><a class="line-no" href="#L716">716</a>    pf-&gt;accepting = false;</span>
+<span class="source-line" id="L717"><a class="line-no" href="#L717">717</a>    toy_fence_all(pf);</span>
+<span class="source-line" id="L718"><a class="line-no" href="#L718">718</a>    pci_clear_master(pdev);</span>
+<span class="source-line" id="L719"><a class="line-no" href="#L719">719</a>    pci_set_drvdata(pdev, NULL);</span>
+<span class="source-line" id="L720"><a class="line-no" href="#L720">720</a>free_irqs:</span>
+<span class="source-line" id="L721"><a class="line-no" href="#L721">721</a>    WRITE_ONCE(pf-&gt;dying, true);</span>
+<span class="source-line" id="L722"><a class="line-no" href="#L722">722</a>    while (pf-&gt;irq_count) {</span>
+<span class="source-line" id="L723"><a class="line-no" href="#L723">723</a>        --pf-&gt;irq_count;</span>
+<span class="source-line" id="L724"><a class="line-no" href="#L724">724</a>        free_irq(pci_irq_vector(pdev, pf-&gt;irq_count), pf);</span>
+<span class="source-line" id="L725"><a class="line-no" href="#L725">725</a>    }</span>
+<span class="source-line" id="L726"><a class="line-no" href="#L726">726</a>    pci_free_irq_vectors(pdev);</span>
+<span class="source-line" id="L727"><a class="line-no" href="#L727">727</a>    cancel_work_sync(&amp;pf-&gt;notify_work);</span>
+<span class="source-line" id="L728"><a class="line-no" href="#L728">728</a>unmap:</span>
+<span class="source-line" id="L729"><a class="line-no" href="#L729">729</a>    pci_iounmap(pdev, pf-&gt;bar);</span>
+<span class="source-line" id="L730"><a class="line-no" href="#L730">730</a>release_regions:</span>
+<span class="source-line" id="L731"><a class="line-no" href="#L731">731</a>    pci_release_regions(pdev);</span>
+<span class="source-line" id="L732"><a class="line-no" href="#L732">732</a>disable_device:</span>
+<span class="source-line" id="L733"><a class="line-no" href="#L733">733</a>    pci_disable_device(pdev);</span>
+<span class="source-line" id="L734"><a class="line-no" href="#L734">734</a>free_context:</span>
+<span class="source-line" id="L735"><a class="line-no" href="#L735">735</a>    kref_put(&amp;pf-&gt;ref, toy_release_ref);</span>
+<span class="source-line" id="L736"><a class="line-no" href="#L736">736</a>    return ret;</span>
+<span class="source-line" id="L737"><a class="line-no" href="#L737">737</a>}</span>
+<span class="source-line" id="L738"><a class="line-no" href="#L738">738</a></span>
+<span class="source-line" id="L739"><a class="line-no" href="#L739">739</a>/* 先拒絕新操作並 fence，再同步 worker/IRQ 與解除 BAR；舊 fd 持有的 context 由 kref 延後釋放。 */</span>
+<span class="source-line" id="L740"><a class="line-no" href="#L740">740</a>static void toy_remove(struct pci_dev *pdev)</span>
+<span class="source-line" id="L741"><a class="line-no" href="#L741">741</a>{</span>
+<span class="source-line" id="L742"><a class="line-no" href="#L742">742</a>    struct toy_pf *pf = pci_get_drvdata(pdev);</span>
+<span class="source-line" id="L743"><a class="line-no" href="#L743">743</a>    unsigned int i;</span>
+<span class="source-line" id="L744"><a class="line-no" href="#L744">744</a>    if (!pf)</span>
+<span class="source-line" id="L745"><a class="line-no" href="#L745">745</a>        return;</span>
+<span class="source-line" id="L746"><a class="line-no" href="#L746">746</a>    mutex_lock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L747"><a class="line-no" href="#L747">747</a>    pf-&gt;accepting = false;</span>
+<span class="source-line" id="L748"><a class="line-no" href="#L748">748</a>    WRITE_ONCE(pf-&gt;dying, true);</span>
+<span class="source-line" id="L749"><a class="line-no" href="#L749">749</a>    toy_fence_all(pf);</span>
+<span class="source-line" id="L750"><a class="line-no" href="#L750">750</a>    toy_publish(pf, TOY_EVENT_REMOVE, TOY_CTL_GLOBAL, 0, NULL);</span>
+<span class="source-line" id="L751"><a class="line-no" href="#L751">751</a>    dev_info(&amp;pdev-&gt;dev, &quot;TOY_REMOVE_FENCED enabled=%u\n&quot;, pf-&gt;enabled);</span>
+<span class="source-line" id="L752"><a class="line-no" href="#L752">752</a>    mutex_unlock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L753"><a class="line-no" href="#L753">753</a>    misc_deregister(&amp;pf-&gt;misc);</span>
+<span class="source-line" id="L754"><a class="line-no" href="#L754">754</a>    debugfs_remove_recursive(pf-&gt;debugfs);</span>
+<span class="source-line" id="L755"><a class="line-no" href="#L755">755</a>    cancel_work_sync(&amp;pf-&gt;notify_work);</span>
+<span class="source-line" id="L756"><a class="line-no" href="#L756">756</a>    /* PCI core 的 device lock 序列化 sriov_configure/remove；owner 自行關 fd。 */</span>
+<span class="source-line" id="L757"><a class="line-no" href="#L757">757</a>    pci_disable_sriov(pdev);</span>
+<span class="source-line" id="L758"><a class="line-no" href="#L758">758</a>    mutex_lock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L759"><a class="line-no" href="#L759">759</a>    for (i = pf-&gt;enabled; i &gt; 0; --i)</span>
+<span class="source-line" id="L760"><a class="line-no" href="#L760">760</a>        toy_destroy_slot(pf, i - 1);</span>
+<span class="source-line" id="L761"><a class="line-no" href="#L761">761</a>    pf-&gt;enabled = 0;</span>
+<span class="source-line" id="L762"><a class="line-no" href="#L762">762</a>    mutex_unlock(&amp;pf-&gt;admin_mutex);</span>
+<span class="source-line" id="L763"><a class="line-no" href="#L763">763</a>    for (i = 0; i &lt; pf-&gt;irq_count; ++i)</span>
+<span class="source-line" id="L764"><a class="line-no" href="#L764">764</a>        disable_irq(pci_irq_vector(pdev, i));</span>
+<span class="source-line" id="L765"><a class="line-no" href="#L765">765</a>    while (pf-&gt;irq_count) {</span>
+<span class="source-line" id="L766"><a class="line-no" href="#L766">766</a>        --pf-&gt;irq_count;</span>
+<span class="source-line" id="L767"><a class="line-no" href="#L767">767</a>        synchronize_irq(pci_irq_vector(pdev, pf-&gt;irq_count));</span>
+<span class="source-line" id="L768"><a class="line-no" href="#L768">768</a>        free_irq(pci_irq_vector(pdev, pf-&gt;irq_count), pf);</span>
+<span class="source-line" id="L769"><a class="line-no" href="#L769">769</a>    }</span>
+<span class="source-line" id="L770"><a class="line-no" href="#L770">770</a>    pci_free_irq_vectors(pdev);</span>
+<span class="source-line" id="L771"><a class="line-no" href="#L771">771</a>    pci_clear_master(pdev);</span>
+<span class="source-line" id="L772"><a class="line-no" href="#L772">772</a>    pci_iounmap(pdev, pf-&gt;bar);</span>
+<span class="source-line" id="L773"><a class="line-no" href="#L773">773</a>    pf-&gt;bar = NULL;</span>
+<span class="source-line" id="L774"><a class="line-no" href="#L774">774</a>    pci_release_regions(pdev);</span>
+<span class="source-line" id="L775"><a class="line-no" href="#L775">775</a>    pci_disable_device(pdev);</span>
+<span class="source-line" id="L776"><a class="line-no" href="#L776">776</a>    pci_set_drvdata(pdev, NULL);</span>
+<span class="source-line" id="L777"><a class="line-no" href="#L777">777</a>    dev_info(&amp;pdev-&gt;dev, &quot;TOY_PF_REMOVED\n&quot;);</span>
+<span class="source-line" id="L778"><a class="line-no" href="#L778">778</a>    kref_put(&amp;pf-&gt;ref, toy_release_ref);</span>
+<span class="source-line" id="L779"><a class="line-no" href="#L779">779</a>}</span>
+<span class="source-line" id="L780"><a class="line-no" href="#L780">780</a></span>
+<span class="source-line" id="L781"><a class="line-no" href="#L781">781</a>static const struct pci_device_id toy_ids[] = {</span>
+<span class="source-line" id="L782"><a class="line-no" href="#L782">782</a>    { PCI_DEVICE(TOY_PCI_VENDOR, TOY_PCI_PF) },</span>
+<span class="source-line" id="L783"><a class="line-no" href="#L783">783</a>    { }</span>
+<span class="source-line" id="L784"><a class="line-no" href="#L784">784</a>};</span>
+<span class="source-line" id="L785"><a class="line-no" href="#L785">785</a>MODULE_DEVICE_TABLE(pci, toy_ids);</span>
+<span class="source-line" id="L786"><a class="line-no" href="#L786">786</a>static struct pci_driver toy_driver = {</span>
+<span class="source-line" id="L787"><a class="line-no" href="#L787">787</a>    .name = &quot;toy_pf&quot;,</span>
+<span class="source-line" id="L788"><a class="line-no" href="#L788">788</a>    .id_table = toy_ids,</span>
+<span class="source-line" id="L789"><a class="line-no" href="#L789">789</a>    .probe = toy_probe,</span>
+<span class="source-line" id="L790"><a class="line-no" href="#L790">790</a>    .remove = toy_remove,</span>
+<span class="source-line" id="L791"><a class="line-no" href="#L791">791</a>    .sriov_configure = toy_sriov_configure,</span>
+<span class="source-line" id="L792"><a class="line-no" href="#L792">792</a>};</span>
+<span class="source-line" id="L793"><a class="line-no" href="#L793">793</a>module_pci_driver(toy_driver);</span>
+<span class="source-line" id="L794"><a class="line-no" href="#L794">794</a>MODULE_LICENSE(&quot;GPL&quot;);</span>
+<span class="source-line" id="L795"><a class="line-no" href="#L795">795</a>MODULE_DESCRIPTION(&quot;SR-IOV lab PF mailbox and lifecycle adapter&quot;);</span></pre></main></html>

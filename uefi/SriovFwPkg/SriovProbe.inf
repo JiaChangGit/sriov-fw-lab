@@ -1,0 +1,44 @@
+[Defines]
+  INF_VERSION = 0x00010005
+  BASE_NAME = SriovProbe
+  FILE_GUID = 248612b0-9397-43be-9094-ffbd06c4c985
+  MODULE_TYPE = UEFI_APPLICATION
+  VERSION_STRING = 1.0
+  ENTRY_POINT = UefiMain
+[Sources]
+  SriovProbe.c
+  ProbeSupport.c
+  CoreSelftest.c
+  Handoff.c
+  FwCore/context.c
+  FwCore/fsm.c
+  FwCore/admission.c
+  FwCore/mailbox.c
+  FwCore/scheduler.c
+  FwCore/codec.c
+  FwCore/crc.c
+[Packages]
+  MdePkg/MdePkg.dec
+  SriovFwPkg/SriovFwPkg.dec
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  UefiBootServicesTableLib
+  UefiRuntimeServicesTableLib
+  BaseLib
+  BaseMemoryLib
+  MemoryAllocationLib
+  PrintLib
+  DevicePathLib
+  SerialPortLib
+[Protocols]
+  gEfiPciIoProtocolGuid
+  gEfiPciRootBridgeIoProtocolGuid
+  gEfiLoadedImageProtocolGuid
+  gEfiSimpleFileSystemProtocolGuid
+  gEfiLoadFile2ProtocolGuid
+  gEfiDevicePathProtocolGuid
+[Guids]
+  gEfiFileInfoGuid
+  gLinuxEfiInitrdMediaGuid
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -std=c11 -DFW_UEFI -Wall -Wextra -Werror -Wno-unused-parameter

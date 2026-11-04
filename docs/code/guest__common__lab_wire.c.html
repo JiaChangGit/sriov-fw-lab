@@ -1,0 +1,174 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>guest/common/lab_wire.c</title><style>
+:root{color-scheme:light;--ink:#18293c;--blue:#184d83;--line:#ced9e4;--muted:#526477}
+*{box-sizing:border-box}body{margin:0;background:#f2f5f8;color:var(--ink);font:17px/1.8 system-ui,'Microsoft JhengHei',sans-serif}
+a{color:var(--blue);overflow-wrap:anywhere}header{background:#102e4d;color:#fff;padding:48px max(24px,calc((100vw - 1100px)/2))}
+header p{max-width:850px}header a{color:#b8dcff}.label{letter-spacing:.15em;font-size:13px;color:#b8dcff}
+.layout{max-width:1420px;margin:auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:32px;padding:30px}
+nav{position:sticky;top:20px;align-self:start;max-height:95vh;overflow:auto;font-size:14px}nav a{display:block;margin:12px 0}
+main{min-width:0;background:white;padding:36px 44px;border:1px solid var(--line);border-radius:12px}
+h1{font-size:2rem;line-height:1.35}h2{font-size:1.5rem;margin-top:2em;border-bottom:1px solid var(--line);padding-bottom:10px}h3{font-size:1.1rem}
+p{max-width:95ch}section+section{margin-top:80px;border-top:4px solid var(--blue);padding-top:26px}
+pre{overflow:auto;background:#112c45;color:#eaf3fa;padding:20px;border-radius:8px;font-size:14px;line-height:1.6}
+code{font-family:Consolas,monospace;font-size:.88em}p code,li code,td code{background:#edf3f8;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}
+.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;margin:20px 0;font-size:15px}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf1f8}
+img,svg{max-width:100%;height:auto}.diagram{overflow:auto;margin:20px 0}.diagram svg{min-width:900px;width:100%;display:block}blockquote,.notice{border-left:5px solid #c4841b;background:#fff5df;padding:16px 20px;margin:24px 0}.muted{color:var(--muted)}
+.source-line{display:block;white-space:pre}.source-line:target{background:#355b79}.line-no{display:inline-block;width:5em;color:#9db8ce;text-decoration:none;user-select:none}
+@media(max-width:850px){.layout{display:block;padding:14px}nav{position:static;max-height:none}main{padding:24px 18px}header{padding:30px 20px}h1{font-size:1.65rem}}
+@media print{body{background:white;font-size:11pt}header{color:#18293c;background:white;padding:0}nav{display:none}.layout{display:block;padding:0}main{border:0;padding:0}section{break-before:page}pre{white-space:pre-wrap}a{color:inherit}}
+</style><main><a href="../handbook.html">回教材</a><h1>guest/common/lab_wire.c</h1><p>SHA256 <code>c812e3527dbd4d60e02be3d3175f08f12844c761b518863f87cc1059875da57b</code></p><pre><span class="source-line" id="L1"><a class="line-no" href="#L1">1</a>/* labd 與 tenant 的 Unix stream 協定：固定格式、長度上限與絕對期限，不能假設一次 recv 就是一筆訊息。 */</span>
+<span class="source-line" id="L2"><a class="line-no" href="#L2">2</a>#define _GNU_SOURCE</span>
+<span class="source-line" id="L3"><a class="line-no" href="#L3">3</a>#include &quot;lab_wire.h&quot;</span>
+<span class="source-line" id="L4"><a class="line-no" href="#L4">4</a>#include &lt;errno.h&gt;</span>
+<span class="source-line" id="L5"><a class="line-no" href="#L5">5</a>#include &lt;fcntl.h&gt;</span>
+<span class="source-line" id="L6"><a class="line-no" href="#L6">6</a>#include &lt;limits.h&gt;</span>
+<span class="source-line" id="L7"><a class="line-no" href="#L7">7</a>#include &lt;poll.h&gt;</span>
+<span class="source-line" id="L8"><a class="line-no" href="#L8">8</a>#include &lt;stdbool.h&gt;</span>
+<span class="source-line" id="L9"><a class="line-no" href="#L9">9</a>#include &lt;string.h&gt;</span>
+<span class="source-line" id="L10"><a class="line-no" href="#L10">10</a>#include &lt;sys/socket.h&gt;</span>
+<span class="source-line" id="L11"><a class="line-no" href="#L11">11</a>#include &lt;sys/stat.h&gt;</span>
+<span class="source-line" id="L12"><a class="line-no" href="#L12">12</a>#include &lt;sys/un.h&gt;</span>
+<span class="source-line" id="L13"><a class="line-no" href="#L13">13</a>#include &lt;time.h&gt;</span>
+<span class="source-line" id="L14"><a class="line-no" href="#L14">14</a>#include &lt;unistd.h&gt;</span>
+<span class="source-line" id="L15"><a class="line-no" href="#L15">15</a></span>
+<span class="source-line" id="L16"><a class="line-no" href="#L16">16</a>uint16_t lab_get16(const void *p) { const unsigned char *b=p; return (uint16_t)b[0]|((uint16_t)b[1]&lt;&lt;8); }</span>
+<span class="source-line" id="L17"><a class="line-no" href="#L17">17</a>uint32_t lab_get32(const void *p) { const unsigned char *b=p; return (uint32_t)lab_get16(b)|((uint32_t)lab_get16(b+2)&lt;&lt;16); }</span>
+<span class="source-line" id="L18"><a class="line-no" href="#L18">18</a>uint64_t lab_get64(const void *p) { const unsigned char *b=p; return (uint64_t)lab_get32(b)|((uint64_t)lab_get32(b+4)&lt;&lt;32); }</span>
+<span class="source-line" id="L19"><a class="line-no" href="#L19">19</a>void lab_put16(void *p,uint16_t v) { unsigned char *b=p; b[0]=(unsigned char)v; b[1]=(unsigned char)(v&gt;&gt;8); }</span>
+<span class="source-line" id="L20"><a class="line-no" href="#L20">20</a>void lab_put32(void *p,uint32_t v) { unsigned char *b=p; lab_put16(b,(uint16_t)v); lab_put16(b+2,(uint16_t)(v&gt;&gt;16)); }</span>
+<span class="source-line" id="L21"><a class="line-no" href="#L21">21</a>void lab_put64(void *p,uint64_t v) { unsigned char *b=p; lab_put32(b,(uint32_t)v); lab_put32(b+4,(uint32_t)(v&gt;&gt;32)); }</span>
+<span class="source-line" id="L22"><a class="line-no" href="#L22">22</a>int64_t lab_now_ms(void) { struct timespec ts; if(clock_gettime(CLOCK_MONOTONIC,&amp;ts)) return -1; return (int64_t)ts.tv_sec*1000+ts.tv_nsec/1000000; }</span>
+<span class="source-line" id="L23"><a class="line-no" href="#L23">23</a>int lab_wait(int fd,short events,int64_t deadline)</span>
+<span class="source-line" id="L24"><a class="line-no" href="#L24">24</a>{</span>
+<span class="source-line" id="L25"><a class="line-no" href="#L25">25</a>    struct pollfd p={.fd=fd,.events=events};</span>
+<span class="source-line" id="L26"><a class="line-no" href="#L26">26</a>    for(;;) {</span>
+<span class="source-line" id="L27"><a class="line-no" href="#L27">27</a>        int64_t remain=deadline-lab_now_ms(); int r;</span>
+<span class="source-line" id="L28"><a class="line-no" href="#L28">28</a>        if(remain&lt;=0) { errno=ETIMEDOUT; return -1; }</span>
+<span class="source-line" id="L29"><a class="line-no" href="#L29">29</a>        r=poll(&amp;p,1,remain&gt;INT_MAX?INT_MAX:(int)remain);</span>
+<span class="source-line" id="L30"><a class="line-no" href="#L30">30</a>        if(r&lt;0 &amp;&amp; errno==EINTR) continue;</span>
+<span class="source-line" id="L31"><a class="line-no" href="#L31">31</a>        if(r&lt;0) return -1;</span>
+<span class="source-line" id="L32"><a class="line-no" href="#L32">32</a>        if(!r) { errno=ETIMEDOUT; return -1; }</span>
+<span class="source-line" id="L33"><a class="line-no" href="#L33">33</a>        if(p.revents&amp;events) return 0;</span>
+<span class="source-line" id="L34"><a class="line-no" href="#L34">34</a>        if(p.revents&amp;(POLLERR|POLLNVAL|POLLHUP)) { errno=ECONNRESET; return -1; }</span>
+<span class="source-line" id="L35"><a class="line-no" href="#L35">35</a>    }</span>
+<span class="source-line" id="L36"><a class="line-no" href="#L36">36</a>}</span>
+<span class="source-line" id="L37"><a class="line-no" href="#L37">37</a>static int shape(uint16_t type,uint32_t n,const unsigned char *p)</span>
+<span class="source-line" id="L38"><a class="line-no" href="#L38">38</a>{</span>
+<span class="source-line" id="L39"><a class="line-no" href="#L39">39</a>    switch(type) {</span>
+<span class="source-line" id="L40"><a class="line-no" href="#L40">40</a>    case LAB_HELLO: case LAB_HELLO_REPLY: case LAB_READY: case LAB_STOPPED: case LAB_RUN: case LAB_INSPECT: return n==0?0:-1;</span>
+<span class="source-line" id="L41"><a class="line-no" href="#L41">41</a>    case LAB_INSPECT_REPLY: return n==16 &amp;&amp; lab_get32(p+12)==0?0:-1;</span>
+<span class="source-line" id="L42"><a class="line-no" href="#L42">42</a>    case LAB_STOP_REQUEST: case LAB_RESET_NOTICE: case LAB_STOP: return n==16 &amp;&amp; lab_get32(p+12)==0?0:-1;</span>
+<span class="source-line" id="L43"><a class="line-no" href="#L43">43</a>    case LAB_EXIT_ACK: return n==16?0:-1;</span>
+<span class="source-line" id="L44"><a class="line-no" href="#L44">44</a>    case LAB_ERROR: return n==8 &amp;&amp; lab_get32(p)&gt;0 &amp;&amp; lab_get32(p)&lt;=4095?0:-1;</span>
+<span class="source-line" id="L45"><a class="line-no" href="#L45">45</a>    default: return -1;</span>
+<span class="source-line" id="L46"><a class="line-no" href="#L46">46</a>    }</span>
+<span class="source-line" id="L47"><a class="line-no" href="#L47">47</a>}</span>
+<span class="source-line" id="L48"><a class="line-no" href="#L48">48</a>int lab_encode(unsigned char *b,size_t cap,const struct lab_message *m)</span>
+<span class="source-line" id="L49"><a class="line-no" href="#L49">49</a>{</span>
+<span class="source-line" id="L50"><a class="line-no" href="#L50">50</a>    size_t n=LAB_HEADER_SIZE+(size_t)m-&gt;payload_len;</span>
+<span class="source-line" id="L51"><a class="line-no" href="#L51">51</a>    if(m-&gt;payload_len&gt;sizeof(m-&gt;payload) || n&gt;cap || !m-&gt;request_id || shape(m-&gt;type,m-&gt;payload_len,m-&gt;payload)) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L52"><a class="line-no" href="#L52">52</a>    memset(b,0,n); memcpy(b,&quot;TLAB&quot;,4); lab_put16(b+4,1); lab_put16(b+6,m-&gt;type);</span>
+<span class="source-line" id="L53"><a class="line-no" href="#L53">53</a>    lab_put64(b+8,m-&gt;request_id); lab_put64(b+16,m-&gt;session); lab_put64(b+24,m-&gt;epoch);</span>
+<span class="source-line" id="L54"><a class="line-no" href="#L54">54</a>    lab_put64(b+32,m-&gt;lease_token); lab_put64(b+40,m-&gt;operation); lab_put32(b+48,m-&gt;vf);</span>
+<span class="source-line" id="L55"><a class="line-no" href="#L55">55</a>    lab_put32(b+52,m-&gt;ready_gen); lab_put32(b+60,m-&gt;payload_len); memcpy(b+64,m-&gt;payload,m-&gt;payload_len);</span>
+<span class="source-line" id="L56"><a class="line-no" href="#L56">56</a>    return (int)n;</span>
+<span class="source-line" id="L57"><a class="line-no" href="#L57">57</a>}</span>
+<span class="source-line" id="L58"><a class="line-no" href="#L58">58</a>int lab_decode(struct lab_message *m,const unsigned char *b,size_t n)</span>
+<span class="source-line" id="L59"><a class="line-no" href="#L59">59</a>{</span>
+<span class="source-line" id="L60"><a class="line-no" href="#L60">60</a>    uint32_t bytes;</span>
+<span class="source-line" id="L61"><a class="line-no" href="#L61">61</a>    if(n&lt;64 || n&gt;LAB_FRAME_MAX || memcmp(b,&quot;TLAB&quot;,4) || lab_get16(b+4)!=1 || lab_get32(b+56)) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L62"><a class="line-no" href="#L62">62</a>    bytes=lab_get32(b+60);</span>
+<span class="source-line" id="L63"><a class="line-no" href="#L63">63</a>    if(bytes!=n-64 || shape(lab_get16(b+6),bytes,b+64) || !lab_get64(b+8)) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L64"><a class="line-no" href="#L64">64</a>    memset(m,0,sizeof(*m)); m-&gt;type=lab_get16(b+6); m-&gt;request_id=lab_get64(b+8);</span>
+<span class="source-line" id="L65"><a class="line-no" href="#L65">65</a>    m-&gt;session=lab_get64(b+16); m-&gt;epoch=lab_get64(b+24); m-&gt;lease_token=lab_get64(b+32);</span>
+<span class="source-line" id="L66"><a class="line-no" href="#L66">66</a>    m-&gt;operation=lab_get64(b+40); m-&gt;vf=lab_get32(b+48); m-&gt;ready_gen=lab_get32(b+52);</span>
+<span class="source-line" id="L67"><a class="line-no" href="#L67">67</a>    m-&gt;payload_len=bytes; memcpy(m-&gt;payload,b+64,bytes); return 0;</span>
+<span class="source-line" id="L68"><a class="line-no" href="#L68">68</a>}</span>
+<span class="source-line" id="L69"><a class="line-no" href="#L69">69</a>/* Partial I/O 與 EINTR 只推進已完成的部分；重試沿用原 deadline，避免不斷延長等待。 */</span>
+<span class="source-line" id="L70"><a class="line-no" href="#L70">70</a>static int transfer(int fd,void *buf,size_t length,int64_t deadline,bool sending)</span>
+<span class="source-line" id="L71"><a class="line-no" href="#L71">71</a>{</span>
+<span class="source-line" id="L72"><a class="line-no" href="#L72">72</a>    unsigned char *p=buf;</span>
+<span class="source-line" id="L73"><a class="line-no" href="#L73">73</a>    while(length) {</span>
+<span class="source-line" id="L74"><a class="line-no" href="#L74">74</a>        ssize_t n;</span>
+<span class="source-line" id="L75"><a class="line-no" href="#L75">75</a>        if(lab_wait(fd,sending?POLLOUT:POLLIN,deadline)) return -1;</span>
+<span class="source-line" id="L76"><a class="line-no" href="#L76">76</a>        if(sending) n=send(fd,p,length,MSG_DONTWAIT|MSG_NOSIGNAL);</span>
+<span class="source-line" id="L77"><a class="line-no" href="#L77">77</a>        else {</span>
+<span class="source-line" id="L78"><a class="line-no" href="#L78">78</a>            unsigned char control[CMSG_SPACE(16*sizeof(int))];</span>
+<span class="source-line" id="L79"><a class="line-no" href="#L79">79</a>            struct iovec iov={.iov_base=p,.iov_len=length};</span>
+<span class="source-line" id="L80"><a class="line-no" href="#L80">80</a>            struct msghdr msg={.msg_iov=&amp;iov,.msg_iovlen=1,.msg_control=control,.msg_controllen=sizeof(control)};</span>
+<span class="source-line" id="L81"><a class="line-no" href="#L81">81</a>            bool invalid=false;</span>
+<span class="source-line" id="L82"><a class="line-no" href="#L82">82</a>            n=recvmsg(fd,&amp;msg,MSG_DONTWAIT|MSG_CMSG_CLOEXEC);</span>
+<span class="source-line" id="L83"><a class="line-no" href="#L83">83</a>            /* 收到任何 ancillary 都拒絕；已送入本程序的 fd 必須先關閉。 */</span>
+<span class="source-line" id="L84"><a class="line-no" href="#L84">84</a>            for(struct cmsghdr *c=CMSG_FIRSTHDR(&amp;msg);n&gt;=0 &amp;&amp; c;c=CMSG_NXTHDR(&amp;msg,c)) {</span>
+<span class="source-line" id="L85"><a class="line-no" href="#L85">85</a>                invalid=true;</span>
+<span class="source-line" id="L86"><a class="line-no" href="#L86">86</a>                if(c-&gt;cmsg_level==SOL_SOCKET &amp;&amp; c-&gt;cmsg_type==SCM_RIGHTS &amp;&amp; c-&gt;cmsg_len&gt;=CMSG_LEN(0)) {</span>
+<span class="source-line" id="L87"><a class="line-no" href="#L87">87</a>                    size_t count=(c-&gt;cmsg_len-CMSG_LEN(0))/sizeof(int); int *fds=(void *)CMSG_DATA(c);</span>
+<span class="source-line" id="L88"><a class="line-no" href="#L88">88</a>                    for(size_t i=0;i&lt;count;i++) close(fds[i]);</span>
+<span class="source-line" id="L89"><a class="line-no" href="#L89">89</a>                }</span>
+<span class="source-line" id="L90"><a class="line-no" href="#L90">90</a>            }</span>
+<span class="source-line" id="L91"><a class="line-no" href="#L91">91</a>            if(n&gt;=0 &amp;&amp; (invalid || (msg.msg_flags&amp;(MSG_CTRUNC|MSG_TRUNC)))) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L92"><a class="line-no" href="#L92">92</a>        }</span>
+<span class="source-line" id="L93"><a class="line-no" href="#L93">93</a>        if(n&lt;0 &amp;&amp; (errno==EINTR || errno==EAGAIN || errno==EWOULDBLOCK)) continue;</span>
+<span class="source-line" id="L94"><a class="line-no" href="#L94">94</a>        if(n&lt;0) return -1;</span>
+<span class="source-line" id="L95"><a class="line-no" href="#L95">95</a>        if(!n) { errno=ECONNRESET; return -1; }</span>
+<span class="source-line" id="L96"><a class="line-no" href="#L96">96</a>        p+=(size_t)n; length-=(size_t)n;</span>
+<span class="source-line" id="L97"><a class="line-no" href="#L97">97</a>    }</span>
+<span class="source-line" id="L98"><a class="line-no" href="#L98">98</a>    return 0;</span>
+<span class="source-line" id="L99"><a class="line-no" href="#L99">99</a>}</span>
+<span class="source-line" id="L100"><a class="line-no" href="#L100">100</a>int lab_send(int fd,const struct lab_message *m,int64_t deadline)</span>
+<span class="source-line" id="L101"><a class="line-no" href="#L101">101</a>{</span>
+<span class="source-line" id="L102"><a class="line-no" href="#L102">102</a>    unsigned char frame[4+LAB_FRAME_MAX]; int n=lab_encode(frame+4,LAB_FRAME_MAX,m);</span>
+<span class="source-line" id="L103"><a class="line-no" href="#L103">103</a>    if(n&lt;0) return -1;</span>
+<span class="source-line" id="L104"><a class="line-no" href="#L104">104</a>    lab_put32(frame,(uint32_t)n); return transfer(fd,frame,(size_t)n+4,deadline,true);</span>
+<span class="source-line" id="L105"><a class="line-no" href="#L105">105</a>}</span>
+<span class="source-line" id="L106"><a class="line-no" href="#L106">106</a>int lab_recv(int fd,struct lab_message *m,int64_t deadline)</span>
+<span class="source-line" id="L107"><a class="line-no" href="#L107">107</a>{</span>
+<span class="source-line" id="L108"><a class="line-no" href="#L108">108</a>    unsigned char frame[LAB_FRAME_MAX],prefix[4]; uint32_t n;</span>
+<span class="source-line" id="L109"><a class="line-no" href="#L109">109</a>    if(transfer(fd,prefix,4,deadline,false)) return -1;</span>
+<span class="source-line" id="L110"><a class="line-no" href="#L110">110</a>    n=lab_get32(prefix);</span>
+<span class="source-line" id="L111"><a class="line-no" href="#L111">111</a>    if(n&lt;64 || n&gt;LAB_FRAME_MAX) { errno=EMSGSIZE; return -1; }</span>
+<span class="source-line" id="L112"><a class="line-no" href="#L112">112</a>    if(transfer(fd,frame,n,deadline,false)) return -1;</span>
+<span class="source-line" id="L113"><a class="line-no" href="#L113">113</a>    return lab_decode(m,frame,n);</span>
+<span class="source-line" id="L114"><a class="line-no" href="#L114">114</a>}</span>
+<span class="source-line" id="L115"><a class="line-no" href="#L115">115</a>/* 核對 socket 的 peer credentials；訊息內聲稱的 VF/session 仍要另經 lab_tuple 驗證。 */</span>
+<span class="source-line" id="L116"><a class="line-no" href="#L116">116</a>int lab_peer(int fd,uid_t uid,pid_t pid)</span>
+<span class="source-line" id="L117"><a class="line-no" href="#L117">117</a>{</span>
+<span class="source-line" id="L118"><a class="line-no" href="#L118">118</a>    struct ucred c; socklen_t n=sizeof(c);</span>
+<span class="source-line" id="L119"><a class="line-no" href="#L119">119</a>    if(getsockopt(fd,SOL_SOCKET,SO_PEERCRED,&amp;c,&amp;n)) return -1;</span>
+<span class="source-line" id="L120"><a class="line-no" href="#L120">120</a>    if(n!=sizeof(c) || c.uid!=uid || c.pid!=pid) { errno=EACCES; return -1; }</span>
+<span class="source-line" id="L121"><a class="line-no" href="#L121">121</a>    return 0;</span>
+<span class="source-line" id="L122"><a class="line-no" href="#L122">122</a>}</span>
+<span class="source-line" id="L123"><a class="line-no" href="#L123">123</a>int lab_tuple(const struct lab_message *m,uint32_t vf,uint64_t session,uint64_t epoch,uint64_t lease,uint64_t operation)</span>
+<span class="source-line" id="L124"><a class="line-no" href="#L124">124</a>{</span>
+<span class="source-line" id="L125"><a class="line-no" href="#L125">125</a>    if(m-&gt;vf!=vf || m-&gt;session!=session || m-&gt;epoch!=epoch || m-&gt;lease_token!=lease || m-&gt;operation!=operation) { errno=ESTALE; return -1; }</span>
+<span class="source-line" id="L126"><a class="line-no" href="#L126">126</a>    return 0;</span>
+<span class="source-line" id="L127"><a class="line-no" href="#L127">127</a>}</span>
+<span class="source-line" id="L128"><a class="line-no" href="#L128">128</a>static int addr(struct sockaddr_un *a,const char *path)</span>
+<span class="source-line" id="L129"><a class="line-no" href="#L129">129</a>{</span>
+<span class="source-line" id="L130"><a class="line-no" href="#L130">130</a>    if(strlen(path)&gt;=sizeof(a-&gt;sun_path)) { errno=ENAMETOOLONG; return -1; }</span>
+<span class="source-line" id="L131"><a class="line-no" href="#L131">131</a>    memset(a,0,sizeof(*a)); a-&gt;sun_family=AF_UNIX; strcpy(a-&gt;sun_path,path); return 0;</span>
+<span class="source-line" id="L132"><a class="line-no" href="#L132">132</a>}</span>
+<span class="source-line" id="L133"><a class="line-no" href="#L133">133</a>int lab_listen(const char *path)</span>
+<span class="source-line" id="L134"><a class="line-no" href="#L134">134</a>{</span>
+<span class="source-line" id="L135"><a class="line-no" href="#L135">135</a>    struct sockaddr_un a; int fd,saved;</span>
+<span class="source-line" id="L136"><a class="line-no" href="#L136">136</a>    if(addr(&amp;a,path)) return -1;</span>
+<span class="source-line" id="L137"><a class="line-no" href="#L137">137</a>    fd=socket(AF_UNIX,SOCK_STREAM|SOCK_CLOEXEC|SOCK_NONBLOCK,0); if(fd&lt;0) return -1;</span>
+<span class="source-line" id="L138"><a class="line-no" href="#L138">138</a>    if(bind(fd,(struct sockaddr *)&amp;a,sizeof(a)) || chmod(path,0600) || listen(fd,8)) { saved=errno; close(fd); errno=saved; return -1; }</span>
+<span class="source-line" id="L139"><a class="line-no" href="#L139">139</a>    return fd;</span>
+<span class="source-line" id="L140"><a class="line-no" href="#L140">140</a>}</span>
+<span class="source-line" id="L141"><a class="line-no" href="#L141">141</a>int lab_connect(const char *path,int64_t deadline)</span>
+<span class="source-line" id="L142"><a class="line-no" href="#L142">142</a>{</span>
+<span class="source-line" id="L143"><a class="line-no" href="#L143">143</a>    struct sockaddr_un a; int fd,saved,error=0; socklen_t n=sizeof(error);</span>
+<span class="source-line" id="L144"><a class="line-no" href="#L144">144</a>    if(addr(&amp;a,path)) return -1;</span>
+<span class="source-line" id="L145"><a class="line-no" href="#L145">145</a>    fd=socket(AF_UNIX,SOCK_STREAM|SOCK_CLOEXEC|SOCK_NONBLOCK,0); if(fd&lt;0) return -1;</span>
+<span class="source-line" id="L146"><a class="line-no" href="#L146">146</a>    if(!connect(fd,(struct sockaddr *)&amp;a,sizeof(a))) return fd;</span>
+<span class="source-line" id="L147"><a class="line-no" href="#L147">147</a>    if(errno!=EINPROGRESS || lab_wait(fd,POLLOUT,deadline) || getsockopt(fd,SOL_SOCKET,SO_ERROR,&amp;error,&amp;n) || error) {</span>
+<span class="source-line" id="L148"><a class="line-no" href="#L148">148</a>        saved=error?error:errno; close(fd); errno=saved; return -1;</span>
+<span class="source-line" id="L149"><a class="line-no" href="#L149">149</a>    }</span>
+<span class="source-line" id="L150"><a class="line-no" href="#L150">150</a>    return fd;</span>
+<span class="source-line" id="L151"><a class="line-no" href="#L151">151</a>}</span>
+<span class="source-line" id="L152"><a class="line-no" href="#L152">152</a>uint32_t lab_crc32(const void *p,size_t n)</span>
+<span class="source-line" id="L153"><a class="line-no" href="#L153">153</a>{</span>
+<span class="source-line" id="L154"><a class="line-no" href="#L154">154</a>    const unsigned char *b=p; uint32_t c=UINT32_MAX;</span>
+<span class="source-line" id="L155"><a class="line-no" href="#L155">155</a>    for(size_t i=0;i&lt;n;i++) { c^=b[i]; for(unsigned j=0;j&lt;8;j++) c=(c&gt;&gt;1)^((0u-(c&amp;1u))&amp;0xedb88320u); }</span>
+<span class="source-line" id="L156"><a class="line-no" href="#L156">156</a>    return c^UINT32_MAX;</span>
+<span class="source-line" id="L157"><a class="line-no" href="#L157">157</a>}</span></pre></main></html>

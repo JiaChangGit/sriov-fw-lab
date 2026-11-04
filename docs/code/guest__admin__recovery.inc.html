@@ -1,0 +1,170 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>guest/admin/recovery.inc</title><style>
+:root{color-scheme:light;--ink:#18293c;--blue:#184d83;--line:#ced9e4;--muted:#526477}
+*{box-sizing:border-box}body{margin:0;background:#f2f5f8;color:var(--ink);font:17px/1.8 system-ui,'Microsoft JhengHei',sans-serif}
+a{color:var(--blue);overflow-wrap:anywhere}header{background:#102e4d;color:#fff;padding:48px max(24px,calc((100vw - 1100px)/2))}
+header p{max-width:850px}header a{color:#b8dcff}.label{letter-spacing:.15em;font-size:13px;color:#b8dcff}
+.layout{max-width:1420px;margin:auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:32px;padding:30px}
+nav{position:sticky;top:20px;align-self:start;max-height:95vh;overflow:auto;font-size:14px}nav a{display:block;margin:12px 0}
+main{min-width:0;background:white;padding:36px 44px;border:1px solid var(--line);border-radius:12px}
+h1{font-size:2rem;line-height:1.35}h2{font-size:1.5rem;margin-top:2em;border-bottom:1px solid var(--line);padding-bottom:10px}h3{font-size:1.1rem}
+p{max-width:95ch}section+section{margin-top:80px;border-top:4px solid var(--blue);padding-top:26px}
+pre{overflow:auto;background:#112c45;color:#eaf3fa;padding:20px;border-radius:8px;font-size:14px;line-height:1.6}
+code{font-family:Consolas,monospace;font-size:.88em}p code,li code,td code{background:#edf3f8;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}
+.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;margin:20px 0;font-size:15px}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf1f8}
+img,svg{max-width:100%;height:auto}.diagram{overflow:auto;margin:20px 0}.diagram svg{min-width:900px;width:100%;display:block}blockquote,.notice{border-left:5px solid #c4841b;background:#fff5df;padding:16px 20px;margin:24px 0}.muted{color:var(--muted)}
+.source-line{display:block;white-space:pre}.source-line:target{background:#355b79}.line-no{display:inline-block;width:5em;color:#9db8ce;text-decoration:none;user-select:none}
+@media(max-width:850px){.layout{display:block;padding:14px}nav{position:static;max-height:none}main{padding:24px 18px}header{padding:30px 20px}h1{font-size:1.65rem}}
+@media print{body{background:white;font-size:11pt}header{color:#18293c;background:white;padding:0}nav{display:none}.layout{display:block;padding:0}main{border:0;padding:0}section{break-before:page}pre{white-space:pre-wrap}a{color:inherit}}
+</style><main><a href="../handbook.html">回教材</a><h1>guest/admin/recovery.inc</h1><p>SHA256 <code>e97e5a66dc8379759120b0f129d93a5a17075f0ddfcb633a418bd8f02089ea3c</code></p><pre><span class="source-line" id="L1"><a class="line-no" href="#L1">1</a>/* T07/T08 的管理端流程；由 labd.c 納入，共用 PF 控制與 owner 握手函式。 */</span>
+<span class="source-line" id="L2"><a class="line-no" href="#L2">2</a>struct recovery_run { const char *scenario; unsigned serial; };</span>
+<span class="source-line" id="L3"><a class="line-no" href="#L3">3</a>/* 測試同步點以 token 配對 host ACK；QMP 操作完成後才繼續，不用固定 sleep 猜進度。 */</span>
+<span class="source-line" id="L4"><a class="line-no" href="#L4">4</a>static int recovery_barrier(struct recovery_run *run,const char *fields)</span>
+<span class="source-line" id="L5"><a class="line-no" href="#L5">5</a>{</span>
+<span class="source-line" id="L6"><a class="line-no" href="#L6">6</a>    struct termios old,raw;</span>
+<span class="source-line" id="L7"><a class="line-no" href="#L7">7</a>    char token[64],expected[96],line[96];</span>
+<span class="source-line" id="L8"><a class="line-no" href="#L8">8</a>    size_t used=0;</span>
+<span class="source-line" id="L9"><a class="line-no" href="#L9">9</a>    int ret=-1,saved;</span>
+<span class="source-line" id="L10"><a class="line-no" href="#L10">10</a>    if (tcgetattr(STDIN_FILENO,&amp;old)) return -1;</span>
+<span class="source-line" id="L11"><a class="line-no" href="#L11">11</a>    raw=old; cfmakeraw(&amp;raw);</span>
+<span class="source-line" id="L12"><a class="line-no" href="#L12">12</a>    if (tcsetattr(STDIN_FILENO,TCSANOW,&amp;raw)) return -1;</span>
+<span class="source-line" id="L13"><a class="line-no" href="#L13">13</a>    snprintf(token,sizeof(token),&quot;recovery-%u&quot;,++run-&gt;serial);</span>
+<span class="source-line" id="L14"><a class="line-no" href="#L14">14</a>    snprintf(expected,sizeof(expected),&quot;M3_HOST_ACK %s\n&quot;,token);</span>
+<span class="source-line" id="L15"><a class="line-no" href="#L15">15</a>    printf(&quot;{\&quot;event\&quot;:\&quot;M3_BARRIER\&quot;,\&quot;scenario\&quot;:\&quot;%s\&quot;,\&quot;phase\&quot;:\&quot;request\&quot;,\&quot;barrier\&quot;:\&quot;%s\&quot;,%s}\n&quot;,run-&gt;scenario,token,fields);</span>
+<span class="source-line" id="L16"><a class="line-no" href="#L16">16</a>    fflush(stdout);</span>
+<span class="source-line" id="L17"><a class="line-no" href="#L17">17</a>    int64_t deadline=lab_now_ms()+LAB_TIMEOUT_MS;</span>
+<span class="source-line" id="L18"><a class="line-no" href="#L18">18</a>    while (used&lt;sizeof(line)-1) {</span>
+<span class="source-line" id="L19"><a class="line-no" href="#L19">19</a>        if (lab_wait(STDIN_FILENO,POLLIN,deadline)) goto out;</span>
+<span class="source-line" id="L20"><a class="line-no" href="#L20">20</a>        ssize_t n=read(STDIN_FILENO,line+used,1);</span>
+<span class="source-line" id="L21"><a class="line-no" href="#L21">21</a>        if (n&lt;0&amp;&amp;errno==EINTR) continue;</span>
+<span class="source-line" id="L22"><a class="line-no" href="#L22">22</a>        if (n!=1) goto out;</span>
+<span class="source-line" id="L23"><a class="line-no" href="#L23">23</a>        if (line[used++]==&#x27;\n&#x27;) {</span>
+<span class="source-line" id="L24"><a class="line-no" href="#L24">24</a>            line[used]=0;</span>
+<span class="source-line" id="L25"><a class="line-no" href="#L25">25</a>            if (strcmp(line,expected)) { errno=EPROTO; goto out; }</span>
+<span class="source-line" id="L26"><a class="line-no" href="#L26">26</a>            ret=0; goto out;</span>
+<span class="source-line" id="L27"><a class="line-no" href="#L27">27</a>        }</span>
+<span class="source-line" id="L28"><a class="line-no" href="#L28">28</a>    }</span>
+<span class="source-line" id="L29"><a class="line-no" href="#L29">29</a>    errno=EOVERFLOW;</span>
+<span class="source-line" id="L30"><a class="line-no" href="#L30">30</a>out:</span>
+<span class="source-line" id="L31"><a class="line-no" href="#L31">31</a>    saved=errno;</span>
+<span class="source-line" id="L32"><a class="line-no" href="#L32">32</a>    if (tcsetattr(STDIN_FILENO,TCSANOW,&amp;old)) return -1;</span>
+<span class="source-line" id="L33"><a class="line-no" href="#L33">33</a>    errno=saved; return ret;</span>
+<span class="source-line" id="L34"><a class="line-no" href="#L34">34</a>}</span>
+<span class="source-line" id="L35"><a class="line-no" href="#L35">35</a>static int recovery_counters(struct admin *a,const char *phase,unsigned expected)</span>
+<span class="source-line" id="L36"><a class="line-no" href="#L36">36</a>{</span>
+<span class="source-line" id="L37"><a class="line-no" href="#L37">37</a>    char record[1536],*line;</span>
+<span class="source-line" id="L38"><a class="line-no" href="#L38">38</a>    if (lab_read_text(&quot;/sys/kernel/debug/toy_pf0/vf-stats&quot;,record,sizeof(record))) return -1;</span>
+<span class="source-line" id="L39"><a class="line-no" href="#L39">39</a>    for (line=record;line&amp;&amp;*line;line=strchr(line,&#x27;\n&#x27;),line=line?line+1:NULL) {</span>
+<span class="source-line" id="L40"><a class="line-no" href="#L40">40</a>        unsigned vf,desc,cpl,dma,blocked,irq;</span>
+<span class="source-line" id="L41"><a class="line-no" href="#L41">41</a>        if (sscanf(line,&quot;vf=%u stale_desc=%u stale_cpl=%u dma_fault=%u fence_blocked=%u irq_suppressed=%u&quot;,&amp;vf,&amp;desc,&amp;cpl,&amp;dma,&amp;blocked,&amp;irq)!=6) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L42"><a class="line-no" href="#L42">42</a>        if (vf!=a-&gt;vf) continue;</span>
+<span class="source-line" id="L43"><a class="line-no" href="#L43">43</a>        if (desc||cpl!=expected||dma||irq) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L44"><a class="line-no" href="#L44">44</a>        printf(&quot;{\&quot;event\&quot;:\&quot;RECOVERY_COUNTERS\&quot;,\&quot;phase\&quot;:\&quot;%s\&quot;,\&quot;vf\&quot;:%u,\&quot;stale_desc\&quot;:%u,\&quot;stale_cpl\&quot;:%u,\&quot;dma_fault\&quot;:%u,\&quot;fence_blocked\&quot;:%u,\&quot;irq_suppressed\&quot;:%u}\n&quot;,phase,vf,desc,cpl,dma,blocked,irq);</span>
+<span class="source-line" id="L45"><a class="line-no" href="#L45">45</a>        return 0;</span>
+<span class="source-line" id="L46"><a class="line-no" href="#L46">46</a>    }</span>
+<span class="source-line" id="L47"><a class="line-no" href="#L47">47</a>    errno=ENOENT; return -1;</span>
+<span class="source-line" id="L48"><a class="line-no" href="#L48">48</a>}</span>
+<span class="source-line" id="L49"><a class="line-no" href="#L49">49</a>/* 保留一筆工作後執行 fence/reset，等待新設定與 READY，再 REARM；B 的進度另行核對。 */</span>
+<span class="source-line" id="L50"><a class="line-no" href="#L50">50</a>static int recovery_handshake(struct admin *a,struct admin *b,struct recovery_run *run)</span>
+<span class="source-line" id="L51"><a class="line-no" href="#L51">51</a>{</span>
+<span class="source-line" id="L52"><a class="line-no" href="#L52">52</a>    struct toy_vf_ctl ctl;</span>
+<span class="source-line" id="L53"><a class="line-no" href="#L53">53</a>    struct lab_message m;</span>
+<span class="source-line" id="L54"><a class="line-no" href="#L54">54</a>    if (recovery_barrier(run,&quot;\&quot;action\&quot;:\&quot;qmp-set\&quot;,\&quot;property\&quot;:\&quot;fault-vf\&quot;,\&quot;value\&quot;:0&quot;)||</span>
+<span class="source-line" id="L55"><a class="line-no" href="#L55">55</a>        recovery_barrier(run,&quot;\&quot;action\&quot;:\&quot;qmp-set\&quot;,\&quot;property\&quot;:\&quot;fault-after\&quot;,\&quot;value\&quot;:0&quot;)||</span>
+<span class="source-line" id="L56"><a class="line-no" href="#L56">56</a>        recovery_barrier(run,&quot;\&quot;action\&quot;:\&quot;qmp-set\&quot;,\&quot;property\&quot;:\&quot;delay-cpl-ticks\&quot;,\&quot;value\&quot;:60000&quot;)||</span>
+<span class="source-line" id="L57"><a class="line-no" href="#L57">57</a>        owner_run(a)||snapshot(a)||a-&gt;info.outstanding!=1||a-&gt;info.state!=TOY_STATES_ACTIVE||</span>
+<span class="source-line" id="L58"><a class="line-no" href="#L58">58</a>        recovery_barrier(run,&quot;\&quot;action\&quot;:\&quot;pending-check\&quot;,\&quot;expected\&quot;:1&quot;)) return -1;</span>
+<span class="source-line" id="L59"><a class="line-no" href="#L59">59</a>    printf(&quot;{\&quot;event\&quot;:\&quot;RECOVERY_LOADED\&quot;,\&quot;vf\&quot;:0,\&quot;epoch\&quot;:%&quot; PRIu64 &quot;,\&quot;outstanding\&quot;:%u,\&quot;state\&quot;:%u,\&quot;flags\&quot;:%u}\n&quot;,(uint64_t)a-&gt;info.epoch,a-&gt;info.outstanding,a-&gt;info.state,a-&gt;info.hw_flags);</span>
+<span class="source-line" id="L60"><a class="line-no" href="#L60">60</a>    uint64_t old_epoch=a-&gt;info.epoch;</span>
+<span class="source-line" id="L61"><a class="line-no" href="#L61">61</a>    m=a-&gt;current; m.type=LAB_STOP_REQUEST; m.payload_len=16; memset(m.payload,0,16);</span>
+<span class="source-line" id="L62"><a class="line-no" href="#L62">62</a>    printf(&quot;{\&quot;event\&quot;:\&quot;RECOVERY_STOP_REQUEST\&quot;,\&quot;vf\&quot;:0,\&quot;epoch\&quot;:%&quot; PRIu64 &quot;}\n&quot;,m.epoch);</span>
+<span class="source-line" id="L63"><a class="line-no" href="#L63">63</a>    if (healthy_checkpoint(b,&quot;pending&quot;)||lab_send(a-&gt;connection,&amp;m,lab_now_ms()+LAB_TIMEOUT_MS)||</span>
+<span class="source-line" id="L64"><a class="line-no" href="#L64">64</a>        control(a,TOY_FENCE_VF,0,&amp;ctl)||tenant_message(a,&amp;m,LAB_STOPPED,4)||</span>
+<span class="source-line" id="L65"><a class="line-no" href="#L65">65</a>        lab_tuple(&amp;m,a-&gt;original.vf,a-&gt;original.session,a-&gt;original.epoch,a-&gt;original.lease_token,a-&gt;original.operation)||</span>
+<span class="source-line" id="L66"><a class="line-no" href="#L66">66</a>        m.ready_gen!=a-&gt;original.ready_gen||snapshot(a)||</span>
+<span class="source-line" id="L67"><a class="line-no" href="#L67">67</a>        control(a,TOY_RESET_VF,0,&amp;ctl)||reset_snapshot(a,&quot;recovering&quot;,TOY_STATES_RECOVERING,0)||</span>
+<span class="source-line" id="L68"><a class="line-no" href="#L68">68</a>        a-&gt;info.epoch&lt;=old_epoch||recovery_counters(a,&quot;reset&quot;,0)||</span>
+<span class="source-line" id="L69"><a class="line-no" href="#L69">69</a>        recovery_barrier(run,&quot;\&quot;action\&quot;:\&quot;pending-check\&quot;,\&quot;expected\&quot;:0&quot;)||</span>
+<span class="source-line" id="L70"><a class="line-no" href="#L70">70</a>        recovery_barrier(run,&quot;\&quot;action\&quot;:\&quot;qmp-set\&quot;,\&quot;property\&quot;:\&quot;delay-cpl-ticks\&quot;,\&quot;value\&quot;:0&quot;)) return -1;</span>
+<span class="source-line" id="L71"><a class="line-no" href="#L71">71</a>    m=a-&gt;current; m.type=LAB_RESET_NOTICE; m.epoch=a-&gt;info.epoch; m.payload_len=16;</span>
+<span class="source-line" id="L72"><a class="line-no" href="#L72">72</a>    memset(m.payload,0,16); lab_put32(m.payload+4,a-&gt;info.hw_flags); lab_put32(m.payload+8,a-&gt;info.outstanding);</span>
+<span class="source-line" id="L73"><a class="line-no" href="#L73">73</a>    a-&gt;original=m;</span>
+<span class="source-line" id="L74"><a class="line-no" href="#L74">74</a>    if (lab_send(a-&gt;connection,&amp;m,lab_now_ms()+LAB_TIMEOUT_MS)||tenant_message(a,&amp;m,LAB_HELLO,5)||snapshot(a)||</span>
+<span class="source-line" id="L75"><a class="line-no" href="#L75">75</a>        lab_tuple(&amp;m,a-&gt;original.vf,a-&gt;original.session,a-&gt;original.epoch,a-&gt;original.lease_token,a-&gt;original.operation)||</span>
+<span class="source-line" id="L76"><a class="line-no" href="#L76">76</a>        m.ready_gen!=a-&gt;original.ready_gen||a-&gt;info.epoch!=m.epoch) { errno=ESTALE; return -1; }</span>
+<span class="source-line" id="L77"><a class="line-no" href="#L77">77</a>    a-&gt;current=m;</span>
+<span class="source-line" id="L78"><a class="line-no" href="#L78">78</a>    if (recovery_barrier(run,&quot;\&quot;action\&quot;:\&quot;virtual-delay\&quot;,\&quot;ticks\&quot;:200&quot;)||healthy_checkpoint(b,&quot;slow_ready&quot;)||</span>
+<span class="source-line" id="L79"><a class="line-no" href="#L79">79</a>        owner_inspect(a)||reset_snapshot(a,&quot;slow_ready&quot;,TOY_STATES_RECOVERING,0)) return -1;</span>
+<span class="source-line" id="L80"><a class="line-no" href="#L80">80</a>    if (m.ready_gen==UINT32_MAX) { errno=EOVERFLOW; return -1; }</span>
+<span class="source-line" id="L81"><a class="line-no" href="#L81">81</a>    m.type=LAB_HELLO_REPLY; ++m.ready_gen; a-&gt;original=m;</span>
+<span class="source-line" id="L82"><a class="line-no" href="#L82">82</a>    if (lab_send(a-&gt;connection,&amp;m,lab_now_ms()+LAB_TIMEOUT_MS)||tenant_message(a,&amp;m,LAB_READY,6)||</span>
+<span class="source-line" id="L83"><a class="line-no" href="#L83">83</a>        reset_snapshot(a,&quot;fresh_config&quot;,TOY_STATES_RECOVERING,1)||</span>
+<span class="source-line" id="L84"><a class="line-no" href="#L84">84</a>        lab_tuple(&amp;m,a-&gt;original.vf,a-&gt;original.session,a-&gt;original.epoch,a-&gt;original.lease_token,a-&gt;original.operation)||</span>
+<span class="source-line" id="L85"><a class="line-no" href="#L85">85</a>        m.ready_gen!=a-&gt;original.ready_gen||a-&gt;info.ready_gen!=m.ready_gen||a-&gt;info.hw_flags!=61) { errno=ESTALE; return -1; }</span>
+<span class="source-line" id="L86"><a class="line-no" href="#L86">86</a>    a-&gt;current=m;</span>
+<span class="source-line" id="L87"><a class="line-no" href="#L87">87</a>    if (a-&gt;recovery_case==8) {</span>
+<span class="source-line" id="L88"><a class="line-no" href="#L88">88</a>        if (recovery_barrier(run,&quot;\&quot;action\&quot;:\&quot;qmp-set\&quot;,\&quot;property\&quot;:\&quot;try-stale-cpl\&quot;,\&quot;value\&quot;:true&quot;)||</span>
+<span class="source-line" id="L89"><a class="line-no" href="#L89">89</a>            recovery_counters(a,&quot;callback_fenced&quot;,1)) return -1;</span>
+<span class="source-line" id="L90"><a class="line-no" href="#L90">90</a>    } else if (recovery_barrier(run,&quot;\&quot;action\&quot;:\&quot;virtual-delay\&quot;,\&quot;ticks\&quot;:50&quot;)) return -1;</span>
+<span class="source-line" id="L91"><a class="line-no" href="#L91">91</a>    if (owner_inspect(a)||healthy_checkpoint(b,&quot;configured_fenced&quot;)||control(a,TOY_REARM_VF,m.ready_gen,&amp;ctl)||</span>
+<span class="source-line" id="L92"><a class="line-no" href="#L92">92</a>        reset_snapshot(a,&quot;rearmed&quot;,TOY_STATES_ACTIVE,1)) return -1;</span>
+<span class="source-line" id="L93"><a class="line-no" href="#L93">93</a>    if (a-&gt;recovery_case==8) {</span>
+<span class="source-line" id="L94"><a class="line-no" href="#L94">94</a>        if (recovery_barrier(run,&quot;\&quot;action\&quot;:\&quot;qmp-set\&quot;,\&quot;property\&quot;:\&quot;try-stale-cpl\&quot;,\&quot;value\&quot;:true&quot;)||</span>
+<span class="source-line" id="L95"><a class="line-no" href="#L95">95</a>            recovery_counters(a,&quot;callback_rearmed&quot;,2)||owner_inspect(a)) return -1;</span>
+<span class="source-line" id="L96"><a class="line-no" href="#L96">96</a>    }</span>
+<span class="source-line" id="L97"><a class="line-no" href="#L97">97</a>    if (owner_run(a)||recovery_counters(a,&quot;finished&quot;,a-&gt;recovery_case==8?2:0)||</span>
+<span class="source-line" id="L98"><a class="line-no" href="#L98">98</a>        healthy_checkpoint(b,&quot;fresh_io&quot;)||owner_inspect(a)) return -1;</span>
+<span class="source-line" id="L99"><a class="line-no" href="#L99">99</a>    return 0;</span>
+<span class="source-line" id="L100"><a class="line-no" href="#L100">100</a>}</span>
+<span class="source-line" id="L101"><a class="line-no" href="#L101">101</a>static int recovery_case(const char *pf,const char *device,const char *tenant,unsigned number)</span>
+<span class="source-line" id="L102"><a class="line-no" href="#L102">102</a>{</span>
+<span class="source-line" id="L103"><a class="line-no" href="#L103">103</a>    const char *scenario=number==7?&quot;T07&quot;:&quot;T08&quot;;</span>
+<span class="source-line" id="L104"><a class="line-no" href="#L104">104</a>    struct recovery_run run={.scenario=scenario};</span>
+<span class="source-line" id="L105"><a class="line-no" href="#L105">105</a>    struct admin owners[2];</span>
+<span class="source-line" id="L106"><a class="line-no" href="#L106">106</a>    char count_path[PATH_MAX];</span>
+<span class="source-line" id="L107"><a class="line-no" href="#L107">107</a>    bool enabled=false;</span>
+<span class="source-line" id="L108"><a class="line-no" href="#L108">108</a>    int ret=1,saved;</span>
+<span class="source-line" id="L109"><a class="line-no" href="#L109">109</a>    snprintf(count_path,sizeof(count_path),&quot;/sys/bus/pci/devices/%s/sriov_numvfs&quot;,pf);</span>
+<span class="source-line" id="L110"><a class="line-no" href="#L110">110</a>    for (unsigned i=0;i&lt;2;i++) owners[i]=(struct admin){.pf=-1,.listen=-1,.connection=-1,.pidfd=-1,.management=-1,</span>
+<span class="source-line" id="L111"><a class="line-no" href="#L111">111</a>        .vf=i,.failpoint=&quot;&quot;,.fail_hit=1,.scenario=scenario,.count_path=count_path,.healthy=i,.recovery_case=number};</span>
+<span class="source-line" id="L112"><a class="line-no" href="#L112">112</a>    if (lab_write_text(count_path,&quot;4\n&quot;)) goto out;</span>
+<span class="source-line" id="L113"><a class="line-no" href="#L113">113</a>    enabled=true;</span>
+<span class="source-line" id="L114"><a class="line-no" href="#L114">114</a>    for (unsigned i=0;i&lt;2;i++) if (isolated_owner_start(&amp;owners[i],pf,device,tenant,16,4096)) goto out;</span>
+<span class="source-line" id="L115"><a class="line-no" href="#L115">115</a>    struct admin *a=&amp;owners[0],*b=&amp;owners[1];</span>
+<span class="source-line" id="L116"><a class="line-no" href="#L116">116</a>    struct lab_message m=b-&gt;current;</span>
+<span class="source-line" id="L117"><a class="line-no" href="#L117">117</a>    m.type=LAB_RUN;</span>
+<span class="source-line" id="L118"><a class="line-no" href="#L118">118</a>    if (lab_send(b-&gt;connection,&amp;m,lab_now_ms()+LAB_TIMEOUT_MS)||owner_run(a)||</span>
+<span class="source-line" id="L119"><a class="line-no" href="#L119">119</a>        recovery_handshake(a,b,&amp;run)) goto out;</span>
+<span class="source-line" id="L120"><a class="line-no" href="#L120">120</a>    m=b-&gt;current; m.type=LAB_STOP_REQUEST; m.payload_len=16; memset(m.payload,0,16);</span>
+<span class="source-line" id="L121"><a class="line-no" href="#L121">121</a>    if (lab_send(b-&gt;connection,&amp;m,lab_now_ms()+LAB_TIMEOUT_MS)||tenant_message(b,&amp;m,LAB_STOPPED,3)||</span>
+<span class="source-line" id="L122"><a class="line-no" href="#L122">122</a>        lab_tuple(&amp;m,b-&gt;original.vf,b-&gt;original.session,b-&gt;original.epoch,b-&gt;original.lease_token,b-&gt;original.operation)||</span>
+<span class="source-line" id="L123"><a class="line-no" href="#L123">123</a>        m.ready_gen!=b-&gt;original.ready_gen) goto out;</span>
+<span class="source-line" id="L124"><a class="line-no" href="#L124">124</a>    b-&gt;current=m;</span>
+<span class="source-line" id="L125"><a class="line-no" href="#L125">125</a>    for (unsigned i=0;i&lt;2;i++) if (owner_stop_begin(&amp;owners[i])) goto out;</span>
+<span class="source-line" id="L126"><a class="line-no" href="#L126">126</a>    for (unsigned i=0;i&lt;2;i++) if (owner_stop_finish(&amp;owners[i])||release_owner(&amp;owners[i])) goto out;</span>
+<span class="source-line" id="L127"><a class="line-no" href="#L127">127</a>    if (lab_write_text(count_path,&quot;0\n&quot;)) goto out;</span>
+<span class="source-line" id="L128"><a class="line-no" href="#L128">128</a>    enabled=false;</span>
+<span class="source-line" id="L129"><a class="line-no" href="#L129">129</a>    uint64_t count;</span>
+<span class="source-line" id="L130"><a class="line-no" href="#L130">130</a>    if (lab_read_u64(count_path,&amp;count)||count) { errno=EBUSY; goto out; }</span>
+<span class="source-line" id="L131"><a class="line-no" href="#L131">131</a>    for (unsigned i=0;i&lt;4;i++) {</span>
+<span class="source-line" id="L132"><a class="line-no" href="#L132">132</a>        char path[PATH_MAX]; struct stat st;</span>
+<span class="source-line" id="L133"><a class="line-no" href="#L133">133</a>        snprintf(path,sizeof(path),&quot;/sys/bus/pci/devices/%s/virtfn%u&quot;,pf,i);</span>
+<span class="source-line" id="L134"><a class="line-no" href="#L134">134</a>        if (!lstat(path,&amp;st)||errno!=ENOENT) { errno=EBUSY; goto out; }</span>
+<span class="source-line" id="L135"><a class="line-no" href="#L135">135</a>    }</span>
+<span class="source-line" id="L136"><a class="line-no" href="#L136">136</a>    for (unsigned i=0;i&lt;8;i++) {</span>
+<span class="source-line" id="L137"><a class="line-no" href="#L137">137</a>        struct toy_vf_info info={.hdr=header(sizeof(info)),.vf=i};</span>
+<span class="source-line" id="L138"><a class="line-no" href="#L138">138</a>        if (ioctl(a-&gt;pf,TOY_GET_VF,&amp;info)||info.state||info.reserve||info.outstanding||info.lease_token||info.hw_flags!=1) { errno=EIO; goto out; }</span>
+<span class="source-line" id="L139"><a class="line-no" href="#L139">139</a>        printf(&quot;{\&quot;event\&quot;:\&quot;RECOVERY_FINAL\&quot;,\&quot;vf\&quot;:%u,\&quot;state\&quot;:%u,\&quot;reserve\&quot;:%u,\&quot;outstanding\&quot;:%u,\&quot;flags\&quot;:%u,\&quot;lease\&quot;:%&quot; PRIu64 &quot;}\n&quot;,i,info.state,info.reserve,info.outstanding,info.hw_flags,(uint64_t)info.lease_token);</span>
+<span class="source-line" id="L140"><a class="line-no" href="#L140">140</a>    }</span>
+<span class="source-line" id="L141"><a class="line-no" href="#L141">141</a>    printf(&quot;{\&quot;event\&quot;:\&quot;M3_CASE\&quot;,\&quot;id\&quot;:\&quot;%s\&quot;,\&quot;status\&quot;:\&quot;PASS\&quot;,\&quot;pending_at_reset\&quot;:1,\&quot;callbacks\&quot;:%u,\&quot;all_free\&quot;:true,\&quot;owner_closed\&quot;:true}\n&quot;,scenario,number==8?2:0);</span>
+<span class="source-line" id="L142"><a class="line-no" href="#L142">142</a>    puts(&quot;LAB_RESULT=PASS&quot;); ret=0;</span>
+<span class="source-line" id="L143"><a class="line-no" href="#L143">143</a>out:</span>
+<span class="source-line" id="L144"><a class="line-no" href="#L144">144</a>    saved=errno;</span>
+<span class="source-line" id="L145"><a class="line-no" href="#L145">145</a>    for (unsigned i=0;i&lt;2;i++) isolated_owner_cleanup(&amp;owners[i]);</span>
+<span class="source-line" id="L146"><a class="line-no" href="#L146">146</a>    if (enabled&amp;&amp;lab_write_text(count_path,&quot;0\n&quot;)) fprintf(stderr,&quot;LABD_DISABLE_FAILED errno=%d\n&quot;,errno);</span>
+<span class="source-line" id="L147"><a class="line-no" href="#L147">147</a>    if (ret) {</span>
+<span class="source-line" id="L148"><a class="line-no" href="#L148">148</a>        fprintf(stderr,&quot;LABD_ERROR scenario=%s errno=%d message=%s\n&quot;,scenario,saved,strerror(saved));</span>
+<span class="source-line" id="L149"><a class="line-no" href="#L149">149</a>        printf(&quot;{\&quot;event\&quot;:\&quot;M3_CASE\&quot;,\&quot;id\&quot;:\&quot;%s\&quot;,\&quot;status\&quot;:\&quot;FAIL\&quot;,\&quot;errno\&quot;:%d}\n&quot;,scenario,saved);</span>
+<span class="source-line" id="L150"><a class="line-no" href="#L150">150</a>        puts(&quot;LAB_RESULT=FAIL&quot;);</span>
+<span class="source-line" id="L151"><a class="line-no" href="#L151">151</a>    }</span>
+<span class="source-line" id="L152"><a class="line-no" href="#L152">152</a>    return ret;</span>
+<span class="source-line" id="L153"><a class="line-no" href="#L153">153</a>}</span></pre></main></html>

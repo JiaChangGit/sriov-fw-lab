@@ -1,0 +1,68 @@
+diff --git a/drivers/iommu/intel/iommu.c b/drivers/iommu/intel/iommu.c
+index e860bc943..7d20862bc 100644
+--- a/drivers/iommu/intel/iommu.c
++++ b/drivers/iommu/intel/iommu.c
+@@ -237,6 +237,18 @@ static void init_translation_status(struct intel_iommu *iommu)
+ 		iommu->flags |= VTD_FLAG_TRANS_PRE_ENABLED;
+ }
+ 
++/* 僅供離線 toy VF 實驗；預設保留上游 WO -> RW 行為。 */
++static bool toy_iommu_strict_wo __ro_after_init;
++
++static int __init toy_iommu_strict_wo_setup(char *str)
++{
++	if (!str || kstrtobool(str, &toy_iommu_strict_wo))
++		return 0;
++	pr_info("TOY_STRICT_WO enabled=%u\n", toy_iommu_strict_wo);
++	return 1;
++}
++__setup("toy_iommu_strict_wo=", toy_iommu_strict_wo_setup);
++
+ static int __init intel_iommu_setup(char *str)
+ {
+ 	if (!str)
+@@ -1777,6 +1789,33 @@ static void switch_to_super_page(struct dmar_domain *domain,
+ 	}
+ }
+ 
++static bool toy_domain_strict_wo(struct dmar_domain *domain)
++{
++	struct device_domain_info *info;
++	unsigned long flags;
++	bool match = true;
++	unsigned int count = 0;
++
++	if (!toy_iommu_strict_wo || domain->use_first_level ||
++	    domain->nested_parent || domain->domain.type != IOMMU_DOMAIN_UNMANAGED)
++		return false;
++	spin_lock_irqsave(&domain->lock, flags);
++	list_for_each_entry(info, &domain->devices, link) {
++		struct pci_dev *pdev;
++
++		if (!info->dev || !dev_is_pci(info->dev)) {
++			match = false;
++			break;
++		}
++		pdev = to_pci_dev(info->dev);
++		if (pdev->vendor != 0x1234 || pdev->device != 0xe002 || !pdev->is_virtfn)
++			match = false;
++		++count;
++	}
++	spin_unlock_irqrestore(&domain->lock, flags);
++	return match && count == 1;
++}
++
+ static int
+ __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
+ 		 unsigned long phys_pfn, unsigned long nr_pages, int prot,
+@@ -1800,7 +1839,9 @@ __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
+ 	}
+ 
+ 	attr = prot & (DMA_PTE_READ | DMA_PTE_WRITE | DMA_PTE_SNP);
+-	attr |= DMA_FL_PTE_PRESENT;
++	/* Second-level 的 R/W bit 可獨立；first-level PRESENT 語義維持上游。 */
++	if (!toy_domain_strict_wo(domain))
++		attr |= DMA_FL_PTE_PRESENT;
+ 	if (domain->use_first_level) {
+ 		attr |= DMA_FL_PTE_US | DMA_FL_PTE_ACCESS;
+ 		if (prot & DMA_PTE_WRITE)

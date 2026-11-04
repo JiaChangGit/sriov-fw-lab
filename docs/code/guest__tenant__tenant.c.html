@@ -1,0 +1,237 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>guest/tenant/tenant.c</title><style>
+:root{color-scheme:light;--ink:#18293c;--blue:#184d83;--line:#ced9e4;--muted:#526477}
+*{box-sizing:border-box}body{margin:0;background:#f2f5f8;color:var(--ink);font:17px/1.8 system-ui,'Microsoft JhengHei',sans-serif}
+a{color:var(--blue);overflow-wrap:anywhere}header{background:#102e4d;color:#fff;padding:48px max(24px,calc((100vw - 1100px)/2))}
+header p{max-width:850px}header a{color:#b8dcff}.label{letter-spacing:.15em;font-size:13px;color:#b8dcff}
+.layout{max-width:1420px;margin:auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:32px;padding:30px}
+nav{position:sticky;top:20px;align-self:start;max-height:95vh;overflow:auto;font-size:14px}nav a{display:block;margin:12px 0}
+main{min-width:0;background:white;padding:36px 44px;border:1px solid var(--line);border-radius:12px}
+h1{font-size:2rem;line-height:1.35}h2{font-size:1.5rem;margin-top:2em;border-bottom:1px solid var(--line);padding-bottom:10px}h3{font-size:1.1rem}
+p{max-width:95ch}section+section{margin-top:80px;border-top:4px solid var(--blue);padding-top:26px}
+pre{overflow:auto;background:#112c45;color:#eaf3fa;padding:20px;border-radius:8px;font-size:14px;line-height:1.6}
+code{font-family:Consolas,monospace;font-size:.88em}p code,li code,td code{background:#edf3f8;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}
+.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;margin:20px 0;font-size:15px}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf1f8}
+img,svg{max-width:100%;height:auto}.diagram{overflow:auto;margin:20px 0}.diagram svg{min-width:900px;width:100%;display:block}blockquote,.notice{border-left:5px solid #c4841b;background:#fff5df;padding:16px 20px;margin:24px 0}.muted{color:var(--muted)}
+.source-line{display:block;white-space:pre}.source-line:target{background:#355b79}.line-no{display:inline-block;width:5em;color:#9db8ce;text-decoration:none;user-select:none}
+@media(max-width:850px){.layout{display:block;padding:14px}nav{position:static;max-height:none}main{padding:24px 18px}header{padding:30px 20px}h1{font-size:1.65rem}}
+@media print{body{background:white;font-size:11pt}header{color:#18293c;background:white;padding:0}nav{display:none}.layout{display:block;padding:0}main{border:0;padding:0}section{break-before:page}pre{white-space:pre-wrap}a{color:inherit}}
+</style><main><a href="../handbook.html">回教材</a><h1>guest/tenant/tenant.c</h1><p>SHA256 <code>2bdd635fcad76e0cf484324e9be3b6db01da8f2b69279c87f2ce7085c989f5d9</code></p><pre><span class="source-line" id="L1"><a class="line-no" href="#L1">1</a>#define _GNU_SOURCE</span>
+<span class="source-line" id="L2"><a class="line-no" href="#L2">2</a>#include &quot;owner.h&quot;</span>
+<span class="source-line" id="L3"><a class="line-no" href="#L3">3</a>#include &quot;../common/lab_wire.h&quot;</span>
+<span class="source-line" id="L4"><a class="line-no" href="#L4">4</a>#include &quot;toy_regs.h&quot;</span>
+<span class="source-line" id="L5"><a class="line-no" href="#L5">5</a>#include &lt;errno.h&gt;</span>
+<span class="source-line" id="L6"><a class="line-no" href="#L6">6</a>#include &lt;dirent.h&gt;</span>
+<span class="source-line" id="L7"><a class="line-no" href="#L7">7</a>#include &lt;inttypes.h&gt;</span>
+<span class="source-line" id="L8"><a class="line-no" href="#L8">8</a>#include &lt;poll.h&gt;</span>
+<span class="source-line" id="L9"><a class="line-no" href="#L9">9</a>#include &lt;stdio.h&gt;</span>
+<span class="source-line" id="L10"><a class="line-no" href="#L10">10</a>#include &lt;stdlib.h&gt;</span>
+<span class="source-line" id="L11"><a class="line-no" href="#L11">11</a>#include &lt;string.h&gt;</span>
+<span class="source-line" id="L12"><a class="line-no" href="#L12">12</a>#include &lt;unistd.h&gt;</span>
+<span class="source-line" id="L13"><a class="line-no" href="#L13">13</a></span>
+<span class="source-line" id="L14"><a class="line-no" href="#L14">14</a>static int exchange(int fd,struct lab_message *m,uint16_t sent,uint16_t expected,struct owner *inspect)</span>
+<span class="source-line" id="L15"><a class="line-no" href="#L15">15</a>{</span>
+<span class="source-line" id="L16"><a class="line-no" href="#L16">16</a>    struct lab_message reply;</span>
+<span class="source-line" id="L17"><a class="line-no" href="#L17">17</a>    m-&gt;type=sent;</span>
+<span class="source-line" id="L18"><a class="line-no" href="#L18">18</a>    if (lab_send(fd,m,lab_now_ms()+LAB_TIMEOUT_MS)) return -1;</span>
+<span class="source-line" id="L19"><a class="line-no" href="#L19">19</a>    for (;;) {</span>
+<span class="source-line" id="L20"><a class="line-no" href="#L20">20</a>        if (lab_recv(fd,&amp;reply,lab_now_ms()+LAB_TIMEOUT_MS)) return -1;</span>
+<span class="source-line" id="L21"><a class="line-no" href="#L21">21</a>        if (reply.type!=LAB_INSPECT||!inspect) break;</span>
+<span class="source-line" id="L22"><a class="line-no" href="#L22">22</a>        uint32_t digests[OWNER_MAPS];</span>
+<span class="source-line" id="L23"><a class="line-no" href="#L23">23</a>        if (reply.request_id!=m-&gt;request_id||lab_tuple(&amp;reply,m-&gt;vf,m-&gt;session,m-&gt;epoch,m-&gt;lease_token,m-&gt;operation)||</span>
+<span class="source-line" id="L24"><a class="line-no" href="#L24">24</a>            reply.ready_gen!=m-&gt;ready_gen||</span>
+<span class="source-line" id="L25"><a class="line-no" href="#L25">25</a>            owner_unchanged(inspect,digests)) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L26"><a class="line-no" href="#L26">26</a>        reply.type=LAB_INSPECT_REPLY; reply.payload_len=16; memset(reply.payload,0,16);</span>
+<span class="source-line" id="L27"><a class="line-no" href="#L27">27</a>        for (unsigned i=0;i&lt;OWNER_MAPS;i++) lab_put32(reply.payload+i*4,digests[i]);</span>
+<span class="source-line" id="L28"><a class="line-no" href="#L28">28</a>        if (lab_send(fd,&amp;reply,lab_now_ms()+LAB_TIMEOUT_MS)) return -1;</span>
+<span class="source-line" id="L29"><a class="line-no" href="#L29">29</a>    }</span>
+<span class="source-line" id="L30"><a class="line-no" href="#L30">30</a>    if (reply.type!=expected||reply.request_id!=m-&gt;request_id||</span>
+<span class="source-line" id="L31"><a class="line-no" href="#L31">31</a>        lab_tuple(&amp;reply,m-&gt;vf,m-&gt;session,m-&gt;epoch,m-&gt;lease_token,m-&gt;operation)||</span>
+<span class="source-line" id="L32"><a class="line-no" href="#L32">32</a>        (sent!=LAB_HELLO&amp;&amp;reply.ready_gen!=m-&gt;ready_gen)) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L33"><a class="line-no" href="#L33">33</a>    *m=reply; return 0;</span>
+<span class="source-line" id="L34"><a class="line-no" href="#L34">34</a>}</span>
+<span class="source-line" id="L35"><a class="line-no" href="#L35">35</a>static int open_fds(void)</span>
+<span class="source-line" id="L36"><a class="line-no" href="#L36">36</a>{</span>
+<span class="source-line" id="L37"><a class="line-no" href="#L37">37</a>    DIR *directory=opendir(&quot;/proc/self/fd&quot;);</span>
+<span class="source-line" id="L38"><a class="line-no" href="#L38">38</a>    struct dirent *entry;</span>
+<span class="source-line" id="L39"><a class="line-no" href="#L39">39</a>    int count=0;</span>
+<span class="source-line" id="L40"><a class="line-no" href="#L40">40</a>    if (!directory) return -1;</span>
+<span class="source-line" id="L41"><a class="line-no" href="#L41">41</a>    while ((entry=readdir(directory))) {</span>
+<span class="source-line" id="L42"><a class="line-no" href="#L42">42</a>        if (entry-&gt;d_name[0]==&#x27;.&#x27;) continue;</span>
+<span class="source-line" id="L43"><a class="line-no" href="#L43">43</a>        if (atoi(entry-&gt;d_name)!=dirfd(directory)) ++count;</span>
+<span class="source-line" id="L44"><a class="line-no" href="#L44">44</a>    }</span>
+<span class="source-line" id="L45"><a class="line-no" href="#L45">45</a>    closedir(directory); return count;</span>
+<span class="source-line" id="L46"><a class="line-no" href="#L46">46</a>}</span>
+<span class="source-line" id="L47"><a class="line-no" href="#L47">47</a>/* 健康 VF 每批驗證資料與 CQ，再處理管理訊息；整段保有同一個 epoch。 */</span>
+<span class="source-line" id="L48"><a class="line-no" href="#L48">48</a>static int healthy_work(int fd,struct lab_message *m,struct owner *o)</span>
+<span class="source-line" id="L49"><a class="line-no" href="#L49">49</a>{</span>
+<span class="source-line" id="L50"><a class="line-no" href="#L50">50</a>    int64_t deadline=lab_now_ms()+LAB_TIMEOUT_MS;</span>
+<span class="source-line" id="L51"><a class="line-no" href="#L51">51</a>    while (lab_now_ms()&lt;deadline) {</span>
+<span class="source-line" id="L52"><a class="line-no" href="#L52">52</a>        struct pollfd p={.fd=fd,.events=POLLIN};</span>
+<span class="source-line" id="L53"><a class="line-no" href="#L53">53</a>        struct lab_message query;</span>
+<span class="source-line" id="L54"><a class="line-no" href="#L54">54</a>        if (owner_workload(o,256)) return -1;</span>
+<span class="source-line" id="L55"><a class="line-no" href="#L55">55</a>        int rc=poll(&amp;p,1,0);</span>
+<span class="source-line" id="L56"><a class="line-no" href="#L56">56</a>        if (rc&lt;0&amp;&amp;errno==EINTR) continue;</span>
+<span class="source-line" id="L57"><a class="line-no" href="#L57">57</a>        if (rc&lt;0) return -1;</span>
+<span class="source-line" id="L58"><a class="line-no" href="#L58">58</a>        if (!rc) continue;</span>
+<span class="source-line" id="L59"><a class="line-no" href="#L59">59</a>        if (!(p.revents&amp;POLLIN)||lab_recv(fd,&amp;query,deadline)||query.request_id!=m-&gt;request_id||</span>
+<span class="source-line" id="L60"><a class="line-no" href="#L60">60</a>            lab_tuple(&amp;query,m-&gt;vf,m-&gt;session,m-&gt;epoch,m-&gt;lease_token,m-&gt;operation)||query.ready_gen!=m-&gt;ready_gen) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L61"><a class="line-no" href="#L61">61</a>        if (query.type==LAB_STOP_REQUEST) return 0;</span>
+<span class="source-line" id="L62"><a class="line-no" href="#L62">62</a>        if (query.type!=LAB_INSPECT) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L63"><a class="line-no" href="#L63">63</a>        uint32_t digests[OWNER_MAPS],flags;</span>
+<span class="source-line" id="L64"><a class="line-no" href="#L64">64</a>        if (owner_freeze(o)||owner_unchanged(o,digests)||owner_latch(o,&amp;flags)||</span>
+<span class="source-line" id="L65"><a class="line-no" href="#L65">65</a>            o-&gt;epoch!=m-&gt;epoch||o-&gt;session!=m-&gt;session||(flags&amp;3u)) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L66"><a class="line-no" href="#L66">66</a>        query.type=LAB_INSPECT_REPLY; query.payload_len=16; memset(query.payload,0,16);</span>
+<span class="source-line" id="L67"><a class="line-no" href="#L67">67</a>        for (unsigned i=0;i&lt;OWNER_MAPS;i++) lab_put32(query.payload+i*4,digests[i]);</span>
+<span class="source-line" id="L68"><a class="line-no" href="#L68">68</a>        printf(&quot;{\&quot;event\&quot;:\&quot;%s\&quot;,\&quot;pid\&quot;:%d,\&quot;epoch\&quot;:%&quot; PRIu64 &quot;,\&quot;session\&quot;:%&quot; PRIu64 &quot;,\&quot;completed\&quot;:%&quot; PRIu64 &quot;,\&quot;flags\&quot;:%u}\n&quot;,o-&gt;recovery_case?&quot;RECOVERY_HEALTHY_PROGRESS&quot;:&quot;T06_HEALTHY_PROGRESS&quot;,getpid(),o-&gt;epoch,o-&gt;session,o-&gt;completed,flags);</span>
+<span class="source-line" id="L69"><a class="line-no" href="#L69">69</a>        if (lab_send(fd,&amp;query,deadline)) return -1;</span>
+<span class="source-line" id="L70"><a class="line-no" href="#L70">70</a>    }</span>
+<span class="source-line" id="L71"><a class="line-no" href="#L71">71</a>    errno=ETIMEDOUT; return -1;</span>
+<span class="source-line" id="L72"><a class="line-no" href="#L72">72</a>}</span>
+<span class="source-line" id="L73"><a class="line-no" href="#L73">73</a>int main(int argc,char **argv)</span>
+<span class="source-line" id="L74"><a class="line-no" href="#L74">74</a>{</span>
+<span class="source-line" id="L75"><a class="line-no" href="#L75">75</a>    struct owner o;</span>
+<span class="source-line" id="L76"><a class="line-no" href="#L76">76</a>    struct lab_message m={0},stop;</span>
+<span class="source-line" id="L77"><a class="line-no" href="#L77">77</a>    int fd=-1,ret=1,saved,baseline=open_fds();</span>
+<span class="source-line" id="L78"><a class="line-no" href="#L78">78</a>    unsigned stage=1;</span>
+<span class="source-line" id="L79"><a class="line-no" href="#L79">79</a>    unsigned group=0,entries=16,requests=4096;</span>
+<span class="source-line" id="L80"><a class="line-no" href="#L80">80</a>    const char *socket=NULL,*bdf=NULL;</span>
+<span class="source-line" id="L81"><a class="line-no" href="#L81">81</a>    bool verified=false,inspect=false,vectors=false,vfio_reset=false,healthy=false;</span>
+<span class="source-line" id="L82"><a class="line-no" href="#L82">82</a>    owner_init(&amp;o); setvbuf(stdout,NULL,_IOLBF,0);</span>
+<span class="source-line" id="L83"><a class="line-no" href="#L83">83</a>    for (int i=1;i&lt;argc;i++) {</span>
+<span class="source-line" id="L84"><a class="line-no" href="#L84">84</a>        if (i+1&gt;=argc) { errno=EINVAL; goto out; }</span>
+<span class="source-line" id="L85"><a class="line-no" href="#L85">85</a>        const char *key=argv[i++],*value=argv[i];</span>
+<span class="source-line" id="L86"><a class="line-no" href="#L86">86</a>        char *end; unsigned long long n=0;</span>
+<span class="source-line" id="L87"><a class="line-no" href="#L87">87</a>        if (!strcmp(key,&quot;--socket&quot;)) { socket=value; continue; }</span>
+<span class="source-line" id="L88"><a class="line-no" href="#L88">88</a>        if (!strcmp(key,&quot;--bdf&quot;)) { bdf=value; continue; }</span>
+<span class="source-line" id="L89"><a class="line-no" href="#L89">89</a>        if (!strcmp(key,&quot;--failpoint&quot;)) {</span>
+<span class="source-line" id="L90"><a class="line-no" href="#L90">90</a>            if (strlen(value)&gt;=sizeof(o.failpoint)) { errno=EINVAL; goto out; }</span>
+<span class="source-line" id="L91"><a class="line-no" href="#L91">91</a>            strcpy(o.failpoint,value); continue;</span>
+<span class="source-line" id="L92"><a class="line-no" href="#L92">92</a>        }</span>
+<span class="source-line" id="L93"><a class="line-no" href="#L93">93</a>        errno=0; n=strtoull(value,&amp;end,0);</span>
+<span class="source-line" id="L94"><a class="line-no" href="#L94">94</a>        if (errno||!*value||*end) { errno=EINVAL; goto out; }</span>
+<span class="source-line" id="L95"><a class="line-no" href="#L95">95</a>        if (!strcmp(key,&quot;--vf&quot;)&amp;&amp;n&lt;8) m.vf=(uint32_t)n;</span>
+<span class="source-line" id="L96"><a class="line-no" href="#L96">96</a>        else if (!strcmp(key,&quot;--group&quot;)&amp;&amp;n&lt;=UINT32_MAX) group=(unsigned)n;</span>
+<span class="source-line" id="L97"><a class="line-no" href="#L97">97</a>        else if (!strcmp(key,&quot;--entries&quot;)&amp;&amp;n&lt;=256) entries=(unsigned)n;</span>
+<span class="source-line" id="L98"><a class="line-no" href="#L98">98</a>        else if (!strcmp(key,&quot;--requests&quot;)&amp;&amp;n&lt;=10000000) requests=(unsigned)n;</span>
+<span class="source-line" id="L99"><a class="line-no" href="#L99">99</a>        else if (!strcmp(key,&quot;--lease&quot;)&amp;&amp;n) m.lease_token=n;</span>
+<span class="source-line" id="L100"><a class="line-no" href="#L100">100</a>        else if (!strcmp(key,&quot;--operation&quot;)&amp;&amp;n) m.operation=n;</span>
+<span class="source-line" id="L101"><a class="line-no" href="#L101">101</a>        else if (!strcmp(key,&quot;--fail-hit&quot;)&amp;&amp;n&amp;&amp;n&lt;=UINT32_MAX) o.fail_hit=(unsigned)n;</span>
+<span class="source-line" id="L102"><a class="line-no" href="#L102">102</a>        else if (!strcmp(key,&quot;--inspect&quot;)&amp;&amp;n&lt;=1) inspect=n;</span>
+<span class="source-line" id="L103"><a class="line-no" href="#L103">103</a>        else if (!strcmp(key,&quot;--vectors&quot;)&amp;&amp;n&lt;=1) vectors=n;</span>
+<span class="source-line" id="L104"><a class="line-no" href="#L104">104</a>        else if (!strcmp(key,&quot;--dma-fault&quot;)&amp;&amp;n&lt;=6) o.dma_fault=(unsigned)n;</span>
+<span class="source-line" id="L105"><a class="line-no" href="#L105">105</a>        else if (!strcmp(key,&quot;--reset-test&quot;)&amp;&amp;n&lt;=1) o.reset_test=n;</span>
+<span class="source-line" id="L106"><a class="line-no" href="#L106">106</a>        else if (!strcmp(key,&quot;--vfio-reset&quot;)&amp;&amp;n&lt;=1) vfio_reset=n;</span>
+<span class="source-line" id="L107"><a class="line-no" href="#L107">107</a>        else if (!strcmp(key,&quot;--healthy&quot;)&amp;&amp;n&lt;=1) healthy=n;</span>
+<span class="source-line" id="L108"><a class="line-no" href="#L108">108</a>        else if (!strcmp(key,&quot;--recovery-case&quot;)&amp;&amp;(n==0||n==7||n==8)) o.recovery_case=(unsigned)n;</span>
+<span class="source-line" id="L109"><a class="line-no" href="#L109">109</a>        else { errno=EINVAL; goto out; }</span>
+<span class="source-line" id="L110"><a class="line-no" href="#L110">110</a>    }</span>
+<span class="source-line" id="L111"><a class="line-no" href="#L111">111</a>    if (!socket||!bdf||!m.lease_token||!m.operation) { errno=EINVAL; goto out; }</span>
+<span class="source-line" id="L112"><a class="line-no" href="#L112">112</a>    o.pattern=(unsigned char)(m.vf*49u);</span>
+<span class="source-line" id="L113"><a class="line-no" href="#L113">113</a>    fd=lab_connect(socket,lab_now_ms()+LAB_TIMEOUT_MS);</span>
+<span class="source-line" id="L114"><a class="line-no" href="#L114">114</a>    if (fd&lt;0||lab_peer(fd,getuid(),getppid())||owner_open(&amp;o,bdf,group)) goto out;</span>
+<span class="source-line" id="L115"><a class="line-no" href="#L115">115</a>    m.request_id=1; m.session=o.session; m.epoch=o.epoch;</span>
+<span class="source-line" id="L116"><a class="line-no" href="#L116">116</a>    if (exchange(fd,&amp;m,LAB_HELLO,LAB_HELLO_REPLY,NULL)||!m.ready_gen) goto out;</span>
+<span class="source-line" id="L117"><a class="line-no" href="#L117">117</a>    if (owner_configure(&amp;o,entries)) goto out;</span>
+<span class="source-line" id="L118"><a class="line-no" href="#L118">118</a>    if (m.epoch!=o.epoch||m.session!=o.session) { errno=ESTALE; goto out; }</span>
+<span class="source-line" id="L119"><a class="line-no" href="#L119">119</a>    if (inspect&amp;&amp;owner_freeze(&amp;o)) goto out;</span>
+<span class="source-line" id="L120"><a class="line-no" href="#L120">120</a>    ++m.request_id;</span>
+<span class="source-line" id="L121"><a class="line-no" href="#L121">121</a>    stage=2;</span>
+<span class="source-line" id="L122"><a class="line-no" href="#L122">122</a>    if (exchange(fd,&amp;m,LAB_READY,LAB_RUN,inspect?&amp;o:NULL)) goto out;</span>
+<span class="source-line" id="L123"><a class="line-no" href="#L123">123</a>    if (healthy?healthy_work(fd,&amp;m,&amp;o):(o.dma_fault?owner_dma_fault(&amp;o):owner_workload(&amp;o,requests))) goto out;</span>
+<span class="source-line" id="L124"><a class="line-no" href="#L124">124</a>    if (inspect&amp;&amp;!o.dma_fault&amp;&amp;!o.reset_test&amp;&amp;owner_pattern_pair(&amp;o)) goto out;</span>
+<span class="source-line" id="L125"><a class="line-no" href="#L125">125</a>    if (vectors&amp;&amp;owner_descriptor_vectors(&amp;o)) goto out;</span>
+<span class="source-line" id="L126"><a class="line-no" href="#L126">126</a>    if (o.recovery_case&amp;&amp;!healthy) {</span>
+<span class="source-line" id="L127"><a class="line-no" href="#L127">127</a>        ++m.request_id;</span>
+<span class="source-line" id="L128"><a class="line-no" href="#L128">128</a>        /* 管理者在正常負載完成後才 arm 延遲，避免每一筆暖機請求都被保留。 */</span>
+<span class="source-line" id="L129"><a class="line-no" href="#L129">129</a>        if (exchange(fd,&amp;m,LAB_STOPPED,LAB_RUN,&amp;o)) goto out;</span>
+<span class="source-line" id="L130"><a class="line-no" href="#L130">130</a>        if (owner_submit_pending(&amp;o)) goto out;</span>
+<span class="source-line" id="L131"><a class="line-no" href="#L131">131</a>        ++m.request_id; m.type=LAB_STOPPED;</span>
+<span class="source-line" id="L132"><a class="line-no" href="#L132">132</a>        uint64_t previous_epoch=o.epoch;</span>
+<span class="source-line" id="L133"><a class="line-no" href="#L133">133</a>        if (lab_send(fd,&amp;m,lab_now_ms()+LAB_TIMEOUT_MS)||lab_recv(fd,&amp;stop,lab_now_ms()+LAB_TIMEOUT_MS)) goto out;</span>
+<span class="source-line" id="L134"><a class="line-no" href="#L134">134</a>        if (stop.type!=LAB_STOP_REQUEST||stop.request_id!=m.request_id||</span>
+<span class="source-line" id="L135"><a class="line-no" href="#L135">135</a>            lab_tuple(&amp;stop,m.vf,m.session,m.epoch,m.lease_token,m.operation)||stop.ready_gen!=m.ready_gen) { errno=EPROTO; goto out; }</span>
+<span class="source-line" id="L136"><a class="line-no" href="#L136">136</a>        stop.type=LAB_STOPPED; stop.payload_len=0;</span>
+<span class="source-line" id="L137"><a class="line-no" href="#L137">137</a>        printf(&quot;{\&quot;event\&quot;:\&quot;RECOVERY_STOPPED\&quot;,\&quot;pid\&quot;:%d,\&quot;pending_requests\&quot;:1,\&quot;submissions_stopped\&quot;:true}\n&quot;,getpid());</span>
+<span class="source-line" id="L138"><a class="line-no" href="#L138">138</a>        if (lab_send(fd,&amp;stop,lab_now_ms()+LAB_TIMEOUT_MS)||lab_recv(fd,&amp;stop,lab_now_ms()+LAB_TIMEOUT_MS)) goto out;</span>
+<span class="source-line" id="L139"><a class="line-no" href="#L139">139</a>        if (stop.type!=LAB_RESET_NOTICE||stop.request_id!=m.request_id||stop.vf!=m.vf||stop.session!=m.session||</span>
+<span class="source-line" id="L140"><a class="line-no" href="#L140">140</a>            stop.epoch&lt;=m.epoch||stop.lease_token!=m.lease_token||stop.operation!=m.operation||stop.ready_gen!=m.ready_gen||</span>
+<span class="source-line" id="L141"><a class="line-no" href="#L141">141</a>            !(lab_get32(stop.payload+4)&amp;TOY_HW_FLAGS_FENCED)||lab_get32(stop.payload+8)||</span>
+<span class="source-line" id="L142"><a class="line-no" href="#L142">142</a>            owner_reset_clear(&amp;o,&quot;PF_RESET&quot;)||o.epoch!=stop.epoch||o.session!=stop.session) { errno=EPROTO; goto out; }</span>
+<span class="source-line" id="L143"><a class="line-no" href="#L143">143</a>        uint32_t digests[OWNER_MAPS];</span>
+<span class="source-line" id="L144"><a class="line-no" href="#L144">144</a>        if (owner_unchanged(&amp;o,digests)||owner_write32(&amp;o,TOY_VF_DOORBELL,1)) goto out;</span>
+<span class="source-line" id="L145"><a class="line-no" href="#L145">145</a>        if (!o.pending_request||o.pending_epoch!=previous_epoch||o.cancelled) { errno=EPROTO; goto out; }</span>
+<span class="source-line" id="L146"><a class="line-no" href="#L146">146</a>        o.pending_request=false; ++o.cancelled;</span>
+<span class="source-line" id="L147"><a class="line-no" href="#L147">147</a>        printf(&quot;{\&quot;event\&quot;:\&quot;RECOVERY_CANCELLED\&quot;,\&quot;pid\&quot;:%d,\&quot;old_epoch\&quot;:%&quot; PRIu64 &quot;,\&quot;new_epoch\&quot;:%&quot; PRIu64 &quot;,\&quot;requests_marked_error\&quot;:%&quot; PRIu64 &quot;,\&quot;old_maps_retained\&quot;:true}\n&quot;,getpid(),previous_epoch,o.epoch,o.cancelled);</span>
+<span class="source-line" id="L148"><a class="line-no" href="#L148">148</a>        m=stop; ++m.request_id; m.payload_len=0;</span>
+<span class="source-line" id="L149"><a class="line-no" href="#L149">149</a>        if (exchange(fd,&amp;m,LAB_HELLO,LAB_HELLO_REPLY,&amp;o)||!m.ready_gen||owner_retire(&amp;o)||</span>
+<span class="source-line" id="L150"><a class="line-no" href="#L150">150</a>            owner_configure(&amp;o,entries)||owner_freeze(&amp;o)) goto out;</span>
+<span class="source-line" id="L151"><a class="line-no" href="#L151">151</a>        ++m.request_id;</span>
+<span class="source-line" id="L152"><a class="line-no" href="#L152">152</a>        if (exchange(fd,&amp;m,LAB_READY,LAB_RUN,&amp;o)||owner_workload(&amp;o,requests)||owner_retired_unchanged(&amp;o)) goto out;</span>
+<span class="source-line" id="L153"><a class="line-no" href="#L153">153</a>    }</span>
+<span class="source-line" id="L154"><a class="line-no" href="#L154">154</a>    if (inspect&amp;&amp;owner_freeze(&amp;o)) goto out;</span>
+<span class="source-line" id="L155"><a class="line-no" href="#L155">155</a>    if (vfio_reset) {</span>
+<span class="source-line" id="L156"><a class="line-no" href="#L156">156</a>        ++m.request_id;</span>
+<span class="source-line" id="L157"><a class="line-no" href="#L157">157</a>        if (exchange(fd,&amp;m,LAB_STOPPED,LAB_RESET_NOTICE,&amp;o)||lab_get32(m.payload)!=1||owner_vfio_reset(&amp;o)) goto out;</span>
+<span class="source-line" id="L158"><a class="line-no" href="#L158">158</a>        m.epoch=o.epoch; m.session=o.session; m.payload_len=0; ++m.request_id;</span>
+<span class="source-line" id="L159"><a class="line-no" href="#L159">159</a>        if (exchange(fd,&amp;m,LAB_HELLO,LAB_HELLO_REPLY,&amp;o)||!m.ready_gen) goto out;</span>
+<span class="source-line" id="L160"><a class="line-no" href="#L160">160</a>        if (owner_unmap(&amp;o,true)||owner_configure(&amp;o,entries)||owner_freeze(&amp;o)) goto out;</span>
+<span class="source-line" id="L161"><a class="line-no" href="#L161">161</a>        ++m.request_id; m.payload_len=0;</span>
+<span class="source-line" id="L162"><a class="line-no" href="#L162">162</a>        if (exchange(fd,&amp;m,LAB_READY,LAB_RUN,&amp;o)||owner_workload(&amp;o,requests)||owner_freeze(&amp;o)) goto out;</span>
+<span class="source-line" id="L163"><a class="line-no" href="#L163">163</a>    }</span>
+<span class="source-line" id="L164"><a class="line-no" href="#L164">164</a>    ++m.request_id; m.type=LAB_STOPPED;</span>
+<span class="source-line" id="L165"><a class="line-no" href="#L165">165</a>    if (exchange(fd,&amp;m,LAB_STOPPED,LAB_STOP,inspect?&amp;o:NULL)) goto out;</span>
+<span class="source-line" id="L166"><a class="line-no" href="#L166">166</a>    stop=m;</span>
+<span class="source-line" id="L167"><a class="line-no" href="#L167">167</a>    if (stop.type!=LAB_STOP||stop.request_id!=m.request_id||</span>
+<span class="source-line" id="L168"><a class="line-no" href="#L168">168</a>        lab_tuple(&amp;stop,m.vf,m.session,m.epoch,m.lease_token,m.operation)||</span>
+<span class="source-line" id="L169"><a class="line-no" href="#L169">169</a>        !(lab_get32(stop.payload+4)&amp;TOY_HW_FLAGS_FENCED)||lab_get32(stop.payload+8)) { errno=EPROTO; goto out; }</span>
+<span class="source-line" id="L170"><a class="line-no" href="#L170">170</a>    uint64_t old_epoch=o.epoch;</span>
+<span class="source-line" id="L171"><a class="line-no" href="#L171">171</a>    uint32_t flags;</span>
+<span class="source-line" id="L172"><a class="line-no" href="#L172">172</a>    if (owner_latch(&amp;o,&amp;flags)||o.session!=m.session||o.epoch&lt;=old_epoch||!(flags&amp;TOY_HW_FLAGS_FENCED)) { errno=ESTALE; goto out; }</span>
+<span class="source-line" id="L173"><a class="line-no" href="#L173">173</a>    verified=true;</span>
+<span class="source-line" id="L174"><a class="line-no" href="#L174">174</a>    stage=3;</span>
+<span class="source-line" id="L175"><a class="line-no" href="#L175">175</a>    if (owner_close(&amp;o,true)) goto out;</span>
+<span class="source-line" id="L176"><a class="line-no" href="#L176">176</a>    stop.type=LAB_EXIT_ACK; memset(stop.payload,0,16);</span>
+<span class="source-line" id="L177"><a class="line-no" href="#L177">177</a>    if (lab_send(fd,&amp;stop,lab_now_ms()+LAB_TIMEOUT_MS)) goto out;</span>
+<span class="source-line" id="L178"><a class="line-no" href="#L178">178</a>    if (close(fd)) { fd=-1; goto out; }</span>
+<span class="source-line" id="L179"><a class="line-no" href="#L179">179</a>    fd=-1;</span>
+<span class="source-line" id="L180"><a class="line-no" href="#L180">180</a>    int final_fds=open_fds();</span>
+<span class="source-line" id="L181"><a class="line-no" href="#L181">181</a>    unsigned final_maps=0,final_buffers=0,final_events=0;</span>
+<span class="source-line" id="L182"><a class="line-no" href="#L182">182</a>    for (unsigned i=0;i&lt;OWNER_MAPS;i++) { final_maps+=o.maps[i].mapped; final_buffers+=o.maps[i].memory!=NULL; final_buffers+=o.held[i]!=NULL; final_buffers+=o.retired[i].memory!=NULL; final_buffers+=o.retired_guard[i]!=NULL; }</span>
+<span class="source-line" id="L183"><a class="line-no" href="#L183">183</a>    for (unsigned i=0;i&lt;2;i++) final_events+=o.eventfds[i]&gt;=0;</span>
+<span class="source-line" id="L184"><a class="line-no" href="#L184">184</a>    if (baseline&lt;3||final_fds!=baseline||final_maps||final_buffers||final_events||o.pending_request||</span>
+<span class="source-line" id="L185"><a class="line-no" href="#L185">185</a>        o.vfio.device&gt;=0||o.vfio.group&gt;=0||o.vfio.container&gt;=0) { errno=EBUSY; goto out; }</span>
+<span class="source-line" id="L186"><a class="line-no" href="#L186">186</a>    printf(&quot;{\&quot;event\&quot;:\&quot;OWNER_EXIT\&quot;,\&quot;pid\&quot;:%d,\&quot;vf\&quot;:%u,\&quot;fds\&quot;:%d,\&quot;baseline_fds\&quot;:%d,\&quot;final_fds\&quot;:%d,\&quot;maps\&quot;:%u,\&quot;eventfds\&quot;:%u,\&quot;buffers\&quot;:%u}\n&quot;,getpid(),m.vf,final_fds-baseline,baseline,final_fds,final_maps,final_events,final_buffers);</span>
+<span class="source-line" id="L187"><a class="line-no" href="#L187">187</a>    ret=0;</span>
+<span class="source-line" id="L188"><a class="line-no" href="#L188">188</a>out:</span>
+<span class="source-line" id="L189"><a class="line-no" href="#L189">189</a>    saved=errno;</span>
+<span class="source-line" id="L190"><a class="line-no" href="#L190">190</a>    if (ret) {</span>
+<span class="source-line" id="L191"><a class="line-no" href="#L191">191</a>        fprintf(stderr,&quot;TENANT_ERROR vf=%u errno=%d message=%s\n&quot;,m.vf,saved,strerror(saved));</span>
+<span class="source-line" id="L192"><a class="line-no" href="#L192">192</a>        if (fd&gt;=0&amp;&amp;m.request_id&amp;&amp;m.lease_token) {</span>
+<span class="source-line" id="L193"><a class="line-no" href="#L193">193</a>            m.type=LAB_ERROR; ++m.request_id; m.payload_len=8;</span>
+<span class="source-line" id="L194"><a class="line-no" href="#L194">194</a>            lab_put32(m.payload,saved&gt;0&amp;&amp;saved&lt;4096?(unsigned)saved:EIO); lab_put32(m.payload+4,stage);</span>
+<span class="source-line" id="L195"><a class="line-no" href="#L195">195</a>            int sent=lab_send(fd,&amp;m,lab_now_ms()+1000);</span>
+<span class="source-line" id="L196"><a class="line-no" href="#L196">196</a>            /* 配置失敗時先等管理者 fence，再解除任何 DMA 映射。 */</span>
+<span class="source-line" id="L197"><a class="line-no" href="#L197">197</a>            if (!sent&amp;&amp;!verified&amp;&amp;o.vfio.device&gt;=0) {</span>
+<span class="source-line" id="L198"><a class="line-no" href="#L198">198</a>                uint64_t error_epoch=o.epoch;</span>
+<span class="source-line" id="L199"><a class="line-no" href="#L199">199</a>                uint32_t error_flags;</span>
+<span class="source-line" id="L200"><a class="line-no" href="#L200">200</a>                if (!lab_recv(fd,&amp;stop,lab_now_ms()+LAB_TIMEOUT_MS)&amp;&amp;stop.type==LAB_STOP&amp;&amp;</span>
+<span class="source-line" id="L201"><a class="line-no" href="#L201">201</a>                    stop.request_id==m.request_id&amp;&amp;!lab_tuple(&amp;stop,m.vf,m.session,m.epoch,m.lease_token,m.operation)&amp;&amp;</span>
+<span class="source-line" id="L202"><a class="line-no" href="#L202">202</a>                    (lab_get32(stop.payload+4)&amp;TOY_HW_FLAGS_FENCED)&amp;&amp;!lab_get32(stop.payload+8)&amp;&amp;</span>
+<span class="source-line" id="L203"><a class="line-no" href="#L203">203</a>                    !owner_latch(&amp;o,&amp;error_flags)&amp;&amp;o.session==m.session&amp;&amp;o.epoch&gt;error_epoch&amp;&amp;(error_flags&amp;TOY_HW_FLAGS_FENCED)) verified=true;</span>
+<span class="source-line" id="L204"><a class="line-no" href="#L204">204</a>            }</span>
+<span class="source-line" id="L205"><a class="line-no" href="#L205">205</a>        }</span>
+<span class="source-line" id="L206"><a class="line-no" href="#L206">206</a>    }</span>
+<span class="source-line" id="L207"><a class="line-no" href="#L207">207</a>    if (owner_close(&amp;o,verified)) ret=1;</span>
+<span class="source-line" id="L208"><a class="line-no" href="#L208">208</a>    if (fd&gt;=0) close(fd);</span>
+<span class="source-line" id="L209"><a class="line-no" href="#L209">209</a>    if (o.failpoint[0]) {</span>
+<span class="source-line" id="L210"><a class="line-no" href="#L210">210</a>        unsigned maps=0,buffers=0,eventfds=0;</span>
+<span class="source-line" id="L211"><a class="line-no" href="#L211">211</a>        for (unsigned i=0;i&lt;OWNER_MAPS;i++) { maps+=o.maps[i].mapped; buffers+=o.maps[i].memory!=NULL; buffers+=o.held[i]!=NULL; }</span>
+<span class="source-line" id="L212"><a class="line-no" href="#L212">212</a>        for (unsigned i=0;i&lt;2;i++) eventfds+=o.eventfds[i]&gt;=0;</span>
+<span class="source-line" id="L213"><a class="line-no" href="#L213">213</a>        int final=open_fds();</span>
+<span class="source-line" id="L214"><a class="line-no" href="#L214">214</a>        bool clean=ret&amp;&amp;verified&amp;&amp;o.fail_fired&amp;&amp;baseline&gt;=3&amp;&amp;final==baseline&amp;&amp;!maps&amp;&amp;!buffers&amp;&amp;!eventfds&amp;&amp;</span>
+<span class="source-line" id="L215"><a class="line-no" href="#L215">215</a>                   o.vfio.device&lt;0&amp;&amp;o.vfio.group&lt;0&amp;&amp;o.vfio.container&lt;0;</span>
+<span class="source-line" id="L216"><a class="line-no" href="#L216">216</a>        printf(&quot;{\&quot;event\&quot;:\&quot;OWNER_FAILURE_CLEANUP\&quot;,\&quot;pid\&quot;:%d,\&quot;name\&quot;:\&quot;%s\&quot;,\&quot;hit\&quot;:%u,\&quot;fired\&quot;:%s,\&quot;fence_verified\&quot;:%s,\&quot;stage\&quot;:%u,\&quot;baseline_fds\&quot;:%d,\&quot;final_fds\&quot;:%d,\&quot;maps\&quot;:%u,\&quot;buffers\&quot;:%u,\&quot;eventfds\&quot;:%u,\&quot;status\&quot;:\&quot;%s\&quot;}\n&quot;,getpid(),o.failpoint,o.fail_hit,o.fail_fired?&quot;true&quot;:&quot;false&quot;,verified?&quot;true&quot;:&quot;false&quot;,stage,baseline,final,maps,buffers,eventfds,clean?&quot;PASS&quot;:&quot;FAIL&quot;);</span>
+<span class="source-line" id="L217"><a class="line-no" href="#L217">217</a>        ret=clean?42:1;</span>
+<span class="source-line" id="L218"><a class="line-no" href="#L218">218</a>    }</span>
+<span class="source-line" id="L219"><a class="line-no" href="#L219">219</a>    return ret;</span>
+<span class="source-line" id="L220"><a class="line-no" href="#L220">220</a>}</span></pre></main></html>

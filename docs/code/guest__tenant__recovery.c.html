@@ -1,0 +1,87 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>guest/tenant/recovery.c</title><style>
+:root{color-scheme:light;--ink:#18293c;--blue:#184d83;--line:#ced9e4;--muted:#526477}
+*{box-sizing:border-box}body{margin:0;background:#f2f5f8;color:var(--ink);font:17px/1.8 system-ui,'Microsoft JhengHei',sans-serif}
+a{color:var(--blue);overflow-wrap:anywhere}header{background:#102e4d;color:#fff;padding:48px max(24px,calc((100vw - 1100px)/2))}
+header p{max-width:850px}header a{color:#b8dcff}.label{letter-spacing:.15em;font-size:13px;color:#b8dcff}
+.layout{max-width:1420px;margin:auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:32px;padding:30px}
+nav{position:sticky;top:20px;align-self:start;max-height:95vh;overflow:auto;font-size:14px}nav a{display:block;margin:12px 0}
+main{min-width:0;background:white;padding:36px 44px;border:1px solid var(--line);border-radius:12px}
+h1{font-size:2rem;line-height:1.35}h2{font-size:1.5rem;margin-top:2em;border-bottom:1px solid var(--line);padding-bottom:10px}h3{font-size:1.1rem}
+p{max-width:95ch}section+section{margin-top:80px;border-top:4px solid var(--blue);padding-top:26px}
+pre{overflow:auto;background:#112c45;color:#eaf3fa;padding:20px;border-radius:8px;font-size:14px;line-height:1.6}
+code{font-family:Consolas,monospace;font-size:.88em}p code,li code,td code{background:#edf3f8;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}
+.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;margin:20px 0;font-size:15px}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf1f8}
+img,svg{max-width:100%;height:auto}.diagram{overflow:auto;margin:20px 0}.diagram svg{min-width:900px;width:100%;display:block}blockquote,.notice{border-left:5px solid #c4841b;background:#fff5df;padding:16px 20px;margin:24px 0}.muted{color:var(--muted)}
+.source-line{display:block;white-space:pre}.source-line:target{background:#355b79}.line-no{display:inline-block;width:5em;color:#9db8ce;text-decoration:none;user-select:none}
+@media(max-width:850px){.layout{display:block;padding:14px}nav{position:static;max-height:none}main{padding:24px 18px}header{padding:30px 20px}h1{font-size:1.65rem}}
+@media print{body{background:white;font-size:11pt}header{color:#18293c;background:white;padding:0}nav{display:none}.layout{display:block;padding:0}main{border:0;padding:0}section{break-before:page}pre{white-space:pre-wrap}a{color:inherit}}
+</style><main><a href="../handbook.html">回教材</a><h1>guest/tenant/recovery.c</h1><p>SHA256 <code>25f1f04bab21e5388135569d292a9abb99d4696b5bb1c7388dce97021c5f77e2</code></p><pre><span class="source-line" id="L1"><a class="line-no" href="#L1">1</a>/* Reset 測試的 owner 端：建立真正未完成的 SQ，並保留已撤映射的舊 allocation 供 guard 比對。 */</span>
+<span class="source-line" id="L2"><a class="line-no" href="#L2">2</a>#include &quot;owner.h&quot;</span>
+<span class="source-line" id="L3"><a class="line-no" href="#L3">3</a>#include &quot;../common/lab_wire.h&quot;</span>
+<span class="source-line" id="L4"><a class="line-no" href="#L4">4</a>#include &quot;../common/lab_ring.h&quot;</span>
+<span class="source-line" id="L5"><a class="line-no" href="#L5">5</a>#include &quot;toy_regs.h&quot;</span>
+<span class="source-line" id="L6"><a class="line-no" href="#L6">6</a>#include &lt;errno.h&gt;</span>
+<span class="source-line" id="L7"><a class="line-no" href="#L7">7</a>#include &lt;inttypes.h&gt;</span>
+<span class="source-line" id="L8"><a class="line-no" href="#L8">8</a>#include &lt;stdio.h&gt;</span>
+<span class="source-line" id="L9"><a class="line-no" href="#L9">9</a>#include &lt;string.h&gt;</span>
+<span class="source-line" id="L10"><a class="line-no" href="#L10">10</a>#include &lt;unistd.h&gt;</span>
+<span class="source-line" id="L11"><a class="line-no" href="#L11">11</a></span>
+<span class="source-line" id="L12"><a class="line-no" href="#L12">12</a>/* SQ_HEAD 必須前進而 CQ_TAIL 不變，才能證明 descriptor 已被取走且尚未完成。 */</span>
+<span class="source-line" id="L13"><a class="line-no" href="#L13">13</a>int owner_submit_pending(struct owner *o)</span>
+<span class="source-line" id="L14"><a class="line-no" href="#L14">14</a>{</span>
+<span class="source-line" id="L15"><a class="line-no" href="#L15">15</a>    if (o-&gt;pending_request) { errno=EBUSY; return -1; }</span>
+<span class="source-line" id="L16"><a class="line-no" href="#L16">16</a>    uint32_t index=lab_ring_index(o-&gt;sq_tail,o-&gt;entries),head,tail,digests[OWNER_MAPS];</span>
+<span class="source-line" id="L17"><a class="line-no" href="#L17">17</a>    unsigned char *sq=(unsigned char *)o-&gt;maps[OWNER_SQ].memory+index*32;</span>
+<span class="source-line" id="L18"><a class="line-no" href="#L18">18</a>    if (owner_freeze(o)) return -1;</span>
+<span class="source-line" id="L19"><a class="line-no" href="#L19">19</a>    memset(sq,0,32); lab_put64(sq,o-&gt;maps[OWNER_PAYLOAD].iova);</span>
+<span class="source-line" id="L20"><a class="line-no" href="#L20">20</a>    lab_put32(sq+8,8); sq[12]=TOY_SQ_OPS_FILL; lab_put16(sq+14,0x708);</span>
+<span class="source-line" id="L21"><a class="line-no" href="#L21">21</a>    lab_put64(sq+16,o-&gt;epoch); lab_put64(sq+24,0x79);</span>
+<span class="source-line" id="L22"><a class="line-no" href="#L22">22</a>    char hex[65]; static const char digits[]=&quot;0123456789abcdef&quot;;</span>
+<span class="source-line" id="L23"><a class="line-no" href="#L23">23</a>    for (unsigned i=0;i&lt;32;i++) { hex[2*i]=digits[sq[i]&gt;&gt;4]; hex[2*i+1]=digits[sq[i]&amp;15]; }</span>
+<span class="source-line" id="L24"><a class="line-no" href="#L24">24</a>    hex[64]=0; ++o-&gt;sq_tail;</span>
+<span class="source-line" id="L25"><a class="line-no" href="#L25">25</a>    if (owner_write32(o,TOY_VF_SQ_TAIL,o-&gt;sq_tail)||owner_write32(o,TOY_VF_DOORBELL,1)) return -1;</span>
+<span class="source-line" id="L26"><a class="line-no" href="#L26">26</a>    int64_t deadline=lab_now_ms()+LAB_TIMEOUT_MS;</span>
+<span class="source-line" id="L27"><a class="line-no" href="#L27">27</a>    for (;;) {</span>
+<span class="source-line" id="L28"><a class="line-no" href="#L28">28</a>        if (owner_read32(o,TOY_VF_SQ_HEAD,&amp;head)||owner_read32(o,TOY_VF_CQ_TAIL,&amp;tail)) return -1;</span>
+<span class="source-line" id="L29"><a class="line-no" href="#L29">29</a>        if (tail!=o-&gt;cq_head) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L30"><a class="line-no" href="#L30">30</a>        if (head==o-&gt;sq_tail) break;</span>
+<span class="source-line" id="L31"><a class="line-no" href="#L31">31</a>        if (lab_now_ms()&gt;=deadline) { errno=ETIMEDOUT; return -1; }</span>
+<span class="source-line" id="L32"><a class="line-no" href="#L32">32</a>        usleep(1000);</span>
+<span class="source-line" id="L33"><a class="line-no" href="#L33">33</a>    }</span>
+<span class="source-line" id="L34"><a class="line-no" href="#L34">34</a>    for (unsigned i=OWNER_CQ;i&lt;OWNER_MAPS;i++)</span>
+<span class="source-line" id="L35"><a class="line-no" href="#L35">35</a>        if (memcmp(o-&gt;held[i],o-&gt;maps[i].memory,o-&gt;maps[i].size)) { errno=EILSEQ; return -1; }</span>
+<span class="source-line" id="L36"><a class="line-no" href="#L36">36</a>    if (owner_freeze(o)||owner_unchanged(o,digests)) return -1;</span>
+<span class="source-line" id="L37"><a class="line-no" href="#L37">37</a>    o-&gt;pending_request=true; o-&gt;pending_epoch=o-&gt;epoch;</span>
+<span class="source-line" id="L38"><a class="line-no" href="#L38">38</a>    printf(&quot;{\&quot;event\&quot;:\&quot;RECOVERY_PENDING\&quot;,\&quot;case\&quot;:%u,\&quot;pid\&quot;:%d,\&quot;epoch\&quot;:%&quot; PRIu64 &quot;,\&quot;session\&quot;:%&quot; PRIu64 &quot;,\&quot;sq_head\&quot;:%u,\&quot;cq_tail\&quot;:%u,\&quot;completed\&quot;:%&quot; PRIu64 &quot;,\&quot;descriptor_hex\&quot;:\&quot;%s\&quot;,\&quot;payload_unchanged\&quot;:true,\&quot;cq_unchanged\&quot;:true}\n&quot;,o-&gt;recovery_case,getpid(),o-&gt;epoch,o-&gt;session,head,tail,o-&gt;completed,hex);</span>
+<span class="source-line" id="L39"><a class="line-no" href="#L39">39</a>    return 0;</span>
+<span class="source-line" id="L40"><a class="line-no" href="#L40">40</a>}</span>
+<span class="source-line" id="L41"><a class="line-no" href="#L41">41</a></span>
+<span class="source-line" id="L42"><a class="line-no" href="#L42">42</a>/* 管理端已完成 fence/reset 握手才可呼叫；keep_unmapped 只保留 CPU 記憶體，不保留 IOMMU mapping。 */</span>
+<span class="source-line" id="L43"><a class="line-no" href="#L43">43</a>int owner_retire(struct owner *o)</span>
+<span class="source-line" id="L44"><a class="line-no" href="#L44">44</a>{</span>
+<span class="source-line" id="L45"><a class="line-no" href="#L45">45</a>    for (unsigned i=0;i&lt;OWNER_MAPS;i++)</span>
+<span class="source-line" id="L46"><a class="line-no" href="#L46">46</a>        if (o-&gt;retired[i].memory||!o-&gt;maps[i].memory||!o-&gt;held[i]) { errno=EBUSY; return -1; }</span>
+<span class="source-line" id="L47"><a class="line-no" href="#L47">47</a>    /* 舊 IOVA 精確解除後仍保留 CPU allocations，供真實 stale callback 前後比對。 */</span>
+<span class="source-line" id="L48"><a class="line-no" href="#L48">48</a>    o-&gt;keep_unmapped=true;</span>
+<span class="source-line" id="L49"><a class="line-no" href="#L49">49</a>    int rc=owner_unmap(o,true);</span>
+<span class="source-line" id="L50"><a class="line-no" href="#L50">50</a>    o-&gt;keep_unmapped=false;</span>
+<span class="source-line" id="L51"><a class="line-no" href="#L51">51</a>    if (rc) return -1;</span>
+<span class="source-line" id="L52"><a class="line-no" href="#L52">52</a>    for (unsigned i=0;i&lt;OWNER_MAPS;i++) {</span>
+<span class="source-line" id="L53"><a class="line-no" href="#L53">53</a>        o-&gt;retired[i]=o-&gt;maps[i]; o-&gt;retired_guard[i]=o-&gt;held[i];</span>
+<span class="source-line" id="L54"><a class="line-no" href="#L54">54</a>        memset(&amp;o-&gt;maps[i],0,sizeof(o-&gt;maps[i])); o-&gt;held[i]=NULL;</span>
+<span class="source-line" id="L55"><a class="line-no" href="#L55">55</a>        printf(&quot;{\&quot;event\&quot;:\&quot;OWNER_RETIRED\&quot;,\&quot;pid\&quot;:%d,\&quot;kind\&quot;:%u,\&quot;iova\&quot;:%&quot; PRIu64 &quot;,\&quot;bytes\&quot;:%zu,\&quot;vaddr\&quot;:%&quot; PRIuPTR &quot;,\&quot;mapped\&quot;:false}\n&quot;,getpid(),i,o-&gt;retired[i].iova,o-&gt;retired[i].size,(uintptr_t)o-&gt;retired[i].memory);</span>
+<span class="source-line" id="L56"><a class="line-no" href="#L56">56</a>    }</span>
+<span class="source-line" id="L57"><a class="line-no" href="#L57">57</a>    return owner_retired_unchanged(o);</span>
+<span class="source-line" id="L58"><a class="line-no" href="#L58">58</a>}</span>
+<span class="source-line" id="L59"><a class="line-no" href="#L59">59</a></span>
+<span class="source-line" id="L60"><a class="line-no" href="#L60">60</a>int owner_retired_unchanged(struct owner *o)</span>
+<span class="source-line" id="L61"><a class="line-no" href="#L61">61</a>{</span>
+<span class="source-line" id="L62"><a class="line-no" href="#L62">62</a>    for (unsigned i=0;i&lt;OWNER_MAPS;i++) {</span>
+<span class="source-line" id="L63"><a class="line-no" href="#L63">63</a>        const struct owner_map *old=&amp;o-&gt;retired[i];</span>
+<span class="source-line" id="L64"><a class="line-no" href="#L64">64</a>        if (!old-&gt;memory) continue;</span>
+<span class="source-line" id="L65"><a class="line-no" href="#L65">65</a>        if (old-&gt;mapped||!o-&gt;retired_guard[i]||memcmp(old-&gt;memory,o-&gt;retired_guard[i],old-&gt;size)||</span>
+<span class="source-line" id="L66"><a class="line-no" href="#L66">66</a>            old-&gt;memory==o-&gt;maps[i].memory) { errno=EILSEQ; return -1; }</span>
+<span class="source-line" id="L67"><a class="line-no" href="#L67">67</a>        printf(&quot;{\&quot;event\&quot;:\&quot;OWNER_RETIRED_CHECK\&quot;,\&quot;pid\&quot;:%d,\&quot;kind\&quot;:%u,\&quot;bytes\&quot;:%zu,\&quot;crc\&quot;:%u,\&quot;bytewise_unchanged\&quot;:true,\&quot;mapped\&quot;:false}\n&quot;,getpid(),i,old-&gt;size,lab_crc32(old-&gt;memory,old-&gt;size));</span>
+<span class="source-line" id="L68"><a class="line-no" href="#L68">68</a>    }</span>
+<span class="source-line" id="L69"><a class="line-no" href="#L69">69</a>    return 0;</span>
+<span class="source-line" id="L70"><a class="line-no" href="#L70">70</a>}</span></pre></main></html>

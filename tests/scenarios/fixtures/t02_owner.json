@@ -1,0 +1,5754 @@
+{
+  "provenance": {
+    "path": "artifacts/m3-case/20261012T010016Z-jjt0qoku",
+    "result_sha256": "f03433c4b273bb27ba727b117c5a2d1e6e59056a31297e3506824ed9d57effd8"
+  },
+  "cases": {
+    "T02_OWNER": {
+      "event": "M3_CASE",
+      "id": "T02_OWNER",
+      "status": "PASS",
+      "variants": 15,
+      "clean_retries": 15,
+      "partial_pci_enumeration": "NOT_RUN"
+    }
+  },
+  "events": [
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 1,
+      "name": "owner.alloc_buffer",
+      "hit": 1,
+      "clean_retry": false
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-56/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 3,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 59,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_FAILPOINT_HIT",
+      "name": "owner.alloc_buffer",
+      "hit": 1
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 5,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_FAILURE_CLEANUP",
+      "pid": 59,
+      "name": "owner.alloc_buffer",
+      "hit": 1,
+      "fired": true,
+      "fence_verified": true,
+      "stage": 1,
+      "baseline_fds": 3,
+      "final_fds": 3,
+      "maps": 0,
+      "buffers": 0,
+      "eventfds": 0,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_REAP",
+      "pid": 59,
+      "exit_code": 42,
+      "stage": 1
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 6,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "owner.alloc_buffer",
+      "hit": 1,
+      "pid": 59,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 1,
+      "name": "owner.alloc_buffer",
+      "hit": 1,
+      "clean_retry": true
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-60/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 10,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 61,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 61,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 61,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 61,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 7,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 11,
+      "state": 2,
+      "flags": 28,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_WORKLOAD",
+      "pid": 61,
+      "bdf": "0000:01:00.1",
+      "entries": 16,
+      "completed": 4096,
+      "sq_tail": 4096,
+      "cq_head": 4096,
+      "irq_wakes": 256,
+      "irq_count": 256,
+      "payload_crc": 3515606758,
+      "fixed_crc": 3421780262
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 12,
+      "state": 2,
+      "flags": 29,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 61,
+      "kind": 2,
+      "requested": 131072,
+      "returned": 131072
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 61,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 61,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_EXIT",
+      "pid": 61,
+      "vf": 0,
+      "fds": 0,
+      "maps": 0,
+      "eventfds": 0,
+      "buffers": 0
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 4,
+      "errno": 0,
+      "session": 2,
+      "epoch": 13,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "",
+      "hit": 1,
+      "pid": 61,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 2,
+      "name": "owner.alloc_buffer",
+      "hit": 2,
+      "clean_retry": false
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-62/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 17,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 63,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 63,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_FAILPOINT_HIT",
+      "name": "owner.alloc_buffer",
+      "hit": 2
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 19,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 63,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_FAILURE_CLEANUP",
+      "pid": 63,
+      "name": "owner.alloc_buffer",
+      "hit": 2,
+      "fired": true,
+      "fence_verified": true,
+      "stage": 1,
+      "baseline_fds": 3,
+      "final_fds": 3,
+      "maps": 0,
+      "buffers": 0,
+      "eventfds": 0,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_REAP",
+      "pid": 63,
+      "exit_code": 42,
+      "stage": 1
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 20,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "owner.alloc_buffer",
+      "hit": 2,
+      "pid": 63,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 2,
+      "name": "owner.alloc_buffer",
+      "hit": 2,
+      "clean_retry": true
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-64/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 24,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 65,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 65,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 65,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 65,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 7,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 25,
+      "state": 2,
+      "flags": 28,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_WORKLOAD",
+      "pid": 65,
+      "bdf": "0000:01:00.1",
+      "entries": 16,
+      "completed": 4096,
+      "sq_tail": 4096,
+      "cq_head": 4096,
+      "irq_wakes": 256,
+      "irq_count": 256,
+      "payload_crc": 3515606758,
+      "fixed_crc": 3421780262
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 26,
+      "state": 2,
+      "flags": 29,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 65,
+      "kind": 2,
+      "requested": 131072,
+      "returned": 131072
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 65,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 65,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_EXIT",
+      "pid": 65,
+      "vf": 0,
+      "fds": 0,
+      "maps": 0,
+      "eventfds": 0,
+      "buffers": 0
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 4,
+      "errno": 0,
+      "session": 2,
+      "epoch": 27,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "",
+      "hit": 1,
+      "pid": 65,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 3,
+      "name": "owner.alloc_buffer",
+      "hit": 3,
+      "clean_retry": false
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-66/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 31,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 67,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 67,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 67,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_FAILPOINT_HIT",
+      "name": "owner.alloc_buffer",
+      "hit": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 33,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 67,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 67,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_FAILURE_CLEANUP",
+      "pid": 67,
+      "name": "owner.alloc_buffer",
+      "hit": 3,
+      "fired": true,
+      "fence_verified": true,
+      "stage": 1,
+      "baseline_fds": 3,
+      "final_fds": 3,
+      "maps": 0,
+      "buffers": 0,
+      "eventfds": 0,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_REAP",
+      "pid": 67,
+      "exit_code": 42,
+      "stage": 1
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 34,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "owner.alloc_buffer",
+      "hit": 3,
+      "pid": 67,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 3,
+      "name": "owner.alloc_buffer",
+      "hit": 3,
+      "clean_retry": true
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-68/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 38,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 69,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 69,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 69,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 69,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 7,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 39,
+      "state": 2,
+      "flags": 28,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_WORKLOAD",
+      "pid": 69,
+      "bdf": "0000:01:00.1",
+      "entries": 16,
+      "completed": 4096,
+      "sq_tail": 4096,
+      "cq_head": 4096,
+      "irq_wakes": 256,
+      "irq_count": 256,
+      "payload_crc": 3515606758,
+      "fixed_crc": 3421780262
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 40,
+      "state": 2,
+      "flags": 29,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 69,
+      "kind": 2,
+      "requested": 131072,
+      "returned": 131072
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 69,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 69,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_EXIT",
+      "pid": 69,
+      "vf": 0,
+      "fds": 0,
+      "maps": 0,
+      "eventfds": 0,
+      "buffers": 0
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 4,
+      "errno": 0,
+      "session": 2,
+      "epoch": 41,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "",
+      "hit": 1,
+      "pid": 69,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 4,
+      "name": "owner.map_sq",
+      "hit": 1,
+      "clean_retry": false
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-70/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 45,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 71,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_FAILPOINT_HIT",
+      "name": "owner.map_sq",
+      "hit": 1
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 47,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_FAILURE_CLEANUP",
+      "pid": 71,
+      "name": "owner.map_sq",
+      "hit": 1,
+      "fired": true,
+      "fence_verified": true,
+      "stage": 1,
+      "baseline_fds": 3,
+      "final_fds": 3,
+      "maps": 0,
+      "buffers": 0,
+      "eventfds": 0,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_REAP",
+      "pid": 71,
+      "exit_code": 42,
+      "stage": 1
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 48,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "owner.map_sq",
+      "hit": 1,
+      "pid": 71,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 4,
+      "name": "owner.map_sq",
+      "hit": 1,
+      "clean_retry": true
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-72/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 52,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 73,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 73,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 73,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 73,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 7,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 53,
+      "state": 2,
+      "flags": 28,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_WORKLOAD",
+      "pid": 73,
+      "bdf": "0000:01:00.1",
+      "entries": 16,
+      "completed": 4096,
+      "sq_tail": 4096,
+      "cq_head": 4096,
+      "irq_wakes": 256,
+      "irq_count": 256,
+      "payload_crc": 3515606758,
+      "fixed_crc": 3421780262
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 54,
+      "state": 2,
+      "flags": 29,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 73,
+      "kind": 2,
+      "requested": 131072,
+      "returned": 131072
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 73,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 73,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_EXIT",
+      "pid": 73,
+      "vf": 0,
+      "fds": 0,
+      "maps": 0,
+      "eventfds": 0,
+      "buffers": 0
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 4,
+      "errno": 0,
+      "session": 2,
+      "epoch": 55,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "",
+      "hit": 1,
+      "pid": 73,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 5,
+      "name": "owner.map_cq",
+      "hit": 1,
+      "clean_retry": false
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-74/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 59,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 75,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 75,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_FAILPOINT_HIT",
+      "name": "owner.map_cq",
+      "hit": 1
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 61,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 75,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_FAILURE_CLEANUP",
+      "pid": 75,
+      "name": "owner.map_cq",
+      "hit": 1,
+      "fired": true,
+      "fence_verified": true,
+      "stage": 1,
+      "baseline_fds": 3,
+      "final_fds": 3,
+      "maps": 0,
+      "buffers": 0,
+      "eventfds": 0,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_REAP",
+      "pid": 75,
+      "exit_code": 42,
+      "stage": 1
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 62,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "owner.map_cq",
+      "hit": 1,
+      "pid": 75,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 5,
+      "name": "owner.map_cq",
+      "hit": 1,
+      "clean_retry": true
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-76/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 66,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 77,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 77,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 77,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 77,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 7,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 67,
+      "state": 2,
+      "flags": 28,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_WORKLOAD",
+      "pid": 77,
+      "bdf": "0000:01:00.1",
+      "entries": 16,
+      "completed": 4096,
+      "sq_tail": 4096,
+      "cq_head": 4096,
+      "irq_wakes": 256,
+      "irq_count": 256,
+      "payload_crc": 3515606758,
+      "fixed_crc": 3421780262
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 68,
+      "state": 2,
+      "flags": 29,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 77,
+      "kind": 2,
+      "requested": 131072,
+      "returned": 131072
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 77,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 77,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_EXIT",
+      "pid": 77,
+      "vf": 0,
+      "fds": 0,
+      "maps": 0,
+      "eventfds": 0,
+      "buffers": 0
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 4,
+      "errno": 0,
+      "session": 2,
+      "epoch": 69,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "",
+      "hit": 1,
+      "pid": 77,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 6,
+      "name": "owner.map_payload",
+      "hit": 1,
+      "clean_retry": false
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-78/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 73,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 79,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 79,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 79,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_FAILPOINT_HIT",
+      "name": "owner.map_payload",
+      "hit": 1
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 75,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 79,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 79,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_FAILURE_CLEANUP",
+      "pid": 79,
+      "name": "owner.map_payload",
+      "hit": 1,
+      "fired": true,
+      "fence_verified": true,
+      "stage": 1,
+      "baseline_fds": 3,
+      "final_fds": 3,
+      "maps": 0,
+      "buffers": 0,
+      "eventfds": 0,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_REAP",
+      "pid": 79,
+      "exit_code": 42,
+      "stage": 1
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 76,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "owner.map_payload",
+      "hit": 1,
+      "pid": 79,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 6,
+      "name": "owner.map_payload",
+      "hit": 1,
+      "clean_retry": true
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-80/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 80,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 81,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 81,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 81,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 81,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 7,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 81,
+      "state": 2,
+      "flags": 28,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_WORKLOAD",
+      "pid": 81,
+      "bdf": "0000:01:00.1",
+      "entries": 16,
+      "completed": 4096,
+      "sq_tail": 4096,
+      "cq_head": 4096,
+      "irq_wakes": 256,
+      "irq_count": 256,
+      "payload_crc": 3515606758,
+      "fixed_crc": 3421780262
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 82,
+      "state": 2,
+      "flags": 29,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 81,
+      "kind": 2,
+      "requested": 131072,
+      "returned": 131072
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 81,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 81,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_EXIT",
+      "pid": 81,
+      "vf": 0,
+      "fds": 0,
+      "maps": 0,
+      "eventfds": 0,
+      "buffers": 0
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 4,
+      "errno": 0,
+      "session": 2,
+      "epoch": 83,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "",
+      "hit": 1,
+      "pid": 81,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 7,
+      "name": "owner.eventfd",
+      "hit": 1,
+      "clean_retry": false
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-82/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 87,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 83,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 83,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 83,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 83,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "OWNER_FAILPOINT_HIT",
+      "name": "owner.eventfd",
+      "hit": 1
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 89,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 83,
+      "kind": 2,
+      "requested": 131072,
+      "returned": 131072
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 83,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 83,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_FAILURE_CLEANUP",
+      "pid": 83,
+      "name": "owner.eventfd",
+      "hit": 1,
+      "fired": true,
+      "fence_verified": true,
+      "stage": 1,
+      "baseline_fds": 3,
+      "final_fds": 3,
+      "maps": 0,
+      "buffers": 0,
+      "eventfds": 0,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_REAP",
+      "pid": 83,
+      "exit_code": 42,
+      "stage": 1
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 90,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "owner.eventfd",
+      "hit": 1,
+      "pid": 83,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 7,
+      "name": "owner.eventfd",
+      "hit": 1,
+      "clean_retry": true
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-84/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 94,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 85,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 85,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 85,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 85,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 7,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 95,
+      "state": 2,
+      "flags": 28,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_WORKLOAD",
+      "pid": 85,
+      "bdf": "0000:01:00.1",
+      "entries": 16,
+      "completed": 4096,
+      "sq_tail": 4096,
+      "cq_head": 4096,
+      "irq_wakes": 256,
+      "irq_count": 256,
+      "payload_crc": 3515606758,
+      "fixed_crc": 3421780262
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 96,
+      "state": 2,
+      "flags": 29,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 85,
+      "kind": 2,
+      "requested": 131072,
+      "returned": 131072
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 85,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 85,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_EXIT",
+      "pid": 85,
+      "vf": 0,
+      "fds": 0,
+      "maps": 0,
+      "eventfds": 0,
+      "buffers": 0
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 4,
+      "errno": 0,
+      "session": 2,
+      "epoch": 97,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "",
+      "hit": 1,
+      "pid": 85,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 8,
+      "name": "owner.eventfd",
+      "hit": 2,
+      "clean_retry": false
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-86/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 101,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 87,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 87,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 87,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 87,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "OWNER_FAILPOINT_HIT",
+      "name": "owner.eventfd",
+      "hit": 2
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 103,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 87,
+      "kind": 2,
+      "requested": 131072,
+      "returned": 131072
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 87,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 87,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_FAILURE_CLEANUP",
+      "pid": 87,
+      "name": "owner.eventfd",
+      "hit": 2,
+      "fired": true,
+      "fence_verified": true,
+      "stage": 1,
+      "baseline_fds": 3,
+      "final_fds": 3,
+      "maps": 0,
+      "buffers": 0,
+      "eventfds": 0,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_REAP",
+      "pid": 87,
+      "exit_code": 42,
+      "stage": 1
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 104,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "owner.eventfd",
+      "hit": 2,
+      "pid": 87,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 8,
+      "name": "owner.eventfd",
+      "hit": 2,
+      "clean_retry": true
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-88/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 108,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 89,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 89,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 89,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 89,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 7,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 109,
+      "state": 2,
+      "flags": 28,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_WORKLOAD",
+      "pid": 89,
+      "bdf": "0000:01:00.1",
+      "entries": 16,
+      "completed": 4096,
+      "sq_tail": 4096,
+      "cq_head": 4096,
+      "irq_wakes": 256,
+      "irq_count": 256,
+      "payload_crc": 3515606758,
+      "fixed_crc": 3421780262
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 110,
+      "state": 2,
+      "flags": 29,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 89,
+      "kind": 2,
+      "requested": 131072,
+      "returned": 131072
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 89,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 89,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_EXIT",
+      "pid": 89,
+      "vf": 0,
+      "fds": 0,
+      "maps": 0,
+      "eventfds": 0,
+      "buffers": 0
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 4,
+      "errno": 0,
+      "session": 2,
+      "epoch": 111,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "",
+      "hit": 1,
+      "pid": 89,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 9,
+      "name": "owner.irq_register",
+      "hit": 1,
+      "clean_retry": false
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-90/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 115,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 91,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 91,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 91,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 91,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "OWNER_FAILPOINT_HIT",
+      "name": "owner.irq_register",
+      "hit": 1
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 117,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 91,
+      "kind": 2,
+      "requested": 131072,
+      "returned": 131072
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 91,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 91,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_FAILURE_CLEANUP",
+      "pid": 91,
+      "name": "owner.irq_register",
+      "hit": 1,
+      "fired": true,
+      "fence_verified": true,
+      "stage": 1,
+      "baseline_fds": 3,
+      "final_fds": 3,
+      "maps": 0,
+      "buffers": 0,
+      "eventfds": 0,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_REAP",
+      "pid": 91,
+      "exit_code": 42,
+      "stage": 1
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 118,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "owner.irq_register",
+      "hit": 1,
+      "pid": 91,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 9,
+      "name": "owner.irq_register",
+      "hit": 1,
+      "clean_retry": true
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-92/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 122,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 93,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 93,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 93,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 93,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 7,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 123,
+      "state": 2,
+      "flags": 28,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_WORKLOAD",
+      "pid": 93,
+      "bdf": "0000:01:00.1",
+      "entries": 16,
+      "completed": 4096,
+      "sq_tail": 4096,
+      "cq_head": 4096,
+      "irq_wakes": 256,
+      "irq_count": 256,
+      "payload_crc": 3515606758,
+      "fixed_crc": 3421780262
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 124,
+      "state": 2,
+      "flags": 29,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 93,
+      "kind": 2,
+      "requested": 131072,
+      "returned": 131072
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 93,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 93,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_EXIT",
+      "pid": 93,
+      "vf": 0,
+      "fds": 0,
+      "maps": 0,
+      "eventfds": 0,
+      "buffers": 0
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 4,
+      "errno": 0,
+      "session": 2,
+      "epoch": 125,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "",
+      "hit": 1,
+      "pid": 93,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 10,
+      "name": "owner.unmap",
+      "hit": 1,
+      "clean_retry": false
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-94/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 129,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 95,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 95,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 95,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 95,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 7,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 130,
+      "state": 2,
+      "flags": 28,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_WORKLOAD",
+      "pid": 95,
+      "bdf": "0000:01:00.1",
+      "entries": 16,
+      "completed": 4096,
+      "sq_tail": 4096,
+      "cq_head": 4096,
+      "irq_wakes": 256,
+      "irq_count": 256,
+      "payload_crc": 3515606758,
+      "fixed_crc": 3421780262
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 131,
+      "state": 2,
+      "flags": 29,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_FAILPOINT_HIT",
+      "name": "owner.unmap",
+      "hit": 1
+    },
+    {
+      "event": "OWNER_UNMAP_QUARANTINE",
+      "pid": 95,
+      "kind": 2,
+      "requested": 131072,
+      "returned": 131072,
+      "ioctl_executed": false,
+      "ioctl_errno": 5,
+      "buffer_held": true
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 95,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 95,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_FAILURE_CLEANUP",
+      "pid": 95,
+      "name": "owner.unmap",
+      "hit": 1,
+      "fired": true,
+      "fence_verified": true,
+      "stage": 3,
+      "baseline_fds": 3,
+      "final_fds": 3,
+      "maps": 0,
+      "buffers": 0,
+      "eventfds": 0,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_REAP",
+      "pid": 95,
+      "exit_code": 42,
+      "stage": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 4,
+      "errno": 0,
+      "session": 2,
+      "epoch": 132,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "owner.unmap",
+      "hit": 1,
+      "pid": 95,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 10,
+      "name": "owner.unmap",
+      "hit": 1,
+      "clean_retry": true
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-96/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 136,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 97,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 97,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 97,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 97,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 7,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 137,
+      "state": 2,
+      "flags": 28,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_WORKLOAD",
+      "pid": 97,
+      "bdf": "0000:01:00.1",
+      "entries": 16,
+      "completed": 4096,
+      "sq_tail": 4096,
+      "cq_head": 4096,
+      "irq_wakes": 256,
+      "irq_count": 256,
+      "payload_crc": 3515606758,
+      "fixed_crc": 3421780262
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 138,
+      "state": 2,
+      "flags": 29,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 97,
+      "kind": 2,
+      "requested": 131072,
+      "returned": 131072
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 97,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 97,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_EXIT",
+      "pid": 97,
+      "vf": 0,
+      "fds": 0,
+      "maps": 0,
+      "eventfds": 0,
+      "buffers": 0
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 4,
+      "errno": 0,
+      "session": 2,
+      "epoch": 139,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "",
+      "hit": 1,
+      "pid": 97,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 11,
+      "name": "owner.unmap",
+      "hit": 2,
+      "clean_retry": false
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-98/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 143,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 99,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 99,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 99,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 99,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 7,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 144,
+      "state": 2,
+      "flags": 28,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_WORKLOAD",
+      "pid": 99,
+      "bdf": "0000:01:00.1",
+      "entries": 16,
+      "completed": 4096,
+      "sq_tail": 4096,
+      "cq_head": 4096,
+      "irq_wakes": 256,
+      "irq_count": 256,
+      "payload_crc": 3515606758,
+      "fixed_crc": 3421780262
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 145,
+      "state": 2,
+      "flags": 29,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 99,
+      "kind": 2,
+      "requested": 131072,
+      "returned": 131072
+    },
+    {
+      "event": "OWNER_FAILPOINT_HIT",
+      "name": "owner.unmap",
+      "hit": 2
+    },
+    {
+      "event": "OWNER_UNMAP_QUARANTINE",
+      "pid": 99,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096,
+      "ioctl_executed": false,
+      "ioctl_errno": 5,
+      "buffer_held": true
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 99,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_FAILURE_CLEANUP",
+      "pid": 99,
+      "name": "owner.unmap",
+      "hit": 2,
+      "fired": true,
+      "fence_verified": true,
+      "stage": 3,
+      "baseline_fds": 3,
+      "final_fds": 3,
+      "maps": 0,
+      "buffers": 0,
+      "eventfds": 0,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_REAP",
+      "pid": 99,
+      "exit_code": 42,
+      "stage": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 4,
+      "errno": 0,
+      "session": 2,
+      "epoch": 146,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "owner.unmap",
+      "hit": 2,
+      "pid": 99,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 11,
+      "name": "owner.unmap",
+      "hit": 2,
+      "clean_retry": true
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-100/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 150,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 101,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 101,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 101,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 101,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 7,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 151,
+      "state": 2,
+      "flags": 28,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_WORKLOAD",
+      "pid": 101,
+      "bdf": "0000:01:00.1",
+      "entries": 16,
+      "completed": 4096,
+      "sq_tail": 4096,
+      "cq_head": 4096,
+      "irq_wakes": 256,
+      "irq_count": 256,
+      "payload_crc": 3515606758,
+      "fixed_crc": 3421780262
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 152,
+      "state": 2,
+      "flags": 29,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 101,
+      "kind": 2,
+      "requested": 131072,
+      "returned": 131072
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 101,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 101,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_EXIT",
+      "pid": 101,
+      "vf": 0,
+      "fds": 0,
+      "maps": 0,
+      "eventfds": 0,
+      "buffers": 0
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 4,
+      "errno": 0,
+      "session": 2,
+      "epoch": 153,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "",
+      "hit": 1,
+      "pid": 101,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 12,
+      "name": "owner.unmap",
+      "hit": 3,
+      "clean_retry": false
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-102/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 157,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 103,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 103,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 103,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 103,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 7,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 158,
+      "state": 2,
+      "flags": 28,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_WORKLOAD",
+      "pid": 103,
+      "bdf": "0000:01:00.1",
+      "entries": 16,
+      "completed": 4096,
+      "sq_tail": 4096,
+      "cq_head": 4096,
+      "irq_wakes": 256,
+      "irq_count": 256,
+      "payload_crc": 3515606758,
+      "fixed_crc": 3421780262
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 159,
+      "state": 2,
+      "flags": 29,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 103,
+      "kind": 2,
+      "requested": 131072,
+      "returned": 131072
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 103,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_FAILPOINT_HIT",
+      "name": "owner.unmap",
+      "hit": 3
+    },
+    {
+      "event": "OWNER_UNMAP_QUARANTINE",
+      "pid": 103,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096,
+      "ioctl_executed": false,
+      "ioctl_errno": 5,
+      "buffer_held": true
+    },
+    {
+      "event": "OWNER_FAILURE_CLEANUP",
+      "pid": 103,
+      "name": "owner.unmap",
+      "hit": 3,
+      "fired": true,
+      "fence_verified": true,
+      "stage": 3,
+      "baseline_fds": 3,
+      "final_fds": 3,
+      "maps": 0,
+      "buffers": 0,
+      "eventfds": 0,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_REAP",
+      "pid": 103,
+      "exit_code": 42,
+      "stage": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 4,
+      "errno": 0,
+      "session": 2,
+      "epoch": 160,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "owner.unmap",
+      "hit": 3,
+      "pid": 103,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 12,
+      "name": "owner.unmap",
+      "hit": 3,
+      "clean_retry": true
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-104/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 164,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 105,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 105,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 105,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 105,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 7,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 165,
+      "state": 2,
+      "flags": 28,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_WORKLOAD",
+      "pid": 105,
+      "bdf": "0000:01:00.1",
+      "entries": 16,
+      "completed": 4096,
+      "sq_tail": 4096,
+      "cq_head": 4096,
+      "irq_wakes": 256,
+      "irq_count": 256,
+      "payload_crc": 3515606758,
+      "fixed_crc": 3421780262
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 166,
+      "state": 2,
+      "flags": 29,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 105,
+      "kind": 2,
+      "requested": 131072,
+      "returned": 131072
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 105,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 105,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_EXIT",
+      "pid": 105,
+      "vf": 0,
+      "fds": 0,
+      "maps": 0,
+      "eventfds": 0,
+      "buffers": 0
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 4,
+      "errno": 0,
+      "session": 2,
+      "epoch": 167,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "",
+      "hit": 1,
+      "pid": 105,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 13,
+      "name": "owner.short_unmap",
+      "hit": 1,
+      "clean_retry": false
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-106/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 171,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 107,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 107,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 107,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 107,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 7,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 172,
+      "state": 2,
+      "flags": 28,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_WORKLOAD",
+      "pid": 107,
+      "bdf": "0000:01:00.1",
+      "entries": 16,
+      "completed": 4096,
+      "sq_tail": 4096,
+      "cq_head": 4096,
+      "irq_wakes": 256,
+      "irq_count": 256,
+      "payload_crc": 3515606758,
+      "fixed_crc": 3421780262
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 173,
+      "state": 2,
+      "flags": 29,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_FAILPOINT_HIT",
+      "name": "owner.short_unmap",
+      "hit": 1
+    },
+    {
+      "event": "OWNER_UNMAP_QUARANTINE",
+      "pid": 107,
+      "kind": 2,
+      "requested": 262144,
+      "returned": 131072,
+      "ioctl_executed": true,
+      "ioctl_errno": 0,
+      "buffer_held": true
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 107,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 107,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_FAILURE_CLEANUP",
+      "pid": 107,
+      "name": "owner.short_unmap",
+      "hit": 1,
+      "fired": true,
+      "fence_verified": true,
+      "stage": 3,
+      "baseline_fds": 3,
+      "final_fds": 3,
+      "maps": 0,
+      "buffers": 0,
+      "eventfds": 0,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_REAP",
+      "pid": 107,
+      "exit_code": 42,
+      "stage": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 4,
+      "errno": 0,
+      "session": 2,
+      "epoch": 174,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "owner.short_unmap",
+      "hit": 1,
+      "pid": 107,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 13,
+      "name": "owner.short_unmap",
+      "hit": 1,
+      "clean_retry": true
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-108/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 178,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 109,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 109,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 109,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 109,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 7,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 179,
+      "state": 2,
+      "flags": 28,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_WORKLOAD",
+      "pid": 109,
+      "bdf": "0000:01:00.1",
+      "entries": 16,
+      "completed": 4096,
+      "sq_tail": 4096,
+      "cq_head": 4096,
+      "irq_wakes": 256,
+      "irq_count": 256,
+      "payload_crc": 3515606758,
+      "fixed_crc": 3421780262
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 180,
+      "state": 2,
+      "flags": 29,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 109,
+      "kind": 2,
+      "requested": 131072,
+      "returned": 131072
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 109,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 109,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_EXIT",
+      "pid": 109,
+      "vf": 0,
+      "fds": 0,
+      "maps": 0,
+      "eventfds": 0,
+      "buffers": 0
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 4,
+      "errno": 0,
+      "session": 2,
+      "epoch": 181,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "",
+      "hit": 1,
+      "pid": 109,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 14,
+      "name": "owner.short_unmap",
+      "hit": 2,
+      "clean_retry": false
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-110/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 185,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 111,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 111,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 111,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 111,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 7,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 186,
+      "state": 2,
+      "flags": 28,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_WORKLOAD",
+      "pid": 111,
+      "bdf": "0000:01:00.1",
+      "entries": 16,
+      "completed": 4096,
+      "sq_tail": 4096,
+      "cq_head": 4096,
+      "irq_wakes": 256,
+      "irq_count": 256,
+      "payload_crc": 3515606758,
+      "fixed_crc": 3421780262
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 187,
+      "state": 2,
+      "flags": 29,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 111,
+      "kind": 2,
+      "requested": 131072,
+      "returned": 131072
+    },
+    {
+      "event": "OWNER_FAILPOINT_HIT",
+      "name": "owner.short_unmap",
+      "hit": 2
+    },
+    {
+      "event": "OWNER_UNMAP_QUARANTINE",
+      "pid": 111,
+      "kind": 1,
+      "requested": 8192,
+      "returned": 4096,
+      "ioctl_executed": true,
+      "ioctl_errno": 0,
+      "buffer_held": true
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 111,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_FAILURE_CLEANUP",
+      "pid": 111,
+      "name": "owner.short_unmap",
+      "hit": 2,
+      "fired": true,
+      "fence_verified": true,
+      "stage": 3,
+      "baseline_fds": 3,
+      "final_fds": 3,
+      "maps": 0,
+      "buffers": 0,
+      "eventfds": 0,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_REAP",
+      "pid": 111,
+      "exit_code": 42,
+      "stage": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 4,
+      "errno": 0,
+      "session": 2,
+      "epoch": 188,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "owner.short_unmap",
+      "hit": 2,
+      "pid": 111,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 14,
+      "name": "owner.short_unmap",
+      "hit": 2,
+      "clean_retry": true
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-112/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 192,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 113,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 113,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 113,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 113,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 7,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 193,
+      "state": 2,
+      "flags": 28,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_WORKLOAD",
+      "pid": 113,
+      "bdf": "0000:01:00.1",
+      "entries": 16,
+      "completed": 4096,
+      "sq_tail": 4096,
+      "cq_head": 4096,
+      "irq_wakes": 256,
+      "irq_count": 256,
+      "payload_crc": 3515606758,
+      "fixed_crc": 3421780262
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 194,
+      "state": 2,
+      "flags": 29,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 113,
+      "kind": 2,
+      "requested": 131072,
+      "returned": 131072
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 113,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 113,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_EXIT",
+      "pid": 113,
+      "vf": 0,
+      "fds": 0,
+      "maps": 0,
+      "eventfds": 0,
+      "buffers": 0
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 4,
+      "errno": 0,
+      "session": 2,
+      "epoch": 195,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "",
+      "hit": 1,
+      "pid": 113,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 15,
+      "name": "owner.short_unmap",
+      "hit": 3,
+      "clean_retry": false
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-114/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 199,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 115,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 115,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 115,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 115,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 7,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 200,
+      "state": 2,
+      "flags": 28,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_WORKLOAD",
+      "pid": 115,
+      "bdf": "0000:01:00.1",
+      "entries": 16,
+      "completed": 4096,
+      "sq_tail": 4096,
+      "cq_head": 4096,
+      "irq_wakes": 256,
+      "irq_count": 256,
+      "payload_crc": 3515606758,
+      "fixed_crc": 3421780262
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 201,
+      "state": 2,
+      "flags": 29,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 115,
+      "kind": 2,
+      "requested": 131072,
+      "returned": 131072
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 115,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_FAILPOINT_HIT",
+      "name": "owner.short_unmap",
+      "hit": 3
+    },
+    {
+      "event": "OWNER_UNMAP_QUARANTINE",
+      "pid": 115,
+      "kind": 0,
+      "requested": 8192,
+      "returned": 4096,
+      "ioctl_executed": true,
+      "ioctl_errno": 0,
+      "buffer_held": true
+    },
+    {
+      "event": "OWNER_FAILURE_CLEANUP",
+      "pid": 115,
+      "name": "owner.short_unmap",
+      "hit": 3,
+      "fired": true,
+      "fence_verified": true,
+      "stage": 3,
+      "baseline_fds": 3,
+      "final_fds": 3,
+      "maps": 0,
+      "buffers": 0,
+      "eventfds": 0,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_REAP",
+      "pid": 115,
+      "exit_code": 42,
+      "stage": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 4,
+      "errno": 0,
+      "session": 2,
+      "epoch": 202,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "owner.short_unmap",
+      "hit": 3,
+      "pid": 115,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_OWNER_START",
+      "case_index": 15,
+      "name": "owner.short_unmap",
+      "hit": 3,
+      "clean_retry": true
+    },
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-116/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 206,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 117,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 117,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 117,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 117,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 7,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 207,
+      "state": 2,
+      "flags": 28,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_WORKLOAD",
+      "pid": 117,
+      "bdf": "0000:01:00.1",
+      "entries": 16,
+      "completed": 4096,
+      "sq_tail": 4096,
+      "cq_head": 4096,
+      "irq_wakes": 256,
+      "irq_count": 256,
+      "payload_crc": 3515606758,
+      "fixed_crc": 3421780262
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 208,
+      "state": 2,
+      "flags": 29,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 117,
+      "kind": 2,
+      "requested": 131072,
+      "returned": 131072
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 117,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 117,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_EXIT",
+      "pid": 117,
+      "vf": 0,
+      "fds": 0,
+      "maps": 0,
+      "eventfds": 0,
+      "buffers": 0
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 4,
+      "errno": 0,
+      "session": 2,
+      "epoch": 209,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T02_OWNER_CASE",
+      "name": "",
+      "hit": 1,
+      "pid": 117,
+      "owner_closed": true,
+      "all_free": true,
+      "status": "PASS"
+    },
+    {
+      "event": "M3_CASE",
+      "id": "T02_OWNER",
+      "status": "PASS",
+      "variants": 15,
+      "clean_retries": 15,
+      "partial_pci_enumeration": "NOT_RUN"
+    }
+  ],
+  "device": "TOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0"
+}

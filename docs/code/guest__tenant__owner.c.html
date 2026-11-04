@@ -1,0 +1,505 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>guest/tenant/owner.c</title><style>
+:root{color-scheme:light;--ink:#18293c;--blue:#184d83;--line:#ced9e4;--muted:#526477}
+*{box-sizing:border-box}body{margin:0;background:#f2f5f8;color:var(--ink);font:17px/1.8 system-ui,'Microsoft JhengHei',sans-serif}
+a{color:var(--blue);overflow-wrap:anywhere}header{background:#102e4d;color:#fff;padding:48px max(24px,calc((100vw - 1100px)/2))}
+header p{max-width:850px}header a{color:#b8dcff}.label{letter-spacing:.15em;font-size:13px;color:#b8dcff}
+.layout{max-width:1420px;margin:auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:32px;padding:30px}
+nav{position:sticky;top:20px;align-self:start;max-height:95vh;overflow:auto;font-size:14px}nav a{display:block;margin:12px 0}
+main{min-width:0;background:white;padding:36px 44px;border:1px solid var(--line);border-radius:12px}
+h1{font-size:2rem;line-height:1.35}h2{font-size:1.5rem;margin-top:2em;border-bottom:1px solid var(--line);padding-bottom:10px}h3{font-size:1.1rem}
+p{max-width:95ch}section+section{margin-top:80px;border-top:4px solid var(--blue);padding-top:26px}
+pre{overflow:auto;background:#112c45;color:#eaf3fa;padding:20px;border-radius:8px;font-size:14px;line-height:1.6}
+code{font-family:Consolas,monospace;font-size:.88em}p code,li code,td code{background:#edf3f8;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}
+.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;margin:20px 0;font-size:15px}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf1f8}
+img,svg{max-width:100%;height:auto}.diagram{overflow:auto;margin:20px 0}.diagram svg{min-width:900px;width:100%;display:block}blockquote,.notice{border-left:5px solid #c4841b;background:#fff5df;padding:16px 20px;margin:24px 0}.muted{color:var(--muted)}
+.source-line{display:block;white-space:pre}.source-line:target{background:#355b79}.line-no{display:inline-block;width:5em;color:#9db8ce;text-decoration:none;user-select:none}
+@media(max-width:850px){.layout{display:block;padding:14px}nav{position:static;max-height:none}main{padding:24px 18px}header{padding:30px 20px}h1{font-size:1.65rem}}
+@media print{body{background:white;font-size:11pt}header{color:#18293c;background:white;padding:0}nav{display:none}.layout{display:block;padding:0}main{border:0;padding:0}section{break-before:page}pre{white-space:pre-wrap}a{color:inherit}}
+</style><main><a href="../handbook.html">回教材</a><h1>guest/tenant/owner.c</h1><p>SHA256 <code>f4e7004c8b312e6c03645786e30a5760449568e83e8dfe7d7cd8e663f66caa35</code></p><pre><span class="source-line" id="L1"><a class="line-no" href="#L1">1</a>/* 一個 owner 管理一個 VF 的 fd、IRQ 與 DMA buffers；PF lease 由 labd 持有及協調。 */</span>
+<span class="source-line" id="L2"><a class="line-no" href="#L2">2</a>#define _GNU_SOURCE</span>
+<span class="source-line" id="L3"><a class="line-no" href="#L3">3</a>#include &quot;owner.h&quot;</span>
+<span class="source-line" id="L4"><a class="line-no" href="#L4">4</a>#include &quot;../common/lab_wire.h&quot;</span>
+<span class="source-line" id="L5"><a class="line-no" href="#L5">5</a>#include &quot;../common/lab_ring.h&quot;</span>
+<span class="source-line" id="L6"><a class="line-no" href="#L6">6</a>#include &quot;toy_regs.h&quot;</span>
+<span class="source-line" id="L7"><a class="line-no" href="#L7">7</a>#include &lt;errno.h&gt;</span>
+<span class="source-line" id="L8"><a class="line-no" href="#L8">8</a>#include &lt;fcntl.h&gt;</span>
+<span class="source-line" id="L9"><a class="line-no" href="#L9">9</a>#include &lt;inttypes.h&gt;</span>
+<span class="source-line" id="L10"><a class="line-no" href="#L10">10</a>#include &lt;poll.h&gt;</span>
+<span class="source-line" id="L11"><a class="line-no" href="#L11">11</a>#include &lt;stdatomic.h&gt;</span>
+<span class="source-line" id="L12"><a class="line-no" href="#L12">12</a>#include &lt;stdio.h&gt;</span>
+<span class="source-line" id="L13"><a class="line-no" href="#L13">13</a>#include &lt;stdlib.h&gt;</span>
+<span class="source-line" id="L14"><a class="line-no" href="#L14">14</a>#include &lt;string.h&gt;</span>
+<span class="source-line" id="L15"><a class="line-no" href="#L15">15</a>#include &lt;sys/eventfd.h&gt;</span>
+<span class="source-line" id="L16"><a class="line-no" href="#L16">16</a>#include &lt;sys/ioctl.h&gt;</span>
+<span class="source-line" id="L17"><a class="line-no" href="#L17">17</a>#include &lt;sys/mman.h&gt;</span>
+<span class="source-line" id="L18"><a class="line-no" href="#L18">18</a>#include &lt;unistd.h&gt;</span>
+<span class="source-line" id="L19"><a class="line-no" href="#L19">19</a></span>
+<span class="source-line" id="L20"><a class="line-no" href="#L20">20</a>static int fail(struct owner *o, const char *name)</span>
+<span class="source-line" id="L21"><a class="line-no" href="#L21">21</a>{</span>
+<span class="source-line" id="L22"><a class="line-no" href="#L22">22</a>    if (!o-&gt;fail_fired &amp;&amp; !strcmp(o-&gt;failpoint,name) &amp;&amp; ++o-&gt;fail_seen==o-&gt;fail_hit) {</span>
+<span class="source-line" id="L23"><a class="line-no" href="#L23">23</a>        o-&gt;fail_fired=true;</span>
+<span class="source-line" id="L24"><a class="line-no" href="#L24">24</a>        printf(&quot;{\&quot;event\&quot;:\&quot;OWNER_FAILPOINT_HIT\&quot;,\&quot;name\&quot;:\&quot;%s\&quot;,\&quot;hit\&quot;:%u}\n&quot;,name,o-&gt;fail_seen);</span>
+<span class="source-line" id="L25"><a class="line-no" href="#L25">25</a>        errno=EIO; return 1;</span>
+<span class="source-line" id="L26"><a class="line-no" href="#L26">26</a>    }</span>
+<span class="source-line" id="L27"><a class="line-no" href="#L27">27</a>    return 0;</span>
+<span class="source-line" id="L28"><a class="line-no" href="#L28">28</a>}</span>
+<span class="source-line" id="L29"><a class="line-no" href="#L29">29</a>void owner_init(struct owner *o)</span>
+<span class="source-line" id="L30"><a class="line-no" href="#L30">30</a>{</span>
+<span class="source-line" id="L31"><a class="line-no" href="#L31">31</a>    memset(o,0,sizeof(*o)); lab_vfio_init(&amp;o-&gt;vfio);</span>
+<span class="source-line" id="L32"><a class="line-no" href="#L32">32</a>    o-&gt;eventfds[0]=o-&gt;eventfds[1]=-1; o-&gt;fail_hit=1;</span>
+<span class="source-line" id="L33"><a class="line-no" href="#L33">33</a>}</span>
+<span class="source-line" id="L34"><a class="line-no" href="#L34">34</a>int owner_read32(struct owner *o,uint32_t reg,uint32_t *value)</span>
+<span class="source-line" id="L35"><a class="line-no" href="#L35">35</a>{</span>
+<span class="source-line" id="L36"><a class="line-no" href="#L36">36</a>    unsigned char b[4];</span>
+<span class="source-line" id="L37"><a class="line-no" href="#L37">37</a>    if ((reg&amp;3u) || reg&gt;o-&gt;vfio.bar0.size-4) { errno=EINVAL; return -1; }</span>
+<span class="source-line" id="L38"><a class="line-no" href="#L38">38</a>    if (pread(o-&gt;vfio.device,b,4,(off_t)(o-&gt;vfio.bar0.offset+reg))!=4) return -1;</span>
+<span class="source-line" id="L39"><a class="line-no" href="#L39">39</a>    *value=lab_get32(b); return 0;</span>
+<span class="source-line" id="L40"><a class="line-no" href="#L40">40</a>}</span>
+<span class="source-line" id="L41"><a class="line-no" href="#L41">41</a>int owner_write32(struct owner *o,uint32_t reg,uint32_t value)</span>
+<span class="source-line" id="L42"><a class="line-no" href="#L42">42</a>{</span>
+<span class="source-line" id="L43"><a class="line-no" href="#L43">43</a>    unsigned char b[4]; lab_put32(b,value);</span>
+<span class="source-line" id="L44"><a class="line-no" href="#L44">44</a>    if ((reg&amp;3u) || reg&gt;o-&gt;vfio.bar0.size-4) { errno=EINVAL; return -1; }</span>
+<span class="source-line" id="L45"><a class="line-no" href="#L45">45</a>    /* 先執行 C11 thread fence，再經 VFIO pwrite 寫 MMIO；本版只驗證 x86_64 QEMU 路徑。</span>
+<span class="source-line" id="L46"><a class="line-no" href="#L46">46</a>     * 這裡沒有替 non-coherent 實體平台做 cache maintenance。 */</span>
+<span class="source-line" id="L47"><a class="line-no" href="#L47">47</a>    atomic_thread_fence(memory_order_seq_cst);</span>
+<span class="source-line" id="L48"><a class="line-no" href="#L48">48</a>    return pwrite(o-&gt;vfio.device,b,4,(off_t)(o-&gt;vfio.bar0.offset+reg))==4?0:-1;</span>
+<span class="source-line" id="L49"><a class="line-no" href="#L49">49</a>}</span>
+<span class="source-line" id="L50"><a class="line-no" href="#L50">50</a>static int read64(struct owner *o,uint32_t reg,uint64_t *value)</span>
+<span class="source-line" id="L51"><a class="line-no" href="#L51">51</a>{</span>
+<span class="source-line" id="L52"><a class="line-no" href="#L52">52</a>    uint32_t lo,hi;</span>
+<span class="source-line" id="L53"><a class="line-no" href="#L53">53</a>    if (owner_read32(o,reg,&amp;lo)||owner_read32(o,reg+4,&amp;hi)) return -1;</span>
+<span class="source-line" id="L54"><a class="line-no" href="#L54">54</a>    *value=(uint64_t)lo|((uint64_t)hi&lt;&lt;32); return 0;</span>
+<span class="source-line" id="L55"><a class="line-no" href="#L55">55</a>}</span>
+<span class="source-line" id="L56"><a class="line-no" href="#L56">56</a>static int write64(struct owner *o,uint32_t reg,uint64_t value)</span>
+<span class="source-line" id="L57"><a class="line-no" href="#L57">57</a>{</span>
+<span class="source-line" id="L58"><a class="line-no" href="#L58">58</a>    return owner_write32(o,reg,(uint32_t)value)||owner_write32(o,reg+4,(uint32_t)(value&gt;&gt;32))?-1:0;</span>
+<span class="source-line" id="L59"><a class="line-no" href="#L59">59</a>}</span>
+<span class="source-line" id="L60"><a class="line-no" href="#L60">60</a>int owner_latch(struct owner *o,uint32_t *flags)</span>
+<span class="source-line" id="L61"><a class="line-no" href="#L61">61</a>{</span>
+<span class="source-line" id="L62"><a class="line-no" href="#L62">62</a>    return owner_write32(o,TOY_VF_EPOCH_LATCH,1)||</span>
+<span class="source-line" id="L63"><a class="line-no" href="#L63">63</a>        read64(o,TOY_VF_EPOCH_LO,&amp;o-&gt;epoch)||read64(o,TOY_VF_SESSION_LO,&amp;o-&gt;session)||</span>
+<span class="source-line" id="L64"><a class="line-no" href="#L64">64</a>        owner_read32(o,TOY_VF_STATUS,flags)?-1:0;</span>
+<span class="source-line" id="L65"><a class="line-no" href="#L65">65</a>}</span>
+<span class="source-line" id="L66"><a class="line-no" href="#L66">66</a></span>
+<span class="source-line" id="L67"><a class="line-no" href="#L67">67</a>/* 可變長 capability 必須重查；僅使用 pread/pwrite，不 mmap MSI-X 保留頁。 */</span>
+<span class="source-line" id="L68"><a class="line-no" href="#L68">68</a>static int region_caps(struct owner *o,unsigned index)</span>
+<span class="source-line" id="L69"><a class="line-no" href="#L69">69</a>{</span>
+<span class="source-line" id="L70"><a class="line-no" href="#L70">70</a>    struct vfio_region_info first={.argsz=sizeof(first),.index=index};</span>
+<span class="source-line" id="L71"><a class="line-no" href="#L71">71</a>    unsigned char *bytes;</span>
+<span class="source-line" id="L72"><a class="line-no" href="#L72">72</a>    uint32_t seen[64],count=0,offset;</span>
+<span class="source-line" id="L73"><a class="line-no" href="#L73">73</a>    int ret=-1;</span>
+<span class="source-line" id="L74"><a class="line-no" href="#L74">74</a>    if (ioctl(o-&gt;vfio.device,VFIO_DEVICE_GET_REGION_INFO,&amp;first)) return -1;</span>
+<span class="source-line" id="L75"><a class="line-no" href="#L75">75</a>    if (first.argsz&lt;sizeof(first)||first.argsz&gt;65536) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L76"><a class="line-no" href="#L76">76</a>    bytes=calloc(1,first.argsz); if (!bytes) return -1;</span>
+<span class="source-line" id="L77"><a class="line-no" href="#L77">77</a>    struct vfio_region_info *r=(void *)bytes;</span>
+<span class="source-line" id="L78"><a class="line-no" href="#L78">78</a>    r-&gt;argsz=first.argsz; r-&gt;index=index;</span>
+<span class="source-line" id="L79"><a class="line-no" href="#L79">79</a>    if (ioctl(o-&gt;vfio.device,VFIO_DEVICE_GET_REGION_INFO,r)) goto out;</span>
+<span class="source-line" id="L80"><a class="line-no" href="#L80">80</a>    if (r-&gt;argsz&gt;first.argsz || r-&gt;argsz&lt;sizeof(*r) ||</span>
+<span class="source-line" id="L81"><a class="line-no" href="#L81">81</a>        (r-&gt;flags&amp;(VFIO_REGION_INFO_FLAG_READ|VFIO_REGION_INFO_FLAG_WRITE))!=</span>
+<span class="source-line" id="L82"><a class="line-no" href="#L82">82</a>         (VFIO_REGION_INFO_FLAG_READ|VFIO_REGION_INFO_FLAG_WRITE)) goto invalid;</span>
+<span class="source-line" id="L83"><a class="line-no" href="#L83">83</a>    offset=(r-&gt;flags&amp;VFIO_REGION_INFO_FLAG_CAPS)?r-&gt;cap_offset:0;</span>
+<span class="source-line" id="L84"><a class="line-no" href="#L84">84</a>    while (offset) {</span>
+<span class="source-line" id="L85"><a class="line-no" href="#L85">85</a>        if (count==64 || (offset&amp;3u) || offset&lt;sizeof(*r) || offset&gt;r-&gt;argsz-sizeof(struct vfio_info_cap_header)) goto invalid;</span>
+<span class="source-line" id="L86"><a class="line-no" href="#L86">86</a>        for (unsigned i=0;i&lt;count;i++) if (seen[i]==offset) goto invalid;</span>
+<span class="source-line" id="L87"><a class="line-no" href="#L87">87</a>        seen[count++]=offset;</span>
+<span class="source-line" id="L88"><a class="line-no" href="#L88">88</a>        const struct vfio_info_cap_header *h=(const void *)(bytes+offset);</span>
+<span class="source-line" id="L89"><a class="line-no" href="#L89">89</a>        if (h-&gt;id==VFIO_REGION_INFO_CAP_SPARSE_MMAP) {</span>
+<span class="source-line" id="L90"><a class="line-no" href="#L90">90</a>            const struct vfio_region_info_cap_sparse_mmap *s=(const void *)h;</span>
+<span class="source-line" id="L91"><a class="line-no" href="#L91">91</a>            size_t available=r-&gt;argsz-offset;</span>
+<span class="source-line" id="L92"><a class="line-no" href="#L92">92</a>            if (h-&gt;version!=1 || available&lt;sizeof(*s) || s-&gt;nr_areas&gt;(available-sizeof(*s))/sizeof(s-&gt;areas[0])) goto invalid;</span>
+<span class="source-line" id="L93"><a class="line-no" href="#L93">93</a>            for (unsigned i=0;i&lt;s-&gt;nr_areas;i++) {</span>
+<span class="source-line" id="L94"><a class="line-no" href="#L94">94</a>                uint64_t off=s-&gt;areas[i].offset,size=s-&gt;areas[i].size;</span>
+<span class="source-line" id="L95"><a class="line-no" href="#L95">95</a>                if (!size || off&gt;r-&gt;size || size&gt;r-&gt;size-off || ((off|size)&amp;(o-&gt;vfio.bytes-1))) goto invalid;</span>
+<span class="source-line" id="L96"><a class="line-no" href="#L96">96</a>                printf(&quot;{\&quot;event\&quot;:\&quot;OWNER_SPARSE_AREA\&quot;,\&quot;bdf\&quot;:\&quot;%s\&quot;,\&quot;region\&quot;:%u,\&quot;offset\&quot;:%&quot; PRIu64 &quot;,\&quot;size\&quot;:%&quot; PRIu64 &quot;}\n&quot;,o-&gt;vfio.bdf,index,off,size);</span>
+<span class="source-line" id="L97"><a class="line-no" href="#L97">97</a>            }</span>
+<span class="source-line" id="L98"><a class="line-no" href="#L98">98</a>        }</span>
+<span class="source-line" id="L99"><a class="line-no" href="#L99">99</a>        offset=h-&gt;next;</span>
+<span class="source-line" id="L100"><a class="line-no" href="#L100">100</a>    }</span>
+<span class="source-line" id="L101"><a class="line-no" href="#L101">101</a>    printf(&quot;{\&quot;event\&quot;:\&quot;OWNER_REGION\&quot;,\&quot;bdf\&quot;:\&quot;%s\&quot;,\&quot;index\&quot;:%u,\&quot;argsz\&quot;:%u,\&quot;caps\&quot;:%u,\&quot;access\&quot;:\&quot;pread_pwrite\&quot;}\n&quot;,o-&gt;vfio.bdf,index,r-&gt;argsz,count);</span>
+<span class="source-line" id="L102"><a class="line-no" href="#L102">102</a>    ret=0; goto out;</span>
+<span class="source-line" id="L103"><a class="line-no" href="#L103">103</a>invalid: errno=EPROTO;</span>
+<span class="source-line" id="L104"><a class="line-no" href="#L104">104</a>out: free(bytes); return ret;</span>
+<span class="source-line" id="L105"><a class="line-no" href="#L105">105</a>}</span>
+<span class="source-line" id="L106"><a class="line-no" href="#L106">106</a>int owner_open(struct owner *o,const char *bdf,unsigned group)</span>
+<span class="source-line" id="L107"><a class="line-no" href="#L107">107</a>{</span>
+<span class="source-line" id="L108"><a class="line-no" href="#L108">108</a>    uint32_t flags;</span>
+<span class="source-line" id="L109"><a class="line-no" href="#L109">109</a>    if (lab_vfio_open(&amp;o-&gt;vfio,bdf,group)) return -1;</span>
+<span class="source-line" id="L110"><a class="line-no" href="#L110">110</a>    for (unsigned i=0;i&lt;3;i++)</span>
+<span class="source-line" id="L111"><a class="line-no" href="#L111">111</a>        if (region_caps(o,i==0?VFIO_PCI_BAR0_REGION_INDEX:i==1?VFIO_PCI_BAR2_REGION_INDEX:VFIO_PCI_CONFIG_REGION_INDEX)) return -1;</span>
+<span class="source-line" id="L112"><a class="line-no" href="#L112">112</a>    if (owner_latch(o,&amp;flags)) return -1;</span>
+<span class="source-line" id="L113"><a class="line-no" href="#L113">113</a>    return o-&gt;reset_test?owner_reset_clear(o,&quot;open&quot;):0;</span>
+<span class="source-line" id="L114"><a class="line-no" href="#L114">114</a>}</span>
+<span class="source-line" id="L115"><a class="line-no" href="#L115">115</a></span>
+<span class="source-line" id="L116"><a class="line-no" href="#L116">116</a>static int iova_allowed(struct owner *o,uint64_t base,uint64_t size)</span>
+<span class="source-line" id="L117"><a class="line-no" href="#L117">117</a>{</span>
+<span class="source-line" id="L118"><a class="line-no" href="#L118">118</a>    unsigned char bytes[16384] __attribute__((aligned(8)))={0};</span>
+<span class="source-line" id="L119"><a class="line-no" href="#L119">119</a>    struct vfio_iommu_type1_info *info=(void *)bytes;</span>
+<span class="source-line" id="L120"><a class="line-no" href="#L120">120</a>    uint32_t offset,seen[64],count=0;</span>
+<span class="source-line" id="L121"><a class="line-no" href="#L121">121</a>    bool allowed=false;</span>
+<span class="source-line" id="L122"><a class="line-no" href="#L122">122</a>    info-&gt;argsz=sizeof(bytes);</span>
+<span class="source-line" id="L123"><a class="line-no" href="#L123">123</a>    if (ioctl(o-&gt;vfio.container,VFIO_IOMMU_GET_INFO,info)) return -1;</span>
+<span class="source-line" id="L124"><a class="line-no" href="#L124">124</a>    if (info-&gt;argsz&lt;sizeof(*info)||info-&gt;argsz&gt;sizeof(bytes)||</span>
+<span class="source-line" id="L125"><a class="line-no" href="#L125">125</a>        !(info-&gt;flags&amp;VFIO_IOMMU_INFO_PGSIZES)||!(info-&gt;iova_pgsizes&amp;o-&gt;vfio.bytes)||</span>
+<span class="source-line" id="L126"><a class="line-no" href="#L126">126</a>        !(info-&gt;flags&amp;VFIO_IOMMU_INFO_CAPS)) goto invalid;</span>
+<span class="source-line" id="L127"><a class="line-no" href="#L127">127</a>    offset=info-&gt;cap_offset;</span>
+<span class="source-line" id="L128"><a class="line-no" href="#L128">128</a>    while (offset) {</span>
+<span class="source-line" id="L129"><a class="line-no" href="#L129">129</a>        if (count==64 || (offset&amp;3u) || offset&lt;sizeof(*info) || offset&gt;info-&gt;argsz-sizeof(struct vfio_info_cap_header)) goto invalid;</span>
+<span class="source-line" id="L130"><a class="line-no" href="#L130">130</a>        for (unsigned i=0;i&lt;count;i++) if (seen[i]==offset) goto invalid;</span>
+<span class="source-line" id="L131"><a class="line-no" href="#L131">131</a>        seen[count++]=offset;</span>
+<span class="source-line" id="L132"><a class="line-no" href="#L132">132</a>        const struct vfio_info_cap_header *h=(const void *)(bytes+offset);</span>
+<span class="source-line" id="L133"><a class="line-no" href="#L133">133</a>        if (h-&gt;id==VFIO_IOMMU_TYPE1_INFO_CAP_IOVA_RANGE) {</span>
+<span class="source-line" id="L134"><a class="line-no" href="#L134">134</a>            const struct vfio_iommu_type1_info_cap_iova_range *r=(const void *)h;</span>
+<span class="source-line" id="L135"><a class="line-no" href="#L135">135</a>            size_t n=info-&gt;argsz-offset;</span>
+<span class="source-line" id="L136"><a class="line-no" href="#L136">136</a>            if (h-&gt;version!=1 || n&lt;sizeof(*r)||r-&gt;nr_iovas&gt;(n-sizeof(*r))/sizeof(r-&gt;iova_ranges[0])) goto invalid;</span>
+<span class="source-line" id="L137"><a class="line-no" href="#L137">137</a>            for (unsigned i=0;i&lt;r-&gt;nr_iovas;i++) {</span>
+<span class="source-line" id="L138"><a class="line-no" href="#L138">138</a>                uint64_t start=r-&gt;iova_ranges[i].start,end=r-&gt;iova_ranges[i].end;</span>
+<span class="source-line" id="L139"><a class="line-no" href="#L139">139</a>                if (start&gt;end) goto invalid;</span>
+<span class="source-line" id="L140"><a class="line-no" href="#L140">140</a>                if (base&gt;=start &amp;&amp; base&lt;=end &amp;&amp; size &amp;&amp; size-1&lt;=end-base) allowed=true;</span>
+<span class="source-line" id="L141"><a class="line-no" href="#L141">141</a>            }</span>
+<span class="source-line" id="L142"><a class="line-no" href="#L142">142</a>        }</span>
+<span class="source-line" id="L143"><a class="line-no" href="#L143">143</a>        offset=h-&gt;next;</span>
+<span class="source-line" id="L144"><a class="line-no" href="#L144">144</a>    }</span>
+<span class="source-line" id="L145"><a class="line-no" href="#L145">145</a>    if (!allowed) { errno=ERANGE; return -1; } return 0;</span>
+<span class="source-line" id="L146"><a class="line-no" href="#L146">146</a>invalid: errno=EPROTO; return -1;</span>
+<span class="source-line" id="L147"><a class="line-no" href="#L147">147</a>}</span>
+<span class="source-line" id="L148"><a class="line-no" href="#L148">148</a>/* vaddr 是 CPU pointer，iova 是裝置位址；READ/WRITE 權限以裝置 DMA 的方向解讀。 */</span>
+<span class="source-line" id="L149"><a class="line-no" href="#L149">149</a>static int map_buffers(struct owner *o,uint32_t entries)</span>
+<span class="source-line" id="L150"><a class="line-no" href="#L150">150</a>{</span>
+<span class="source-line" id="L151"><a class="line-no" href="#L151">151</a>    static const char *const names[]={&quot;owner.map_sq&quot;,&quot;owner.map_cq&quot;,&quot;owner.map_payload&quot;};</span>
+<span class="source-line" id="L152"><a class="line-no" href="#L152">152</a>    size_t page=o-&gt;vfio.bytes;</span>
+<span class="source-line" id="L153"><a class="line-no" href="#L153">153</a>    for (unsigned i=0;i&lt;OWNER_MAPS;i++) {</span>
+<span class="source-line" id="L154"><a class="line-no" href="#L154">154</a>        struct owner_map *m=&amp;o-&gt;maps[i];</span>
+<span class="source-line" id="L155"><a class="line-no" href="#L155">155</a>        size_t wanted=i==OWNER_PAYLOAD?(size_t)entries*8192:(size_t)entries*32;</span>
+<span class="source-line" id="L156"><a class="line-no" href="#L156">156</a>        struct vfio_iommu_type1_dma_map map={.argsz=sizeof(map)};</span>
+<span class="source-line" id="L157"><a class="line-no" href="#L157">157</a>        if (m-&gt;memory) { errno=EBUSY; return -1; }</span>
+<span class="source-line" id="L158"><a class="line-no" href="#L158">158</a>        m-&gt;size=(wanted+page-1)&amp;~(page-1);</span>
+<span class="source-line" id="L159"><a class="line-no" href="#L159">159</a>        m-&gt;iova=i==OWNER_SQ?0x100000:i==OWNER_CQ?0x200000:0x400000;</span>
+<span class="source-line" id="L160"><a class="line-no" href="#L160">160</a>        m-&gt;permissions=i==OWNER_SQ?VFIO_DMA_MAP_FLAG_READ:i==OWNER_CQ?VFIO_DMA_MAP_FLAG_WRITE:</span>
+<span class="source-line" id="L161"><a class="line-no" href="#L161">161</a>                       VFIO_DMA_MAP_FLAG_READ|VFIO_DMA_MAP_FLAG_WRITE;</span>
+<span class="source-line" id="L162"><a class="line-no" href="#L162">162</a>        m-&gt;dma_size=m-&gt;size;</span>
+<span class="source-line" id="L163"><a class="line-no" href="#L163">163</a>        if (i==OWNER_PAYLOAD) {</span>
+<span class="source-line" id="L164"><a class="line-no" href="#L164">164</a>            if (o-&gt;dma_fault==1) m-&gt;dma_size=0;</span>
+<span class="source-line" id="L165"><a class="line-no" href="#L165">165</a>            if (o-&gt;dma_fault==2) m-&gt;dma_size=page;</span>
+<span class="source-line" id="L166"><a class="line-no" href="#L166">166</a>            if (o-&gt;dma_fault==3) m-&gt;permissions=VFIO_DMA_MAP_FLAG_READ;</span>
+<span class="source-line" id="L167"><a class="line-no" href="#L167">167</a>            if (o-&gt;dma_fault==4) m-&gt;permissions=VFIO_DMA_MAP_FLAG_WRITE;</span>
+<span class="source-line" id="L168"><a class="line-no" href="#L168">168</a>        }</span>
+<span class="source-line" id="L169"><a class="line-no" href="#L169">169</a>        if (i==OWNER_SQ&amp;&amp;o-&gt;dma_fault==5) m-&gt;permissions=VFIO_DMA_MAP_FLAG_WRITE;</span>
+<span class="source-line" id="L170"><a class="line-no" href="#L170">170</a>        if (i==OWNER_CQ&amp;&amp;o-&gt;dma_fault==6) m-&gt;permissions=VFIO_DMA_MAP_FLAG_READ;</span>
+<span class="source-line" id="L171"><a class="line-no" href="#L171">171</a>        if (iova_allowed(o,m-&gt;iova,m-&gt;size)||fail(o,&quot;owner.alloc_buffer&quot;)) return -1;</span>
+<span class="source-line" id="L172"><a class="line-no" href="#L172">172</a>        m-&gt;memory=mmap(NULL,m-&gt;size,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);</span>
+<span class="source-line" id="L173"><a class="line-no" href="#L173">173</a>        if (m-&gt;memory==MAP_FAILED) { m-&gt;memory=NULL; return -1; }</span>
+<span class="source-line" id="L174"><a class="line-no" href="#L174">174</a>        memset(m-&gt;memory,i==OWNER_PAYLOAD?(0xa5^o-&gt;pattern):0,m-&gt;size);</span>
+<span class="source-line" id="L175"><a class="line-no" href="#L175">175</a>        if (!m-&gt;dma_size) {</span>
+<span class="source-line" id="L176"><a class="line-no" href="#L176">176</a>            printf(&quot;{\&quot;event\&quot;:\&quot;T05_MAP_OMITTED\&quot;,\&quot;pid\&quot;:%d,\&quot;kind\&quot;:%u,\&quot;iova\&quot;:%&quot; PRIu64 &quot;,\&quot;size\&quot;:%zu}\n&quot;,getpid(),i,m-&gt;iova,m-&gt;size);</span>
+<span class="source-line" id="L177"><a class="line-no" href="#L177">177</a>            continue;</span>
+<span class="source-line" id="L178"><a class="line-no" href="#L178">178</a>        }</span>
+<span class="source-line" id="L179"><a class="line-no" href="#L179">179</a>        map.vaddr=(uintptr_t)m-&gt;memory; map.iova=m-&gt;iova; map.size=m-&gt;dma_size; map.flags=m-&gt;permissions;</span>
+<span class="source-line" id="L180"><a class="line-no" href="#L180">180</a>        if (fail(o,names[i])||ioctl(o-&gt;vfio.container,VFIO_IOMMU_MAP_DMA,&amp;map)) return -1;</span>
+<span class="source-line" id="L181"><a class="line-no" href="#L181">181</a>        m-&gt;mapped=true;</span>
+<span class="source-line" id="L182"><a class="line-no" href="#L182">182</a>        printf(&quot;{\&quot;event\&quot;:\&quot;OWNER_MAP\&quot;,\&quot;pid\&quot;:%d,\&quot;bdf\&quot;:\&quot;%s\&quot;,\&quot;kind\&quot;:%u,\&quot;iova\&quot;:%&quot; PRIu64 &quot;,\&quot;size\&quot;:%zu,\&quot;flags\&quot;:%u,\&quot;vaddr\&quot;:%&quot; PRIuPTR &quot;}\n&quot;,getpid(),o-&gt;vfio.bdf,i,m-&gt;iova,m-&gt;dma_size,m-&gt;permissions,(uintptr_t)m-&gt;memory);</span>
+<span class="source-line" id="L183"><a class="line-no" href="#L183">183</a>    }</span>
+<span class="source-line" id="L184"><a class="line-no" href="#L184">184</a>    return 0;</span>
+<span class="source-line" id="L185"><a class="line-no" href="#L185">185</a>}</span>
+<span class="source-line" id="L186"><a class="line-no" href="#L186">186</a>/* 將兩個 MSI-X vector 接到 eventfd；計數是通知數，完成項目仍須逐筆讀 CQ 驗證。 */</span>
+<span class="source-line" id="L187"><a class="line-no" href="#L187">187</a>static int enable_irq(struct owner *o)</span>
+<span class="source-line" id="L188"><a class="line-no" href="#L188">188</a>{</span>
+<span class="source-line" id="L189"><a class="line-no" href="#L189">189</a>    unsigned char bytes[sizeof(struct vfio_irq_set)+2*sizeof(int)] __attribute__((aligned(8)))={0};</span>
+<span class="source-line" id="L190"><a class="line-no" href="#L190">190</a>    struct vfio_irq_set *irq=(void *)bytes;</span>
+<span class="source-line" id="L191"><a class="line-no" href="#L191">191</a>    if (o-&gt;irq_enabled) return 0;</span>
+<span class="source-line" id="L192"><a class="line-no" href="#L192">192</a>    for (unsigned i=0;i&lt;2;i++) {</span>
+<span class="source-line" id="L193"><a class="line-no" href="#L193">193</a>        if (fail(o,&quot;owner.eventfd&quot;)) return -1;</span>
+<span class="source-line" id="L194"><a class="line-no" href="#L194">194</a>        o-&gt;eventfds[i]=eventfd(0,EFD_CLOEXEC|EFD_NONBLOCK);</span>
+<span class="source-line" id="L195"><a class="line-no" href="#L195">195</a>        if (o-&gt;eventfds[i]&lt;0) return -1;</span>
+<span class="source-line" id="L196"><a class="line-no" href="#L196">196</a>    }</span>
+<span class="source-line" id="L197"><a class="line-no" href="#L197">197</a>    irq-&gt;argsz=sizeof(bytes); irq-&gt;flags=VFIO_IRQ_SET_DATA_EVENTFD|VFIO_IRQ_SET_ACTION_TRIGGER;</span>
+<span class="source-line" id="L198"><a class="line-no" href="#L198">198</a>    irq-&gt;index=VFIO_PCI_MSIX_IRQ_INDEX; irq-&gt;count=2;</span>
+<span class="source-line" id="L199"><a class="line-no" href="#L199">199</a>    memcpy(irq-&gt;data,o-&gt;eventfds,sizeof(o-&gt;eventfds));</span>
+<span class="source-line" id="L200"><a class="line-no" href="#L200">200</a>    if (fail(o,&quot;owner.irq_register&quot;)||ioctl(o-&gt;vfio.device,VFIO_DEVICE_SET_IRQS,irq)) return -1;</span>
+<span class="source-line" id="L201"><a class="line-no" href="#L201">201</a>    o-&gt;irq_enabled=true; return 0;</span>
+<span class="source-line" id="L202"><a class="line-no" href="#L202">202</a>}</span>
+<span class="source-line" id="L203"><a class="line-no" href="#L203">203</a>/* 先準備 mapping/IRQ，再提交 queue 設定；此函式只確認 READY_PENDING，不自行執行 PF REARM。 */</span>
+<span class="source-line" id="L204"><a class="line-no" href="#L204">204</a>int owner_configure(struct owner *o,uint32_t entries)</span>
+<span class="source-line" id="L205"><a class="line-no" href="#L205">205</a>{</span>
+<span class="source-line" id="L206"><a class="line-no" href="#L206">206</a>    unsigned char command[2]; uint32_t status,error,flags;</span>
+<span class="source-line" id="L207"><a class="line-no" href="#L207">207</a>    if (entries&lt;16||entries&gt;256||(entries&amp;(entries-1))) { errno=EINVAL; return -1; }</span>
+<span class="source-line" id="L208"><a class="line-no" href="#L208">208</a>    if (map_buffers(o,entries)||enable_irq(o)) return -1;</span>
+<span class="source-line" id="L209"><a class="line-no" href="#L209">209</a>    if (pread(o-&gt;vfio.device,command,2,(off_t)o-&gt;vfio.config.offset+4)!=2) return -1;</span>
+<span class="source-line" id="L210"><a class="line-no" href="#L210">210</a>    lab_put16(command,lab_get16(command)|6u);</span>
+<span class="source-line" id="L211"><a class="line-no" href="#L211">211</a>    if (pwrite(o-&gt;vfio.device,command,2,(off_t)o-&gt;vfio.config.offset+4)!=2 ||</span>
+<span class="source-line" id="L212"><a class="line-no" href="#L212">212</a>        pread(o-&gt;vfio.device,command,2,(off_t)o-&gt;vfio.config.offset+4)!=2 ||</span>
+<span class="source-line" id="L213"><a class="line-no" href="#L213">213</a>        (lab_get16(command)&amp;6)!=6) { errno=EIO; return -1; }</span>
+<span class="source-line" id="L214"><a class="line-no" href="#L214">214</a>    o-&gt;entries=entries; o-&gt;sq_tail=o-&gt;cq_head=0;</span>
+<span class="source-line" id="L215"><a class="line-no" href="#L215">215</a>    if (write64(o,TOY_VF_SQ_BASE_LO,o-&gt;maps[OWNER_SQ].iova)||write64(o,TOY_VF_CQ_BASE_LO,o-&gt;maps[OWNER_CQ].iova)||</span>
+<span class="source-line" id="L216"><a class="line-no" href="#L216">216</a>        owner_write32(o,TOY_VF_SQ_ENTRIES,entries)||owner_write32(o,TOY_VF_CQ_ENTRIES,entries)||</span>
+<span class="source-line" id="L217"><a class="line-no" href="#L217">217</a>        write64(o,TOY_VF_CONFIG_EPOCH_LO,o-&gt;epoch)||write64(o,TOY_VF_CONFIG_SESSION_LO,o-&gt;session)||</span>
+<span class="source-line" id="L218"><a class="line-no" href="#L218">218</a>        owner_write32(o,TOY_VF_CONFIG_COMMIT,1)||owner_read32(o,TOY_VF_QUEUE_STATUS,&amp;status)||</span>
+<span class="source-line" id="L219"><a class="line-no" href="#L219">219</a>        owner_read32(o,TOY_VF_QUEUE_ERROR,&amp;error)||owner_latch(o,&amp;flags)) return -1;</span>
+<span class="source-line" id="L220"><a class="line-no" href="#L220">220</a>    if (error||status!=TOY_QUEUE_STATUS_READY_PENDING||</span>
+<span class="source-line" id="L221"><a class="line-no" href="#L221">221</a>        (flags&amp;(TOY_HW_FLAGS_FENCED|TOY_HW_FLAGS_CONFIG_VALID|TOY_HW_FLAGS_READY_PENDING|TOY_HW_FLAGS_BME|TOY_HW_FLAGS_KILLED))!=</span>
+<span class="source-line" id="L222"><a class="line-no" href="#L222">222</a>        (TOY_HW_FLAGS_FENCED|TOY_HW_FLAGS_CONFIG_VALID|TOY_HW_FLAGS_READY_PENDING|TOY_HW_FLAGS_BME)) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L223"><a class="line-no" href="#L223">223</a>    return 0;</span>
+<span class="source-line" id="L224"><a class="line-no" href="#L224">224</a>}</span>
+<span class="source-line" id="L225"><a class="line-no" href="#L225">225</a></span>
+<span class="source-line" id="L226"><a class="line-no" href="#L226">226</a>static unsigned request_length(uint64_t n)</span>
+<span class="source-line" id="L227"><a class="line-no" href="#L227">227</a>{</span>
+<span class="source-line" id="L228"><a class="line-no" href="#L228">228</a>    static const unsigned sizes[]={1,9,4095,4096}; return sizes[(n/2)%4];</span>
+<span class="source-line" id="L229"><a class="line-no" href="#L229">229</a>}</span>
+<span class="source-line" id="L230"><a class="line-no" href="#L230">230</a>/* 每個 outstanding id 有不同 payload 區；確認完成內容後才移交 CQ_HEAD。 */</span>
+<span class="source-line" id="L231"><a class="line-no" href="#L231">231</a>int owner_workload(struct owner *o,unsigned requests)</span>
+<span class="source-line" id="L232"><a class="line-no" href="#L232">232</a>{</span>
+<span class="source-line" id="L233"><a class="line-no" href="#L233">233</a>    if (o-&gt;pending_request) { errno=EBUSY; return -1; }</span>
+<span class="source-line" id="L234"><a class="line-no" href="#L234">234</a>    unsigned done=0;</span>
+<span class="source-line" id="L235"><a class="line-no" href="#L235">235</a>    uint32_t status;</span>
+<span class="source-line" id="L236"><a class="line-no" href="#L236">236</a>    if (owner_read32(o,TOY_VF_QUEUE_STATUS,&amp;status)||status!=TOY_QUEUE_STATUS_RUNNING) { errno=EACCES; return -1; }</span>
+<span class="source-line" id="L237"><a class="line-no" href="#L237">237</a>    while (done&lt;requests) {</span>
+<span class="source-line" id="L238"><a class="line-no" href="#L238">238</a>        unsigned batch=requests-done&lt;o-&gt;entries?requests-done:o-&gt;entries;</span>
+<span class="source-line" id="L239"><a class="line-no" href="#L239">239</a>        uint32_t start=o-&gt;sq_tail;</span>
+<span class="source-line" id="L240"><a class="line-no" href="#L240">240</a>        for (unsigned j=0;j&lt;batch;j++) {</span>
+<span class="source-line" id="L241"><a class="line-no" href="#L241">241</a>            uint64_t n=o-&gt;completed+j;</span>
+<span class="source-line" id="L242"><a class="line-no" href="#L242">242</a>            uint32_t index=lab_ring_index(start+j,o-&gt;entries);</span>
+<span class="source-line" id="L243"><a class="line-no" href="#L243">243</a>            unsigned length=request_length(n);</span>
+<span class="source-line" id="L244"><a class="line-no" href="#L244">244</a>            unsigned char *sq=(unsigned char *)o-&gt;maps[OWNER_SQ].memory+index*32;</span>
+<span class="source-line" id="L245"><a class="line-no" href="#L245">245</a>            unsigned char *payload=(unsigned char *)o-&gt;maps[OWNER_PAYLOAD].memory+index*8192;</span>
+<span class="source-line" id="L246"><a class="line-no" href="#L246">246</a>            memset(payload,0xa5^o-&gt;pattern,8192); memset(sq,0,32);</span>
+<span class="source-line" id="L247"><a class="line-no" href="#L247">247</a>            if (n&amp;1) for (unsigned k=0;k&lt;length;k++) payload[k]=(unsigned char)(n+o-&gt;pattern+k);</span>
+<span class="source-line" id="L248"><a class="line-no" href="#L248">248</a>            if ((n&amp;1)&amp;&amp;length==9) memcpy(payload,&quot;123456789&quot;,9);</span>
+<span class="source-line" id="L249"><a class="line-no" href="#L249">249</a>            lab_put64(sq,o-&gt;maps[OWNER_PAYLOAD].iova+(uint64_t)index*8192);</span>
+<span class="source-line" id="L250"><a class="line-no" href="#L250">250</a>            lab_put32(sq+8,length); sq[12]=(n&amp;1)?TOY_SQ_OPS_CRC32:TOY_SQ_OPS_FILL;</span>
+<span class="source-line" id="L251"><a class="line-no" href="#L251">251</a>            lab_put16(sq+14,(uint16_t)(start+j)); lab_put64(sq+16,o-&gt;epoch); lab_put64(sq+24,(unsigned char)(n+o-&gt;pattern));</span>
+<span class="source-line" id="L252"><a class="line-no" href="#L252">252</a>        }</span>
+<span class="source-line" id="L253"><a class="line-no" href="#L253">253</a>        atomic_thread_fence(memory_order_release);</span>
+<span class="source-line" id="L254"><a class="line-no" href="#L254">254</a>        o-&gt;sq_tail+=batch;</span>
+<span class="source-line" id="L255"><a class="line-no" href="#L255">255</a>        if (owner_write32(o,TOY_VF_SQ_TAIL,o-&gt;sq_tail)||owner_write32(o,TOY_VF_DOORBELL,1)) return -1;</span>
+<span class="source-line" id="L256"><a class="line-no" href="#L256">256</a>        unsigned received=0;</span>
+<span class="source-line" id="L257"><a class="line-no" href="#L257">257</a>        int64_t deadline=lab_now_ms()+LAB_TIMEOUT_MS;</span>
+<span class="source-line" id="L258"><a class="line-no" href="#L258">258</a>        while (received&lt;batch) {</span>
+<span class="source-line" id="L259"><a class="line-no" href="#L259">259</a>            uint64_t count;</span>
+<span class="source-line" id="L260"><a class="line-no" href="#L260">260</a>            if (lab_wait(o-&gt;eventfds[0],POLLIN,deadline)) return -1;</span>
+<span class="source-line" id="L261"><a class="line-no" href="#L261">261</a>            if (read(o-&gt;eventfds[0],&amp;count,sizeof(count))!=sizeof(count)) return -1;</span>
+<span class="source-line" id="L262"><a class="line-no" href="#L262">262</a>            o-&gt;irq_count+=count; ++o-&gt;irq_wakes;</span>
+<span class="source-line" id="L263"><a class="line-no" href="#L263">263</a>            uint32_t cause;</span>
+<span class="source-line" id="L264"><a class="line-no" href="#L264">264</a>            if (owner_read32(o,TOY_VF_IRQ_CAUSE,&amp;cause)||owner_write32(o,TOY_VF_IRQ_CAUSE,cause)) return -1;</span>
+<span class="source-line" id="L265"><a class="line-no" href="#L265">265</a>            while (received&lt;batch) {</span>
+<span class="source-line" id="L266"><a class="line-no" href="#L266">266</a>                uint32_t index=lab_ring_index(o-&gt;cq_head,o-&gt;entries);</span>
+<span class="source-line" id="L267"><a class="line-no" href="#L267">267</a>                unsigned char *cq=(unsigned char *)o-&gt;maps[OWNER_CQ].memory+index*32;</span>
+<span class="source-line" id="L268"><a class="line-no" href="#L268">268</a>                unsigned char phase=__atomic_load_n(cq+24,__ATOMIC_ACQUIRE);</span>
+<span class="source-line" id="L269"><a class="line-no" href="#L269">269</a>                unsigned char expected=lab_ring_phase(o-&gt;cq_head,o-&gt;entries);</span>
+<span class="source-line" id="L270"><a class="line-no" href="#L270">270</a>                if (phase!=expected) break;</span>
+<span class="source-line" id="L271"><a class="line-no" href="#L271">271</a>                atomic_thread_fence(memory_order_acquire);</span>
+<span class="source-line" id="L272"><a class="line-no" href="#L272">272</a>                uint64_t n=o-&gt;completed+received;</span>
+<span class="source-line" id="L273"><a class="line-no" href="#L273">273</a>                unsigned length=request_length(n);</span>
+<span class="source-line" id="L274"><a class="line-no" href="#L274">274</a>                /* stale SQ 不產生 CQ，兩個 ring 的 cursor 可能不同；payload</span>
+<span class="source-line" id="L275"><a class="line-no" href="#L275">275</a>                 * 屬於原始 submission slot，不能由 completion slot 推算。 */</span>
+<span class="source-line" id="L276"><a class="line-no" href="#L276">276</a>                uint32_t payload_index=lab_ring_index(start+received,o-&gt;entries);</span>
+<span class="source-line" id="L277"><a class="line-no" href="#L277">277</a>                unsigned char *payload=(unsigned char *)o-&gt;maps[OWNER_PAYLOAD].memory+payload_index*8192;</span>
+<span class="source-line" id="L278"><a class="line-no" href="#L278">278</a>                uint32_t crc=(n&amp;1)?lab_crc32(payload,length):0;</span>
+<span class="source-line" id="L279"><a class="line-no" href="#L279">279</a>                if (lab_get16(cq)!=(uint16_t)(start+received)||lab_get16(cq+2)!=TOY_STATUSES_OK||</span>
+<span class="source-line" id="L280"><a class="line-no" href="#L280">280</a>                    lab_get32(cq+4)!=length||lab_get64(cq+8)!=o-&gt;epoch||lab_get64(cq+16)!=crc) { errno=EBADMSG; return -1; }</span>
+<span class="source-line" id="L281"><a class="line-no" href="#L281">281</a>                if ((n&amp;1)&amp;&amp;length==9&amp;&amp;crc!=0xcbf43926u) { errno=EBADMSG; return -1; }</span>
+<span class="source-line" id="L282"><a class="line-no" href="#L282">282</a>                for (unsigned k=0;k&lt;8192;k++) {</span>
+<span class="source-line" id="L283"><a class="line-no" href="#L283">283</a>                    unsigned char expected_byte=0xa5^o-&gt;pattern;</span>
+<span class="source-line" id="L284"><a class="line-no" href="#L284">284</a>                    if (k&lt;length) expected_byte=(n&amp;1)?(length==9?(unsigned char)&quot;123456789&quot;[k]:(unsigned char)(n+o-&gt;pattern+k)):(unsigned char)(n+o-&gt;pattern);</span>
+<span class="source-line" id="L285"><a class="line-no" href="#L285">285</a>                    if (payload[k]!=expected_byte) { errno=EILSEQ; return -1; }</span>
+<span class="source-line" id="L286"><a class="line-no" href="#L286">286</a>                }</span>
+<span class="source-line" id="L287"><a class="line-no" href="#L287">287</a>                for (unsigned k=25;k&lt;32;k++) if (cq[k]) { errno=EBADMSG; return -1; }</span>
+<span class="source-line" id="L288"><a class="line-no" href="#L288">288</a>                ++received; ++o-&gt;cq_head;</span>
+<span class="source-line" id="L289"><a class="line-no" href="#L289">289</a>            }</span>
+<span class="source-line" id="L290"><a class="line-no" href="#L290">290</a>            atomic_thread_fence(memory_order_release);</span>
+<span class="source-line" id="L291"><a class="line-no" href="#L291">291</a>            if (owner_write32(o,TOY_VF_CQ_HEAD,o-&gt;cq_head)) return -1;</span>
+<span class="source-line" id="L292"><a class="line-no" href="#L292">292</a>        }</span>
+<span class="source-line" id="L293"><a class="line-no" href="#L293">293</a>        o-&gt;completed+=batch; done+=batch;</span>
+<span class="source-line" id="L294"><a class="line-no" href="#L294">294</a>    }</span>
+<span class="source-line" id="L295"><a class="line-no" href="#L295">295</a>    printf(&quot;{\&quot;event\&quot;:\&quot;OWNER_WORKLOAD\&quot;,\&quot;pid\&quot;:%d,\&quot;bdf\&quot;:\&quot;%s\&quot;,\&quot;entries\&quot;:%u,\&quot;completed\&quot;:%&quot; PRIu64 &quot;,\&quot;sq_tail\&quot;:%u,\&quot;cq_head\&quot;:%u,\&quot;irq_wakes\&quot;:%&quot; PRIu64 &quot;,\&quot;irq_count\&quot;:%&quot; PRIu64 &quot;,\&quot;payload_crc\&quot;:%u,\&quot;fixed_crc\&quot;:%u}\n&quot;,getpid(),o-&gt;vfio.bdf,o-&gt;entries,o-&gt;completed,o-&gt;sq_tail,o-&gt;cq_head,o-&gt;irq_wakes,o-&gt;irq_count,lab_crc32(o-&gt;maps[OWNER_PAYLOAD].memory,o-&gt;maps[OWNER_PAYLOAD].size),lab_crc32(&quot;123456789&quot;,9));</span>
+<span class="source-line" id="L296"><a class="line-no" href="#L296">296</a>    return 0;</span>
+<span class="source-line" id="L297"><a class="line-no" href="#L297">297</a>}</span>
+<span class="source-line" id="L298"><a class="line-no" href="#L298">298</a></span>
+<span class="source-line" id="L299"><a class="line-no" href="#L299">299</a>int owner_pattern_pair(struct owner *o)</span>
+<span class="source-line" id="L300"><a class="line-no" href="#L300">300</a>{</span>
+<span class="source-line" id="L301"><a class="line-no" href="#L301">301</a>    unsigned char expected[4096],*payload=o-&gt;maps[OWNER_PAYLOAD].memory;</span>
+<span class="source-line" id="L302"><a class="line-no" href="#L302">302</a>    unsigned char pattern=(unsigned char)(0x31+o-&gt;pattern);</span>
+<span class="source-line" id="L303"><a class="line-no" href="#L303">303</a>    memset(expected,pattern,sizeof(expected));</span>
+<span class="source-line" id="L304"><a class="line-no" href="#L304">304</a>    memset(payload,0xa5^o-&gt;pattern,8192);</span>
+<span class="source-line" id="L305"><a class="line-no" href="#L305">305</a>    uint32_t expected_crc=lab_crc32(expected,sizeof(expected));</span>
+<span class="source-line" id="L306"><a class="line-no" href="#L306">306</a>    /* 先讓裝置 FILL，再讀同一 IOVA 算 CRC；中間不以 CPU 重寫 payload。 */</span>
+<span class="source-line" id="L307"><a class="line-no" href="#L307">307</a>    for (unsigned step=0;step&lt;2;step++) {</span>
+<span class="source-line" id="L308"><a class="line-no" href="#L308">308</a>        uint32_t index=lab_ring_index(o-&gt;sq_tail,o-&gt;entries),cause;</span>
+<span class="source-line" id="L309"><a class="line-no" href="#L309">309</a>        unsigned char *sq=(unsigned char *)o-&gt;maps[OWNER_SQ].memory+index*32;</span>
+<span class="source-line" id="L310"><a class="line-no" href="#L310">310</a>        unsigned char *cq=(unsigned char *)o-&gt;maps[OWNER_CQ].memory+lab_ring_index(o-&gt;cq_head,o-&gt;entries)*32;</span>
+<span class="source-line" id="L311"><a class="line-no" href="#L311">311</a>        memset(sq,0,32); lab_put64(sq,o-&gt;maps[OWNER_PAYLOAD].iova); lab_put32(sq+8,sizeof(expected));</span>
+<span class="source-line" id="L312"><a class="line-no" href="#L312">312</a>        sq[12]=step?TOY_SQ_OPS_CRC32:TOY_SQ_OPS_FILL; lab_put16(sq+14,(uint16_t)o-&gt;sq_tail);</span>
+<span class="source-line" id="L313"><a class="line-no" href="#L313">313</a>        lab_put64(sq+16,o-&gt;epoch); lab_put64(sq+24,pattern);</span>
+<span class="source-line" id="L314"><a class="line-no" href="#L314">314</a>        atomic_thread_fence(memory_order_release);</span>
+<span class="source-line" id="L315"><a class="line-no" href="#L315">315</a>        ++o-&gt;sq_tail;</span>
+<span class="source-line" id="L316"><a class="line-no" href="#L316">316</a>        if (owner_write32(o,TOY_VF_SQ_TAIL,o-&gt;sq_tail)||owner_write32(o,TOY_VF_DOORBELL,1)) return -1;</span>
+<span class="source-line" id="L317"><a class="line-no" href="#L317">317</a>        int64_t deadline=lab_now_ms()+LAB_TIMEOUT_MS;</span>
+<span class="source-line" id="L318"><a class="line-no" href="#L318">318</a>        do {</span>
+<span class="source-line" id="L319"><a class="line-no" href="#L319">319</a>            uint64_t count;</span>
+<span class="source-line" id="L320"><a class="line-no" href="#L320">320</a>            if (lab_wait(o-&gt;eventfds[0],POLLIN,deadline)||read(o-&gt;eventfds[0],&amp;count,sizeof(count))!=sizeof(count)) return -1;</span>
+<span class="source-line" id="L321"><a class="line-no" href="#L321">321</a>            o-&gt;irq_count+=count; ++o-&gt;irq_wakes;</span>
+<span class="source-line" id="L322"><a class="line-no" href="#L322">322</a>            if (owner_read32(o,TOY_VF_IRQ_CAUSE,&amp;cause)||owner_write32(o,TOY_VF_IRQ_CAUSE,cause)) return -1;</span>
+<span class="source-line" id="L323"><a class="line-no" href="#L323">323</a>        } while (__atomic_load_n(cq+24,__ATOMIC_ACQUIRE)!=lab_ring_phase(o-&gt;cq_head,o-&gt;entries));</span>
+<span class="source-line" id="L324"><a class="line-no" href="#L324">324</a>        atomic_thread_fence(memory_order_acquire);</span>
+<span class="source-line" id="L325"><a class="line-no" href="#L325">325</a>        if (lab_get16(cq)!=(uint16_t)(o-&gt;sq_tail-1)||lab_get16(cq+2)!=TOY_STATUSES_OK||</span>
+<span class="source-line" id="L326"><a class="line-no" href="#L326">326</a>            lab_get32(cq+4)!=sizeof(expected)||lab_get64(cq+8)!=o-&gt;epoch||lab_get64(cq+16)!=(step?expected_crc:0)||</span>
+<span class="source-line" id="L327"><a class="line-no" href="#L327">327</a>            memcmp(payload,expected,sizeof(expected))) { errno=EBADMSG; return -1; }</span>
+<span class="source-line" id="L328"><a class="line-no" href="#L328">328</a>        for (unsigned k=sizeof(expected);k&lt;8192;k++) if (payload[k]!=(unsigned char)(0xa5^o-&gt;pattern)) { errno=EILSEQ; return -1; }</span>
+<span class="source-line" id="L329"><a class="line-no" href="#L329">329</a>        for (unsigned k=25;k&lt;32;k++) if (cq[k]) { errno=EBADMSG; return -1; }</span>
+<span class="source-line" id="L330"><a class="line-no" href="#L330">330</a>        ++o-&gt;cq_head; ++o-&gt;completed;</span>
+<span class="source-line" id="L331"><a class="line-no" href="#L331">331</a>        if (owner_write32(o,TOY_VF_CQ_HEAD,o-&gt;cq_head)) return -1;</span>
+<span class="source-line" id="L332"><a class="line-no" href="#L332">332</a>        printf(&quot;{\&quot;event\&quot;:\&quot;OWNER_PATTERN_COMMAND\&quot;,\&quot;pid\&quot;:%d,\&quot;step\&quot;:%u,\&quot;iova\&quot;:%&quot; PRIu64 &quot;,\&quot;bytes\&quot;:%zu,\&quot;pattern\&quot;:%u,\&quot;result\&quot;:%&quot; PRIu64 &quot;,\&quot;expected_crc\&quot;:%u}\n&quot;,getpid(),step,o-&gt;maps[OWNER_PAYLOAD].iova,sizeof(expected),pattern,lab_get64(cq+16),expected_crc);</span>
+<span class="source-line" id="L333"><a class="line-no" href="#L333">333</a>    }</span>
+<span class="source-line" id="L334"><a class="line-no" href="#L334">334</a>    printf(&quot;{\&quot;event\&quot;:\&quot;OWNER_PATTERN_PAIR\&quot;,\&quot;pid\&quot;:%d,\&quot;bdf\&quot;:\&quot;%s\&quot;,\&quot;completed\&quot;:%&quot; PRIu64 &quot;,\&quot;payload_crc\&quot;:%u,\&quot;sq_tail\&quot;:%u,\&quot;cq_head\&quot;:%u}\n&quot;,getpid(),o-&gt;vfio.bdf,o-&gt;completed,lab_crc32(payload,o-&gt;maps[OWNER_PAYLOAD].size),o-&gt;sq_tail,o-&gt;cq_head);</span>
+<span class="source-line" id="L335"><a class="line-no" href="#L335">335</a>    return 0;</span>
+<span class="source-line" id="L336"><a class="line-no" href="#L336">336</a>}</span>
+<span class="source-line" id="L337"><a class="line-no" href="#L337">337</a></span>
+<span class="source-line" id="L338"><a class="line-no" href="#L338">338</a>int owner_descriptor_vectors(struct owner *o)</span>
+<span class="source-line" id="L339"><a class="line-no" href="#L339">339</a>{</span>
+<span class="source-line" id="L340"><a class="line-no" href="#L340">340</a>    static const char *const names[]={&quot;old-epoch&quot;,&quot;unknown-opcode&quot;,&quot;zero-length&quot;,&quot;length-over-4096&quot;,&quot;address-overflow&quot;,&quot;nonzero-flags&quot;};</span>
+<span class="source-line" id="L341"><a class="line-no" href="#L341">341</a>    for (unsigned variant=0;variant&lt;6;variant++) {</span>
+<span class="source-line" id="L342"><a class="line-no" href="#L342">342</a>        unsigned char *sq=(unsigned char *)o-&gt;maps[OWNER_SQ].memory+lab_ring_index(o-&gt;sq_tail,o-&gt;entries)*32;</span>
+<span class="source-line" id="L343"><a class="line-no" href="#L343">343</a>        unsigned char *cq=(unsigned char *)o-&gt;maps[OWNER_CQ].memory+lab_ring_index(o-&gt;cq_head,o-&gt;entries)*32;</span>
+<span class="source-line" id="L344"><a class="line-no" href="#L344">344</a>        uint32_t old_cq_tail,head,tail,cause;</span>
+<span class="source-line" id="L345"><a class="line-no" href="#L345">345</a>        uint32_t id=o-&gt;sq_tail;</span>
+<span class="source-line" id="L346"><a class="line-no" href="#L346">346</a>        char hex[65],completion_hex[65]={0};</span>
+<span class="source-line" id="L347"><a class="line-no" href="#L347">347</a>        if (owner_read32(o,TOY_VF_CQ_TAIL,&amp;old_cq_tail)||old_cq_tail!=o-&gt;cq_head) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L348"><a class="line-no" href="#L348">348</a>        memset(sq,0,32); lab_put64(sq,o-&gt;maps[OWNER_PAYLOAD].iova); lab_put32(sq+8,8);</span>
+<span class="source-line" id="L349"><a class="line-no" href="#L349">349</a>        sq[12]=TOY_SQ_OPS_FILL; lab_put16(sq+14,(uint16_t)id); lab_put64(sq+16,o-&gt;epoch); lab_put64(sq+24,0x73);</span>
+<span class="source-line" id="L350"><a class="line-no" href="#L350">350</a>        switch (variant) {</span>
+<span class="source-line" id="L351"><a class="line-no" href="#L351">351</a>        case 0: lab_put64(sq+16,o-&gt;epoch-1); break;</span>
+<span class="source-line" id="L352"><a class="line-no" href="#L352">352</a>        case 1: sq[12]=0xff; break;</span>
+<span class="source-line" id="L353"><a class="line-no" href="#L353">353</a>        case 2: lab_put32(sq+8,0); break;</span>
+<span class="source-line" id="L354"><a class="line-no" href="#L354">354</a>        case 3: lab_put32(sq+8,4097); break;</span>
+<span class="source-line" id="L355"><a class="line-no" href="#L355">355</a>        case 4: lab_put64(sq,UINT64_MAX-1024); lab_put32(sq+8,2048); break;</span>
+<span class="source-line" id="L356"><a class="line-no" href="#L356">356</a>        case 5: sq[13]=1; break;</span>
+<span class="source-line" id="L357"><a class="line-no" href="#L357">357</a>        }</span>
+<span class="source-line" id="L358"><a class="line-no" href="#L358">358</a>        for (unsigned i=0;i&lt;32;i++) snprintf(hex+i*2,3,&quot;%02x&quot;,sq[i]);</span>
+<span class="source-line" id="L359"><a class="line-no" href="#L359">359</a>        if (owner_freeze(o)) return -1;</span>
+<span class="source-line" id="L360"><a class="line-no" href="#L360">360</a>        uint64_t before_irq=o-&gt;irq_count;</span>
+<span class="source-line" id="L361"><a class="line-no" href="#L361">361</a>        atomic_thread_fence(memory_order_release);</span>
+<span class="source-line" id="L362"><a class="line-no" href="#L362">362</a>        ++o-&gt;sq_tail;</span>
+<span class="source-line" id="L363"><a class="line-no" href="#L363">363</a>        if (owner_write32(o,TOY_VF_SQ_TAIL,o-&gt;sq_tail)||owner_write32(o,TOY_VF_DOORBELL,1)) return -1;</span>
+<span class="source-line" id="L364"><a class="line-no" href="#L364">364</a>        int64_t deadline=lab_now_ms()+LAB_TIMEOUT_MS;</span>
+<span class="source-line" id="L365"><a class="line-no" href="#L365">365</a>        do {</span>
+<span class="source-line" id="L366"><a class="line-no" href="#L366">366</a>            if (owner_read32(o,TOY_VF_SQ_HEAD,&amp;head)) return -1;</span>
+<span class="source-line" id="L367"><a class="line-no" href="#L367">367</a>            if (head==o-&gt;sq_tail) break;</span>
+<span class="source-line" id="L368"><a class="line-no" href="#L368">368</a>            if (lab_now_ms()&gt;=deadline) { errno=ETIMEDOUT; return -1; }</span>
+<span class="source-line" id="L369"><a class="line-no" href="#L369">369</a>            usleep(1000);</span>
+<span class="source-line" id="L370"><a class="line-no" href="#L370">370</a>        } while (true);</span>
+<span class="source-line" id="L371"><a class="line-no" href="#L371">371</a>        if (!variant) {</span>
+<span class="source-line" id="L372"><a class="line-no" href="#L372">372</a>            uint32_t digests[OWNER_MAPS];</span>
+<span class="source-line" id="L373"><a class="line-no" href="#L373">373</a>            struct pollfd irq={.fd=o-&gt;eventfds[0],.events=POLLIN};</span>
+<span class="source-line" id="L374"><a class="line-no" href="#L374">374</a>            int ready;</span>
+<span class="source-line" id="L375"><a class="line-no" href="#L375">375</a>            do { ready=poll(&amp;irq,1,20); } while (ready&lt;0&amp;&amp;errno==EINTR);</span>
+<span class="source-line" id="L376"><a class="line-no" href="#L376">376</a>            if (ready!=0||owner_read32(o,TOY_VF_CQ_TAIL,&amp;tail)||tail!=old_cq_tail||owner_unchanged(o,digests)) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L377"><a class="line-no" href="#L377">377</a>        } else {</span>
+<span class="source-line" id="L378"><a class="line-no" href="#L378">378</a>            do {</span>
+<span class="source-line" id="L379"><a class="line-no" href="#L379">379</a>                uint64_t count;</span>
+<span class="source-line" id="L380"><a class="line-no" href="#L380">380</a>                if (lab_wait(o-&gt;eventfds[0],POLLIN,deadline)||read(o-&gt;eventfds[0],&amp;count,sizeof(count))!=sizeof(count)) return -1;</span>
+<span class="source-line" id="L381"><a class="line-no" href="#L381">381</a>                o-&gt;irq_count+=count; ++o-&gt;irq_wakes;</span>
+<span class="source-line" id="L382"><a class="line-no" href="#L382">382</a>                if (owner_read32(o,TOY_VF_IRQ_CAUSE,&amp;cause)||owner_write32(o,TOY_VF_IRQ_CAUSE,cause)) return -1;</span>
+<span class="source-line" id="L383"><a class="line-no" href="#L383">383</a>            } while (__atomic_load_n(cq+24,__ATOMIC_ACQUIRE)!=lab_ring_phase(o-&gt;cq_head,o-&gt;entries));</span>
+<span class="source-line" id="L384"><a class="line-no" href="#L384">384</a>            atomic_thread_fence(memory_order_acquire);</span>
+<span class="source-line" id="L385"><a class="line-no" href="#L385">385</a>            if (lab_get16(cq)!=(uint16_t)id||lab_get16(cq+2)!=TOY_STATUSES_BAD_DESC||lab_get32(cq+4)||</span>
+<span class="source-line" id="L386"><a class="line-no" href="#L386">386</a>                lab_get64(cq+8)!=o-&gt;epoch||lab_get64(cq+16)) { errno=EBADMSG; return -1; }</span>
+<span class="source-line" id="L387"><a class="line-no" href="#L387">387</a>            for (unsigned k=25;k&lt;32;k++) if (cq[k]) { errno=EBADMSG; return -1; }</span>
+<span class="source-line" id="L388"><a class="line-no" href="#L388">388</a>            for (unsigned kind=0;kind&lt;OWNER_MAPS;kind++) {</span>
+<span class="source-line" id="L389"><a class="line-no" href="#L389">389</a>                struct owner_map *map=&amp;o-&gt;maps[kind];</span>
+<span class="source-line" id="L390"><a class="line-no" href="#L390">390</a>                unsigned char *actual=map-&gt;memory,*saved=o-&gt;held[kind];</span>
+<span class="source-line" id="L391"><a class="line-no" href="#L391">391</a>                for (size_t b=0;b&lt;map-&gt;size;b++) {</span>
+<span class="source-line" id="L392"><a class="line-no" href="#L392">392</a>                    if (kind==OWNER_CQ&amp;&amp;actual+b&gt;=cq&amp;&amp;actual+b&lt;cq+32) continue;</span>
+<span class="source-line" id="L393"><a class="line-no" href="#L393">393</a>                    if (actual[b]!=saved[b]) { errno=EILSEQ; return -1; }</span>
+<span class="source-line" id="L394"><a class="line-no" href="#L394">394</a>                }</span>
+<span class="source-line" id="L395"><a class="line-no" href="#L395">395</a>            }</span>
+<span class="source-line" id="L396"><a class="line-no" href="#L396">396</a>            ++o-&gt;cq_head; ++o-&gt;completed;</span>
+<span class="source-line" id="L397"><a class="line-no" href="#L397">397</a>            for (unsigned k=0;k&lt;32;k++) snprintf(completion_hex+k*2,3,&quot;%02x&quot;,cq[k]);</span>
+<span class="source-line" id="L398"><a class="line-no" href="#L398">398</a>            if (owner_write32(o,TOY_VF_CQ_HEAD,o-&gt;cq_head)||owner_read32(o,TOY_VF_CQ_TAIL,&amp;tail)||tail!=o-&gt;cq_head) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L399"><a class="line-no" href="#L399">399</a>        }</span>
+<span class="source-line" id="L400"><a class="line-no" href="#L400">400</a>        printf(&quot;{\&quot;event\&quot;:\&quot;T09_VECTOR\&quot;,\&quot;pid\&quot;:%d,\&quot;name\&quot;:\&quot;%s\&quot;,\&quot;descriptor_hex\&quot;:\&quot;%s\&quot;,\&quot;completion_hex\&quot;:\&quot;%s\&quot;,\&quot;live_epoch\&quot;:%&quot; PRIu64 &quot;,\&quot;sq_head\&quot;:%u,\&quot;sq_tail\&quot;:%u,\&quot;cq_before\&quot;:%u,\&quot;cq_after\&quot;:%u,\&quot;irq_before\&quot;:%&quot; PRIu64 &quot;,\&quot;irq_after\&quot;:%&quot; PRIu64 &quot;,\&quot;completion_status\&quot;:%d,\&quot;payload_unchanged\&quot;:true,\&quot;other_cq_bytes_unchanged\&quot;:true}\n&quot;,getpid(),names[variant],hex,completion_hex,o-&gt;epoch,head,o-&gt;sq_tail,old_cq_tail,tail,before_irq,o-&gt;irq_count,variant?(int)lab_get16(cq+2):-1);</span>
+<span class="source-line" id="L401"><a class="line-no" href="#L401">401</a>    }</span>
+<span class="source-line" id="L402"><a class="line-no" href="#L402">402</a>    return 0;</span>
+<span class="source-line" id="L403"><a class="line-no" href="#L403">403</a>}</span>
+<span class="source-line" id="L404"><a class="line-no" href="#L404">404</a></span>
+<span class="source-line" id="L405"><a class="line-no" href="#L405">405</a>int owner_freeze(struct owner *o)</span>
+<span class="source-line" id="L406"><a class="line-no" href="#L406">406</a>{</span>
+<span class="source-line" id="L407"><a class="line-no" href="#L407">407</a>    for (unsigned i=0;i&lt;OWNER_MAPS;i++) {</span>
+<span class="source-line" id="L408"><a class="line-no" href="#L408">408</a>        struct owner_map *m=&amp;o-&gt;maps[i];</span>
+<span class="source-line" id="L409"><a class="line-no" href="#L409">409</a>        /* CPU guard 也涵蓋刻意未提供 DMA 映射的已配置記憶體。 */</span>
+<span class="source-line" id="L410"><a class="line-no" href="#L410">410</a>        if (!m-&gt;memory) { errno=EINVAL; return -1; }</span>
+<span class="source-line" id="L411"><a class="line-no" href="#L411">411</a>        if (!o-&gt;held[i]) { o-&gt;held[i]=malloc(m-&gt;size); if (!o-&gt;held[i]) return -1; }</span>
+<span class="source-line" id="L412"><a class="line-no" href="#L412">412</a>        memcpy(o-&gt;held[i],m-&gt;memory,m-&gt;size);</span>
+<span class="source-line" id="L413"><a class="line-no" href="#L413">413</a>    }</span>
+<span class="source-line" id="L414"><a class="line-no" href="#L414">414</a>    return 0;</span>
+<span class="source-line" id="L415"><a class="line-no" href="#L415">415</a>}</span>
+<span class="source-line" id="L416"><a class="line-no" href="#L416">416</a>int owner_unchanged(struct owner *o,uint32_t digests[OWNER_MAPS])</span>
+<span class="source-line" id="L417"><a class="line-no" href="#L417">417</a>{</span>
+<span class="source-line" id="L418"><a class="line-no" href="#L418">418</a>    for (unsigned i=0;i&lt;OWNER_MAPS;i++) {</span>
+<span class="source-line" id="L419"><a class="line-no" href="#L419">419</a>        struct owner_map *m=&amp;o-&gt;maps[i];</span>
+<span class="source-line" id="L420"><a class="line-no" href="#L420">420</a>        if (!o-&gt;held[i]||!m-&gt;memory||memcmp(o-&gt;held[i],m-&gt;memory,m-&gt;size)) { errno=EILSEQ; return -1; }</span>
+<span class="source-line" id="L421"><a class="line-no" href="#L421">421</a>        digests[i]=lab_crc32(m-&gt;memory,m-&gt;size);</span>
+<span class="source-line" id="L422"><a class="line-no" href="#L422">422</a>        printf(&quot;{\&quot;event\&quot;:\&quot;OWNER_HELD_CHECK\&quot;,\&quot;pid\&quot;:%d,\&quot;bdf\&quot;:\&quot;%s\&quot;,\&quot;kind\&quot;:%u,\&quot;completed\&quot;:%&quot; PRIu64 &quot;,\&quot;bytes\&quot;:%zu,\&quot;pattern\&quot;:%u,\&quot;crc\&quot;:%u,\&quot;bytewise_unchanged\&quot;:true}\n&quot;,getpid(),o-&gt;vfio.bdf,i,o-&gt;completed,m-&gt;size,o-&gt;pattern,digests[i]);</span>
+<span class="source-line" id="L423"><a class="line-no" href="#L423">423</a>    }</span>
+<span class="source-line" id="L424"><a class="line-no" href="#L424">424</a>    if (o-&gt;recovery_case) {</span>
+<span class="source-line" id="L425"><a class="line-no" href="#L425">425</a>        uint64_t count;</span>
+<span class="source-line" id="L426"><a class="line-no" href="#L426">426</a>        errno=0;</span>
+<span class="source-line" id="L427"><a class="line-no" href="#L427">427</a>        if (read(o-&gt;eventfds[0],&amp;count,sizeof(count))!=-1||errno!=EAGAIN) { errno=EPROTO; return -1; }</span>
+<span class="source-line" id="L428"><a class="line-no" href="#L428">428</a>        printf(&quot;{\&quot;event\&quot;:\&quot;RECOVERY_NO_IRQ\&quot;,\&quot;pid\&quot;:%d,\&quot;epoch\&quot;:%&quot; PRIu64 &quot;,\&quot;completed\&quot;:%&quot; PRIu64 &quot;,\&quot;eventfd_errno\&quot;:%d}\n&quot;,getpid(),o-&gt;epoch,o-&gt;completed,EAGAIN);</span>
+<span class="source-line" id="L429"><a class="line-no" href="#L429">429</a>    }</span>
+<span class="source-line" id="L430"><a class="line-no" href="#L430">430</a>    return owner_retired_unchanged(o);</span>
+<span class="source-line" id="L431"><a class="line-no" href="#L431">431</a>}</span>
+<span class="source-line" id="L432"><a class="line-no" href="#L432">432</a>/* 呼叫者先證明 fence 生效；每段 UNMAP 都核對實際長度，失敗的 allocation 保留給 close 收尾。 */</span>
+<span class="source-line" id="L433"><a class="line-no" href="#L433">433</a>int owner_unmap(struct owner *o,bool fence_verified)</span>
+<span class="source-line" id="L434"><a class="line-no" href="#L434">434</a>{</span>
+<span class="source-line" id="L435"><a class="line-no" href="#L435">435</a>    int failed=0;</span>
+<span class="source-line" id="L436"><a class="line-no" href="#L436">436</a>    if (!fence_verified) { errno=EACCES; return -1; }</span>
+<span class="source-line" id="L437"><a class="line-no" href="#L437">437</a>    for (unsigned i=OWNER_MAPS;i&gt;0;i--) {</span>
+<span class="source-line" id="L438"><a class="line-no" href="#L438">438</a>        struct owner_map *m=&amp;o-&gt;maps[i-1];</span>
+<span class="source-line" id="L439"><a class="line-no" href="#L439">439</a>        if (m-&gt;mapped) {</span>
+<span class="source-line" id="L440"><a class="line-no" href="#L440">440</a>            struct vfio_iommu_type1_dma_unmap unmap={.argsz=sizeof(unmap),.iova=m-&gt;iova,.size=m-&gt;dma_size};</span>
+<span class="source-line" id="L441"><a class="line-no" href="#L441">441</a>            /* 要求包含相鄰未映射範圍，取得真實 TYPE1 短 UNMAP 回傳。 */</span>
+<span class="source-line" id="L442"><a class="line-no" href="#L442">442</a>            bool short_test=fail(o,&quot;owner.short_unmap&quot;);</span>
+<span class="source-line" id="L443"><a class="line-no" href="#L443">443</a>            if (short_test) unmap.size*=2;</span>
+<span class="source-line" id="L444"><a class="line-no" href="#L444">444</a>            uint64_t requested=unmap.size;</span>
+<span class="source-line" id="L445"><a class="line-no" href="#L445">445</a>            bool injected=fail(o,&quot;owner.unmap&quot;);</span>
+<span class="source-line" id="L446"><a class="line-no" href="#L446">446</a>            int rc=injected?-1:ioctl(o-&gt;vfio.container,VFIO_IOMMU_UNMAP_DMA,&amp;unmap);</span>
+<span class="source-line" id="L447"><a class="line-no" href="#L447">447</a>            if (rc||unmap.size!=requested) {</span>
+<span class="source-line" id="L448"><a class="line-no" href="#L448">448</a>                printf(&quot;{\&quot;event\&quot;:\&quot;OWNER_UNMAP_QUARANTINE\&quot;,\&quot;pid\&quot;:%d,\&quot;kind\&quot;:%u,\&quot;requested\&quot;:%&quot; PRIu64 &quot;,\&quot;returned\&quot;:%&quot; PRIu64 &quot;,\&quot;ioctl_executed\&quot;:%s,\&quot;ioctl_errno\&quot;:%d,\&quot;buffer_held\&quot;:true}\n&quot;,getpid(),i-1,requested,(uint64_t)unmap.size,injected?&quot;false&quot;:&quot;true&quot;,rc?errno:0);</span>
+<span class="source-line" id="L449"><a class="line-no" href="#L449">449</a>                failed=1; o-&gt;cleanup_failed=true; continue;</span>
+<span class="source-line" id="L450"><a class="line-no" href="#L450">450</a>            }</span>
+<span class="source-line" id="L451"><a class="line-no" href="#L451">451</a>            m-&gt;mapped=false;</span>
+<span class="source-line" id="L452"><a class="line-no" href="#L452">452</a>            printf(&quot;{\&quot;event\&quot;:\&quot;OWNER_UNMAP\&quot;,\&quot;pid\&quot;:%d,\&quot;kind\&quot;:%u,\&quot;requested\&quot;:%zu,\&quot;returned\&quot;:%&quot; PRIu64 &quot;}\n&quot;,getpid(),i-1,m-&gt;dma_size,(uint64_t)unmap.size);</span>
+<span class="source-line" id="L453"><a class="line-no" href="#L453">453</a>        }</span>
+<span class="source-line" id="L454"><a class="line-no" href="#L454">454</a>        if (m-&gt;memory&amp;&amp;!o-&gt;keep_unmapped) {</span>
+<span class="source-line" id="L455"><a class="line-no" href="#L455">455</a>            if (munmap(m-&gt;memory,m-&gt;size)) { failed=1; continue; }</span>
+<span class="source-line" id="L456"><a class="line-no" href="#L456">456</a>            m-&gt;memory=NULL;</span>
+<span class="source-line" id="L457"><a class="line-no" href="#L457">457</a>        }</span>
+<span class="source-line" id="L458"><a class="line-no" href="#L458">458</a>    }</span>
+<span class="source-line" id="L459"><a class="line-no" href="#L459">459</a>    return failed?-1:0;</span>
+<span class="source-line" id="L460"><a class="line-no" href="#L460">460</a>}</span>
+<span class="source-line" id="L461"><a class="line-no" href="#L461">461</a>int owner_close(struct owner *o,bool fence_verified)</span>
+<span class="source-line" id="L462"><a class="line-no" href="#L462">462</a>{</span>
+<span class="source-line" id="L463"><a class="line-no" href="#L463">463</a>    int failed=0;</span>
+<span class="source-line" id="L464"><a class="line-no" href="#L464">464</a>    if (o-&gt;irq_enabled) {</span>
+<span class="source-line" id="L465"><a class="line-no" href="#L465">465</a>        struct vfio_irq_set irq={.argsz=sizeof(irq),.flags=VFIO_IRQ_SET_DATA_NONE|VFIO_IRQ_SET_ACTION_TRIGGER,.index=VFIO_PCI_MSIX_IRQ_INDEX};</span>
+<span class="source-line" id="L466"><a class="line-no" href="#L466">466</a>        if (ioctl(o-&gt;vfio.device,VFIO_DEVICE_SET_IRQS,&amp;irq)) failed=1;</span>
+<span class="source-line" id="L467"><a class="line-no" href="#L467">467</a>        else o-&gt;irq_enabled=false;</span>
+<span class="source-line" id="L468"><a class="line-no" href="#L468">468</a>    }</span>
+<span class="source-line" id="L469"><a class="line-no" href="#L469">469</a>    if (fence_verified &amp;&amp; !o-&gt;cleanup_failed &amp;&amp; owner_unmap(o,true)) failed=1;</span>
+<span class="source-line" id="L470"><a class="line-no" href="#L470">470</a>    /* 未確認 fence 或短 UNMAP：保留記憶體到全部 owner fd 關閉之後。 */</span>
+<span class="source-line" id="L471"><a class="line-no" href="#L471">471</a>    if (o-&gt;vfio.device&gt;=0) { if (close(o-&gt;vfio.device)) failed=1; o-&gt;vfio.device=-1; }</span>
+<span class="source-line" id="L472"><a class="line-no" href="#L472">472</a>    for (unsigned i=0;i&lt;2;i++) if (o-&gt;eventfds[i]&gt;=0) { if (close(o-&gt;eventfds[i])) failed=1; o-&gt;eventfds[i]=-1; }</span>
+<span class="source-line" id="L473"><a class="line-no" href="#L473">473</a>    if (o-&gt;vfio.attached) { if (ioctl(o-&gt;vfio.group,VFIO_GROUP_UNSET_CONTAINER)) failed=1; o-&gt;vfio.attached=0; }</span>
+<span class="source-line" id="L474"><a class="line-no" href="#L474">474</a>    if (o-&gt;vfio.group&gt;=0) { if (close(o-&gt;vfio.group)) failed=1; o-&gt;vfio.group=-1; }</span>
+<span class="source-line" id="L475"><a class="line-no" href="#L475">475</a>    if (o-&gt;vfio.container&gt;=0) { if (close(o-&gt;vfio.container)) failed=1; o-&gt;vfio.container=-1; }</span>
+<span class="source-line" id="L476"><a class="line-no" href="#L476">476</a>    for (unsigned i=0;i&lt;OWNER_MAPS;i++) {</span>
+<span class="source-line" id="L477"><a class="line-no" href="#L477">477</a>        struct owner_map *m=&amp;o-&gt;maps[i]; m-&gt;mapped=false;</span>
+<span class="source-line" id="L478"><a class="line-no" href="#L478">478</a>        if (m-&gt;memory) { if (munmap(m-&gt;memory,m-&gt;size)) failed=1; else m-&gt;memory=NULL; }</span>
+<span class="source-line" id="L479"><a class="line-no" href="#L479">479</a>        free(o-&gt;held[i]); o-&gt;held[i]=NULL;</span>
+<span class="source-line" id="L480"><a class="line-no" href="#L480">480</a>        if (o-&gt;retired[i].memory) {</span>
+<span class="source-line" id="L481"><a class="line-no" href="#L481">481</a>            if (munmap(o-&gt;retired[i].memory,o-&gt;retired[i].size)) failed=1;</span>
+<span class="source-line" id="L482"><a class="line-no" href="#L482">482</a>            else o-&gt;retired[i].memory=NULL;</span>
+<span class="source-line" id="L483"><a class="line-no" href="#L483">483</a>        }</span>
+<span class="source-line" id="L484"><a class="line-no" href="#L484">484</a>        free(o-&gt;retired_guard[i]); o-&gt;retired_guard[i]=NULL;</span>
+<span class="source-line" id="L485"><a class="line-no" href="#L485">485</a>    }</span>
+<span class="source-line" id="L486"><a class="line-no" href="#L486">486</a>    o-&gt;irq_enabled=false;</span>
+<span class="source-line" id="L487"><a class="line-no" href="#L487">487</a>    return failed||o-&gt;cleanup_failed?-1:0;</span>
+<span class="source-line" id="L488"><a class="line-no" href="#L488">488</a>}</span></pre></main></html>

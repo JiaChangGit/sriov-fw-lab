@@ -1,0 +1,6068 @@
+{
+  "provenance": {
+    "path": "artifacts/m3-case/20261012T011050Z-o3pskq3g",
+    "result_sha256": "4d620b8a91d001705409b88415a75787f3a23a3f1e55abc2f68ef7ad3d0b7575"
+  },
+  "cases": {
+    "T02_PCI": {
+      "event": "M3_CASE",
+      "id": "T02_PCI",
+      "status": "PASS",
+      "variants": 5,
+      "retained_cases": 1,
+      "partial_pci_enumeration": "PASS"
+    }
+  },
+  "events": [
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-56/control.sock"
+    },
+    {
+      "event": "M3_BARRIER",
+      "scenario": "T02-pci",
+      "phase": "request",
+      "barrier": "t02-1",
+      "action": "inventory",
+      "slot": "",
+      "name": "cold",
+      "hit": 0,
+      "vf": 0
+    },
+    {
+      "event": "M3_BARRIER",
+      "scenario": "T02-pci",
+      "phase": "request",
+      "barrier": "t02-2",
+      "action": "inventory",
+      "slot": "",
+      "name": "initial",
+      "hit": 0,
+      "vf": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 1,
+      "phase": "after_fault",
+      "vf": 0,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 1,
+      "phase": "after_fault",
+      "vf": 1,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 1,
+      "phase": "after_fault",
+      "vf": 2,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 1,
+      "phase": "after_fault",
+      "vf": 3,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 1,
+      "phase": "after_fault",
+      "vf": 4,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 1,
+      "phase": "after_fault",
+      "vf": 5,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 1,
+      "phase": "after_fault",
+      "vf": 6,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 1,
+      "phase": "after_fault",
+      "vf": 7,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 1,
+      "phase": "after_clean_cycle",
+      "vf": 0,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 1,
+      "phase": "after_clean_cycle",
+      "vf": 1,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 1,
+      "phase": "after_clean_cycle",
+      "vf": 2,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 1,
+      "phase": "after_clean_cycle",
+      "vf": 3,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 1,
+      "phase": "after_clean_cycle",
+      "vf": 4,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 1,
+      "phase": "after_clean_cycle",
+      "vf": 5,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 1,
+      "phase": "after_clean_cycle",
+      "vf": 6,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 1,
+      "phase": "after_clean_cycle",
+      "vf": 7,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_PCI_CASE",
+      "case_index": 1,
+      "nth": 1,
+      "expected_errno": 12,
+      "hook_consumed": true,
+      "retained_vf": -1,
+      "pci_devices_absent": true,
+      "clean_retry": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 2,
+      "phase": "after_fault",
+      "vf": 0,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 2,
+      "phase": "after_fault",
+      "vf": 1,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 2,
+      "phase": "after_fault",
+      "vf": 2,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 2,
+      "phase": "after_fault",
+      "vf": 3,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 2,
+      "phase": "after_fault",
+      "vf": 4,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 2,
+      "phase": "after_fault",
+      "vf": 5,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 2,
+      "phase": "after_fault",
+      "vf": 6,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 2,
+      "phase": "after_fault",
+      "vf": 7,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 2,
+      "phase": "after_clean_cycle",
+      "vf": 0,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 2,
+      "phase": "after_clean_cycle",
+      "vf": 1,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 2,
+      "phase": "after_clean_cycle",
+      "vf": 2,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 2,
+      "phase": "after_clean_cycle",
+      "vf": 3,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 2,
+      "phase": "after_clean_cycle",
+      "vf": 4,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 2,
+      "phase": "after_clean_cycle",
+      "vf": 5,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 2,
+      "phase": "after_clean_cycle",
+      "vf": 6,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 2,
+      "phase": "after_clean_cycle",
+      "vf": 7,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_PCI_CASE",
+      "case_index": 2,
+      "nth": 2,
+      "expected_errno": 12,
+      "hook_consumed": true,
+      "retained_vf": -1,
+      "pci_devices_absent": true,
+      "clean_retry": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 3,
+      "phase": "after_fault",
+      "vf": 0,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 3,
+      "phase": "after_fault",
+      "vf": 1,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 3,
+      "phase": "after_fault",
+      "vf": 2,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 3,
+      "phase": "after_fault",
+      "vf": 3,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 3,
+      "phase": "after_fault",
+      "vf": 4,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 3,
+      "phase": "after_fault",
+      "vf": 5,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 3,
+      "phase": "after_fault",
+      "vf": 6,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 3,
+      "phase": "after_fault",
+      "vf": 7,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 3,
+      "phase": "after_clean_cycle",
+      "vf": 0,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 3,
+      "phase": "after_clean_cycle",
+      "vf": 1,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 3,
+      "phase": "after_clean_cycle",
+      "vf": 2,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 3,
+      "phase": "after_clean_cycle",
+      "vf": 3,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 3,
+      "phase": "after_clean_cycle",
+      "vf": 4,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 3,
+      "phase": "after_clean_cycle",
+      "vf": 5,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 3,
+      "phase": "after_clean_cycle",
+      "vf": 6,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 3,
+      "phase": "after_clean_cycle",
+      "vf": 7,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_PCI_CASE",
+      "case_index": 3,
+      "nth": 3,
+      "expected_errno": 12,
+      "hook_consumed": true,
+      "retained_vf": -1,
+      "pci_devices_absent": true,
+      "clean_retry": true,
+      "status": "PASS"
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 4,
+      "phase": "after_fault",
+      "vf": 0,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 4,
+      "phase": "after_fault",
+      "vf": 1,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 4,
+      "phase": "after_fault",
+      "vf": 2,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 4,
+      "phase": "after_fault",
+      "vf": 3,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 4,
+      "phase": "after_fault",
+      "vf": 4,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 4,
+      "phase": "after_fault",
+      "vf": 5,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 4,
+      "phase": "after_fault",
+      "vf": 6,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 4,
+      "phase": "after_fault",
+      "vf": 7,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 4,
+      "phase": "after_clean_cycle",
+      "vf": 0,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 4,
+      "phase": "after_clean_cycle",
+      "vf": 1,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 4,
+      "phase": "after_clean_cycle",
+      "vf": 2,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 4,
+      "phase": "after_clean_cycle",
+      "vf": 3,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 4,
+      "phase": "after_clean_cycle",
+      "vf": 4,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 4,
+      "phase": "after_clean_cycle",
+      "vf": 5,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 4,
+      "phase": "after_clean_cycle",
+      "vf": 6,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 4,
+      "phase": "after_clean_cycle",
+      "vf": 7,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_PCI_CASE",
+      "case_index": 4,
+      "nth": 4,
+      "expected_errno": 12,
+      "hook_consumed": true,
+      "retained_vf": -1,
+      "pci_devices_absent": true,
+      "clean_retry": true,
+      "status": "PASS"
+    },
+    {
+      "event": "M3_BARRIER",
+      "scenario": "T02-pci",
+      "phase": "request",
+      "barrier": "t02-3",
+      "action": "failpoint-arm",
+      "slot": "unwind",
+      "name": "destroy.release",
+      "hit": 1,
+      "vf": 3
+    },
+    {
+      "event": "M3_BARRIER",
+      "scenario": "T02-pci",
+      "phase": "request",
+      "barrier": "t02-4",
+      "action": "failpoint-check",
+      "slot": "unwind",
+      "name": "destroy.release",
+      "hit": 1,
+      "vf": 3
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 5,
+      "phase": "after_fault",
+      "vf": 0,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 5,
+      "phase": "after_fault",
+      "vf": 1,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 5,
+      "phase": "after_fault",
+      "vf": 2,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 5,
+      "phase": "after_fault",
+      "vf": 3,
+      "state": 6,
+      "reserve": 8,
+      "flags": 3,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 5,
+      "phase": "after_fault",
+      "vf": 4,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 5,
+      "phase": "after_fault",
+      "vf": 5,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 5,
+      "phase": "after_fault",
+      "vf": 6,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 5,
+      "phase": "after_fault",
+      "vf": 7,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_GLOBAL_RECOVER",
+      "case_index": 5,
+      "before_session": 2,
+      "after_session": 3
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 5,
+      "phase": "after_clean_cycle",
+      "vf": 0,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 5,
+      "phase": "after_clean_cycle",
+      "vf": 1,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 5,
+      "phase": "after_clean_cycle",
+      "vf": 2,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 5,
+      "phase": "after_clean_cycle",
+      "vf": 3,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 5,
+      "phase": "after_clean_cycle",
+      "vf": 4,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 5,
+      "phase": "after_clean_cycle",
+      "vf": 5,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 5,
+      "phase": "after_clean_cycle",
+      "vf": 6,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_LEDGER",
+      "case_index": 5,
+      "phase": "after_clean_cycle",
+      "vf": 7,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0
+    },
+    {
+      "event": "T02_PCI_CASE",
+      "case_index": 5,
+      "nth": 4,
+      "expected_errno": 12,
+      "hook_consumed": true,
+      "retained_vf": 3,
+      "pci_devices_absent": true,
+      "clean_retry": true,
+      "status": "PASS"
+    },
+    {
+      "event": "M3_BARRIER",
+      "scenario": "T02-pci",
+      "phase": "request",
+      "barrier": "t02-5",
+      "action": "inventory",
+      "slot": "",
+      "name": "final",
+      "hit": 0,
+      "vf": 0
+    },
+    {
+      "event": "M3_CASE",
+      "id": "T02_PCI",
+      "status": "PASS",
+      "variants": 5,
+      "retained_cases": 1,
+      "partial_pci_enumeration": "PASS"
+    }
+  ],
+  "kernel": "toy_pf 0000:01:00.0: TOY_PCI_ENUM_FAIL nth=1 added=0\ntoy_pf 0000:01:00.0: TOY_PCI_ENUM_FAIL nth=2 added=1\ntoy_pf 0000:01:00.0: TOY_PCI_ENUM_FAIL nth=3 added=2\ntoy_pf 0000:01:00.0: TOY_PCI_ENUM_FAIL nth=4 added=3\ntoy_pf 0000:01:00.0: TOY_PCI_ENUM_FAIL nth=4 added=3",
+  "device": "TOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_FAILPOINT_HIT slot=unwind name=destroy.release vf=3 hit=1\nTOY_CORE event=vf_transition vf=3 value=6\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0",
+  "records": [
+    {
+      "observation": {
+        "objects": 343,
+        "owned": {
+          "live-vfs": 0,
+          "mailbox-pending": 0,
+          "pending-completions": 0,
+          "worker-pending": 0
+        }
+      },
+      "request": {
+        "action": "inventory",
+        "barrier": "t02-1",
+        "event": "M3_BARRIER",
+        "hit": 0,
+        "name": "cold",
+        "phase": "request",
+        "scenario": "T02-pci",
+        "slot": "",
+        "vf": 0
+      },
+      "status": "PASS"
+    },
+    {
+      "observation": {
+        "objects": 363,
+        "owned": {
+          "live-vfs": 0,
+          "mailbox-pending": 0,
+          "pending-completions": 0,
+          "worker-pending": 0
+        }
+      },
+      "request": {
+        "action": "inventory",
+        "barrier": "t02-2",
+        "event": "M3_BARRIER",
+        "hit": 0,
+        "name": "initial",
+        "phase": "request",
+        "scenario": "T02-pci",
+        "slot": "",
+        "vf": 0
+      },
+      "status": "PASS"
+    },
+    {
+      "acks": [
+        {
+          "ack": 1,
+          "property": "unwind-failpoint-vf",
+          "value": 3
+        },
+        {
+          "ack": 2,
+          "property": "unwind-failpoint-hit",
+          "value": 1
+        },
+        {
+          "ack": 3,
+          "property": "unwind-failpoint-name",
+          "value": "destroy.release"
+        }
+      ],
+      "request": {
+        "action": "failpoint-arm",
+        "barrier": "t02-3",
+        "event": "M3_BARRIER",
+        "hit": 1,
+        "name": "destroy.release",
+        "phase": "request",
+        "scenario": "T02-pci",
+        "slot": "unwind",
+        "vf": 3
+      },
+      "status": "PASS"
+    },
+    {
+      "disarm": {
+        "ack": 4,
+        "property": "unwind-failpoint-name",
+        "value": ""
+      },
+      "observation": {
+        "fired": 1,
+        "hit": 1,
+        "name": "destroy.release",
+        "seen": 1,
+        "vf": 3
+      },
+      "request": {
+        "action": "failpoint-check",
+        "barrier": "t02-4",
+        "event": "M3_BARRIER",
+        "hit": 1,
+        "name": "destroy.release",
+        "phase": "request",
+        "scenario": "T02-pci",
+        "slot": "unwind",
+        "vf": 3
+      },
+      "status": "PASS"
+    },
+    {
+      "observation": {
+        "objects": 363,
+        "owned": {
+          "live-vfs": 0,
+          "mailbox-pending": 0,
+          "pending-completions": 0,
+          "worker-pending": 0
+        }
+      },
+      "request": {
+        "action": "inventory",
+        "barrier": "t02-5",
+        "event": "M3_BARRIER",
+        "hit": 0,
+        "name": "final",
+        "phase": "request",
+        "scenario": "T02-pci",
+        "slot": "",
+        "vf": 0
+      },
+      "status": "PASS"
+    }
+  ],
+  "inventory": {
+    "cold": {
+      "children": [
+        {
+          "path": "/machine/fw_cfg",
+          "type": "child<fw_cfg_io>"
+        },
+        {
+          "path": "/machine/fw_cfg/\\x2from@etc\\x2facpi\\x2frsdp[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/fw_cfg/\\x2from@etc\\x2facpi\\x2ftables[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/fw_cfg/\\x2from@etc\\x2ftable-loader[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/fw_cfg/fwcfg.dma[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/fw_cfg/fwcfg[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral",
+          "type": "child<container>"
+        },
+        {
+          "path": "/machine/peripheral-anon",
+          "type": "child<container>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]",
+          "type": "child<intel-iommu>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/intel_iommu[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.0-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.0-dmar[1]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.0[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.0[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-01.0-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-01.0[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-02.0-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-02.0[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-1f.0-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-1f.0[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-1f.2-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-1f.2[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-1f.3-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-1f.3[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[2]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[3]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[4]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[5]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[6]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[7]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[2]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[3]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[4]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[5]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[6]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[2]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[3]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[4]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[5]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[6]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[7]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-sys-alias[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[1]",
+          "type": "child<isa-debug-exit>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[1]/isa-debug-exit[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1",
+          "type": "child<pcie-root-port>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/bus master container[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/bus master[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/msix-pba[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/msix-table[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pci_bridge_io[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pci_bridge_io[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pci_bridge_mem[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pci_bridge_pci[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pci_bridge_pref_mem[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pci_bridge_vga_io_hi[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pci_bridge_vga_io_lo[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pci_bridge_vga_mem[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pcie-root-port-msix[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/rp1",
+          "type": "child<PCIE>"
+        },
+        {
+          "path": "/machine/peripheral/toy",
+          "type": "child<toy-sriov-pf>"
+        },
+        {
+          "path": "/machine/peripheral/toy/bus master container[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/toy/bus master[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/toy/msix-pba[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/toy/msix-table[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/toy/toy-pf-mmio[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/toy/toy-pf-msix[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35",
+          "type": "child<q35-pcihost>"
+        },
+        {
+          "path": "/machine/q35/ioapic",
+          "type": "child<ioapic>"
+        },
+        {
+          "path": "/machine/q35/ioapic/ioapic[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[0]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[10]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[11]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[12]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[13]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[14]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[15]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[16]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[17]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[18]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[19]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[1]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[20]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[21]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[22]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[23]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[2]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[3]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[4]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[5]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[6]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[7]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[8]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[9]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/mch",
+          "type": "child<mch>"
+        },
+        {
+          "path": "/machine/q35/mch/bus master container[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/bus master[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[10]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[11]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[12]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[13]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[14]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[15]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[16]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[17]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[18]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[19]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[20]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[21]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[22]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[23]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[24]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[25]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[2]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[3]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[4]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[5]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[6]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[7]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[8]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[9]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[10]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[11]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[12]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[2]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[3]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[4]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[5]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[6]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[7]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[8]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[9]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[10]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[11]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[12]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[2]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[3]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[4]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[5]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[6]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[7]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[8]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[9]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/smbase-blackhole[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/smbase-window[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/smram-high[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/smram-low[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/smram-open-high[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/smram-region[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/smram[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/tseg-blackhole[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/tseg-window[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/pci-conf-data[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/pci-conf-idx[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/pcie-mmcfg-mmio[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/pcie.0",
+          "type": "child<PCIE>"
+        },
+        {
+          "path": "/machine/unattached",
+          "type": "child<container>"
+        },
+        {
+          "path": "/machine/unattached/device[0]",
+          "type": "child<max-x86_64-cpu>"
+        },
+        {
+          "path": "/machine/unattached/device[0]/lapic",
+          "type": "child<apic>"
+        },
+        {
+          "path": "/machine/unattached/device[0]/lapic/apic-msi[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[0]/memory[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[0]/memory[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[0]/smram[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[10]",
+          "type": "child<isa-serial>"
+        },
+        {
+          "path": "/machine/unattached/device[10]/serial",
+          "type": "child<serial>"
+        },
+        {
+          "path": "/machine/unattached/device[10]/serial[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[11]",
+          "type": "child<isa-parallel>"
+        },
+        {
+          "path": "/machine/unattached/device[11]/parallel[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[12]",
+          "type": "child<i8042>"
+        },
+        {
+          "path": "/machine/unattached/device[12]/i8042-cmd[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[12]/i8042-data[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[12]/ps2-kbd-input-irq[0]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[12]/ps2-mouse-input-irq[0]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[12]/ps2kbd",
+          "type": "child<ps2-kbd>"
+        },
+        {
+          "path": "/machine/unattached/device[12]/ps2mouse",
+          "type": "child<ps2-mouse>"
+        },
+        {
+          "path": "/machine/unattached/device[13]",
+          "type": "child<vmport>"
+        },
+        {
+          "path": "/machine/unattached/device[13]/vmport[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[14]",
+          "type": "child<vmmouse>"
+        },
+        {
+          "path": "/machine/unattached/device[15]",
+          "type": "child<port92>"
+        },
+        {
+          "path": "/machine/unattached/device[15]/port92[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[16]",
+          "type": "child<ich9-ahci>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/ahci-idp[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/ahci[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/bus master container[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/bus master[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/ide.0",
+          "type": "child<IDE>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/ide.1",
+          "type": "child<IDE>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/ide.2",
+          "type": "child<IDE>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/ide.3",
+          "type": "child<IDE>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/ide.4",
+          "type": "child<IDE>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/ide.5",
+          "type": "child<IDE>"
+        },
+        {
+          "path": "/machine/unattached/device[17]",
+          "type": "child<ide-cd>"
+        },
+        {
+          "path": "/machine/unattached/device[18]",
+          "type": "child<ICH9-SMB>"
+        },
+        {
+          "path": "/machine/unattached/device[18]/bus master container[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[18]/bus master[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[18]/i2c",
+          "type": "child<i2c-bus>"
+        },
+        {
+          "path": "/machine/unattached/device[18]/pm-smbus[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[19]",
+          "type": "child<smbus-eeprom>"
+        },
+        {
+          "path": "/machine/unattached/device[1]",
+          "type": "child<kvmvapic>"
+        },
+        {
+          "path": "/machine/unattached/device[1]/kvmvapic-rom[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[1]/kvmvapic[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[20]",
+          "type": "child<smbus-eeprom>"
+        },
+        {
+          "path": "/machine/unattached/device[21]",
+          "type": "child<smbus-eeprom>"
+        },
+        {
+          "path": "/machine/unattached/device[22]",
+          "type": "child<smbus-eeprom>"
+        },
+        {
+          "path": "/machine/unattached/device[23]",
+          "type": "child<smbus-eeprom>"
+        },
+        {
+          "path": "/machine/unattached/device[24]",
+          "type": "child<smbus-eeprom>"
+        },
+        {
+          "path": "/machine/unattached/device[25]",
+          "type": "child<smbus-eeprom>"
+        },
+        {
+          "path": "/machine/unattached/device[26]",
+          "type": "child<smbus-eeprom>"
+        },
+        {
+          "path": "/machine/unattached/device[27]",
+          "type": "child<VGA>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/bochs dispi interface[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/bus master container[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/bus master[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/edid[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/qemu extended regs[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vbe[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga ioports remapped[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga-lowmem[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga.mmio[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga.rom[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga.vram[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga[2]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga[3]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga[4]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[2]",
+          "type": "child<max-x86_64-cpu>"
+        },
+        {
+          "path": "/machine/unattached/device[2]/lapic",
+          "type": "child<apic>"
+        },
+        {
+          "path": "/machine/unattached/device[2]/lapic/apic-msi[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[2]/memory[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[2]/memory[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[2]/smram[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]",
+          "type": "child<ICH9-LPC>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/acpi-cnt[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/acpi-cpu-hotplug[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/acpi-cpu-hotplug[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/acpi-evt[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/acpi-gpe0[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/acpi-pci-hotplug[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/acpi-smi[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/acpi-tmr[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/apm-io[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/bus master container[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/bus master[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[0]",
+          "type": "child<i8257>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[0]/dma-chan[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[0]/dma-cont[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[0]/dma-page[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[0]/dma-page[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[1]",
+          "type": "child<i8257>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[1]/dma-chan[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[1]/dma-cont[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[1]/dma-page[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[1]/dma-page[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/ich9-pm[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/isa.0",
+          "type": "child<ISA>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/lpc-rcrb-mmio[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/lpc-reset-control[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/rtc",
+          "type": "child<mc146818rtc>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/rtc/rtc-index[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/rtc/rtc[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/sm-tco[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[4]",
+          "type": "child<isa-i8259>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/elcr[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/pic[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/unnamed-gpio-in[0]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/unnamed-gpio-in[1]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/unnamed-gpio-in[2]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/unnamed-gpio-in[3]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/unnamed-gpio-in[4]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/unnamed-gpio-in[5]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/unnamed-gpio-in[6]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/unnamed-gpio-in[7]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[5]",
+          "type": "child<isa-i8259>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/elcr[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/pic[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/unnamed-gpio-in[0]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/unnamed-gpio-in[1]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/unnamed-gpio-in[2]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/unnamed-gpio-in[3]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/unnamed-gpio-in[4]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/unnamed-gpio-in[5]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/unnamed-gpio-in[6]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/unnamed-gpio-in[7]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[6]",
+          "type": "child<hpet>"
+        },
+        {
+          "path": "/machine/unattached/device[6]/hpet[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[6]/unnamed-gpio-in[0]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[6]/unnamed-gpio-in[1]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[7]",
+          "type": "child<isa-pit>"
+        },
+        {
+          "path": "/machine/unattached/device[7]/pit[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[7]/unnamed-gpio-in[0]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[8]",
+          "type": "child<isa-pcspk>"
+        },
+        {
+          "path": "/machine/unattached/device[8]/pcspk[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[9]",
+          "type": "child<isa-serial>"
+        },
+        {
+          "path": "/machine/unattached/device[9]/serial",
+          "type": "child<serial>"
+        },
+        {
+          "path": "/machine/unattached/device[9]/serial[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/io[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/ioport80[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/ioportF0[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/isa-bios[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[0]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[10]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[11]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[12]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[13]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[14]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[15]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[16]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[17]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[18]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[19]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[1]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[20]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[21]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[22]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[23]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[24]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[25]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[26]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[2]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[3]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[4]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[5]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[6]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[7]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[8]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[9]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/pc.bios[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/pc.rom[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/pci[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/ram-below-4g[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/sysbus",
+          "type": "child<System>"
+        },
+        {
+          "path": "/machine/unattached/system[0]",
+          "type": "child<memory-region>"
+        }
+      ],
+      "owned": {
+        "live-vfs": 0,
+        "mailbox-pending": 0,
+        "pending-completions": 0,
+        "worker-pending": 0
+      },
+      "pci": [
+        {
+          "bus": 0,
+          "devices": [
+            {
+              "bus": 0,
+              "class_info": {
+                "class": 1536,
+                "desc": "Host bridge"
+              },
+              "function": 0,
+              "id": {
+                "device": 10688,
+                "subsystem": 4352,
+                "subsystem-vendor": 6900,
+                "vendor": 32902
+              },
+              "irq_pin": 0,
+              "qdev_id": "",
+              "regions": [],
+              "slot": 0
+            },
+            {
+              "bus": 0,
+              "class_info": {
+                "class": 768,
+                "desc": "VGA controller"
+              },
+              "function": 0,
+              "id": {
+                "device": 4369,
+                "subsystem": 4352,
+                "subsystem-vendor": 6900,
+                "vendor": 4660
+              },
+              "irq_pin": 0,
+              "qdev_id": "",
+              "regions": [
+                {
+                  "address": 4244635648,
+                  "bar": 0,
+                  "mem_type_64": false,
+                  "prefetch": true,
+                  "size": 16777216,
+                  "type": "memory"
+                },
+                {
+                  "address": 4271964160,
+                  "bar": 2,
+                  "mem_type_64": false,
+                  "prefetch": false,
+                  "size": 4096,
+                  "type": "memory"
+                },
+                {
+                  "address": -1,
+                  "bar": 6,
+                  "mem_type_64": false,
+                  "prefetch": false,
+                  "size": 65536,
+                  "type": "memory"
+                }
+              ],
+              "slot": 1
+            },
+            {
+              "bus": 0,
+              "class_info": {
+                "class": 1540,
+                "desc": "PCI bridge"
+              },
+              "function": 0,
+              "id": {
+                "device": 12,
+                "vendor": 6966
+              },
+              "irq": 11,
+              "irq_pin": 1,
+              "pci_bridge": {
+                "bus": {
+                  "io_range": {
+                    "base": 4096,
+                    "limit": 8191
+                  },
+                  "memory_range": {
+                    "base": 4269801472,
+                    "limit": 4271898623
+                  },
+                  "number": 0,
+                  "prefetchable_range": {
+                    "base": 4261412864,
+                    "limit": 4263510015
+                  },
+                  "secondary": 1,
+                  "subordinate": 1
+                },
+                "devices": [
+                  {
+                    "bus": 1,
+                    "class_info": {
+                      "class": 1408,
+                      "desc": "Memory controller"
+                    },
+                    "function": 0,
+                    "id": {
+                      "device": 57345,
+                      "subsystem": 4352,
+                      "subsystem-vendor": 6900,
+                      "vendor": 4660
+                    },
+                    "irq_pin": 0,
+                    "qdev_id": "toy",
+                    "regions": [
+                      {
+                        "address": 4269801472,
+                        "bar": 0,
+                        "mem_type_64": true,
+                        "prefetch": false,
+                        "size": 65536,
+                        "type": "memory"
+                      },
+                      {
+                        "address": 4269867008,
+                        "bar": 2,
+                        "mem_type_64": false,
+                        "prefetch": false,
+                        "size": 16384,
+                        "type": "memory"
+                      }
+                    ],
+                    "slot": 0
+                  }
+                ]
+              },
+              "qdev_id": "rp1",
+              "regions": [
+                {
+                  "address": 4271968256,
+                  "bar": 0,
+                  "mem_type_64": false,
+                  "prefetch": false,
+                  "size": 4096,
+                  "type": "memory"
+                }
+              ],
+              "slot": 2
+            },
+            {
+              "bus": 0,
+              "class_info": {
+                "class": 1537,
+                "desc": "ISA bridge"
+              },
+              "function": 0,
+              "id": {
+                "device": 10520,
+                "subsystem": 4352,
+                "subsystem-vendor": 6900,
+                "vendor": 32902
+              },
+              "irq_pin": 0,
+              "qdev_id": "",
+              "regions": [],
+              "slot": 31
+            },
+            {
+              "bus": 0,
+              "class_info": {
+                "class": 262,
+                "desc": "SATA controller"
+              },
+              "function": 2,
+              "id": {
+                "device": 10530,
+                "subsystem": 4352,
+                "subsystem-vendor": 6900,
+                "vendor": 32902
+              },
+              "irq": 10,
+              "irq_pin": 1,
+              "qdev_id": "",
+              "regions": [
+                {
+                  "address": 49216,
+                  "bar": 4,
+                  "size": 32,
+                  "type": "io"
+                },
+                {
+                  "address": 4271972352,
+                  "bar": 5,
+                  "mem_type_64": false,
+                  "prefetch": false,
+                  "size": 4096,
+                  "type": "memory"
+                }
+              ],
+              "slot": 31
+            },
+            {
+              "bus": 0,
+              "class_info": {
+                "class": 3077,
+                "desc": "SMBus"
+              },
+              "function": 3,
+              "id": {
+                "device": 10544,
+                "subsystem": 4352,
+                "subsystem-vendor": 6900,
+                "vendor": 32902
+              },
+              "irq": 10,
+              "irq_pin": 1,
+              "qdev_id": "",
+              "regions": [
+                {
+                  "address": 1792,
+                  "bar": 4,
+                  "size": 64,
+                  "type": "io"
+                }
+              ],
+              "slot": 31
+            }
+          ]
+        }
+      ]
+    },
+    "initial": {
+      "children": [
+        {
+          "path": "/machine/fw_cfg",
+          "type": "child<fw_cfg_io>"
+        },
+        {
+          "path": "/machine/fw_cfg/\\x2from@etc\\x2facpi\\x2frsdp[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/fw_cfg/\\x2from@etc\\x2facpi\\x2ftables[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/fw_cfg/\\x2from@etc\\x2ftable-loader[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/fw_cfg/fwcfg.dma[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/fw_cfg/fwcfg[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral",
+          "type": "child<container>"
+        },
+        {
+          "path": "/machine/peripheral-anon",
+          "type": "child<container>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]",
+          "type": "child<intel-iommu>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/intel_iommu[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.0-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.0-dmar[1]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.0[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.0[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.1-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.1[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.2-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.2[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.3-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.3[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.4-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.4[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-01.0-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-01.0[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-02.0-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-02.0[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-1f.0-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-1f.0[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-1f.2-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-1f.2[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-1f.3-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-1f.3[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[10]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[11]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[2]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[3]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[4]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[5]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[6]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[7]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[8]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[9]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[10]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[2]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[3]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[4]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[5]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[6]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[7]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[8]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[9]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[10]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[11]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[2]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[3]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[4]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[5]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[6]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[7]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[8]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[9]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-sys-alias[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[1]",
+          "type": "child<isa-debug-exit>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[1]/isa-debug-exit[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1",
+          "type": "child<pcie-root-port>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/bus master container[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/bus master[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/msix-pba[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/msix-table[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pci_bridge_io[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pci_bridge_io[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pci_bridge_mem[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pci_bridge_pci[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pci_bridge_pref_mem[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pci_bridge_vga_io_hi[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pci_bridge_vga_io_lo[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pci_bridge_vga_mem[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pcie-root-port-msix[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/rp1",
+          "type": "child<PCIE>"
+        },
+        {
+          "path": "/machine/peripheral/toy",
+          "type": "child<toy-sriov-pf>"
+        },
+        {
+          "path": "/machine/peripheral/toy/bus master container[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/toy/bus master[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/toy/msix-pba[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/toy/msix-table[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/toy/toy-pf-mmio[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/toy/toy-pf-msix[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35",
+          "type": "child<q35-pcihost>"
+        },
+        {
+          "path": "/machine/q35/ioapic",
+          "type": "child<ioapic>"
+        },
+        {
+          "path": "/machine/q35/ioapic/ioapic[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[0]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[10]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[11]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[12]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[13]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[14]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[15]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[16]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[17]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[18]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[19]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[1]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[20]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[21]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[22]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[23]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[2]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[3]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[4]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[5]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[6]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[7]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[8]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[9]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/mch",
+          "type": "child<mch>"
+        },
+        {
+          "path": "/machine/q35/mch/bus master container[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/bus master[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[10]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[11]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[12]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[13]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[14]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[15]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[16]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[17]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[18]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[19]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[20]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[21]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[22]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[23]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[24]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[25]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[2]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[3]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[4]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[5]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[6]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[7]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[8]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[9]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[10]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[11]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[12]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[2]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[3]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[4]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[5]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[6]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[7]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[8]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[9]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[10]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[11]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[12]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[2]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[3]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[4]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[5]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[6]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[7]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[8]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[9]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/smbase-blackhole[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/smbase-window[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/smram-high[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/smram-low[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/smram-open-high[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/smram-region[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/smram[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/tseg-blackhole[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/tseg-window[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/pci-conf-data[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/pci-conf-idx[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/pcie-mmcfg-mmio[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/pcie.0",
+          "type": "child<PCIE>"
+        },
+        {
+          "path": "/machine/unattached",
+          "type": "child<container>"
+        },
+        {
+          "path": "/machine/unattached/device[0]",
+          "type": "child<max-x86_64-cpu>"
+        },
+        {
+          "path": "/machine/unattached/device[0]/lapic",
+          "type": "child<apic>"
+        },
+        {
+          "path": "/machine/unattached/device[0]/lapic/apic-msi[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[0]/memory[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[0]/memory[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[0]/smram[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[10]",
+          "type": "child<isa-serial>"
+        },
+        {
+          "path": "/machine/unattached/device[10]/serial",
+          "type": "child<serial>"
+        },
+        {
+          "path": "/machine/unattached/device[10]/serial[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[11]",
+          "type": "child<isa-parallel>"
+        },
+        {
+          "path": "/machine/unattached/device[11]/parallel[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[12]",
+          "type": "child<i8042>"
+        },
+        {
+          "path": "/machine/unattached/device[12]/i8042-cmd[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[12]/i8042-data[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[12]/ps2-kbd-input-irq[0]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[12]/ps2-mouse-input-irq[0]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[12]/ps2kbd",
+          "type": "child<ps2-kbd>"
+        },
+        {
+          "path": "/machine/unattached/device[12]/ps2mouse",
+          "type": "child<ps2-mouse>"
+        },
+        {
+          "path": "/machine/unattached/device[13]",
+          "type": "child<vmport>"
+        },
+        {
+          "path": "/machine/unattached/device[13]/vmport[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[14]",
+          "type": "child<vmmouse>"
+        },
+        {
+          "path": "/machine/unattached/device[15]",
+          "type": "child<port92>"
+        },
+        {
+          "path": "/machine/unattached/device[15]/port92[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[16]",
+          "type": "child<ich9-ahci>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/ahci-idp[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/ahci[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/bus master container[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/bus master[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/ide.0",
+          "type": "child<IDE>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/ide.1",
+          "type": "child<IDE>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/ide.2",
+          "type": "child<IDE>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/ide.3",
+          "type": "child<IDE>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/ide.4",
+          "type": "child<IDE>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/ide.5",
+          "type": "child<IDE>"
+        },
+        {
+          "path": "/machine/unattached/device[17]",
+          "type": "child<ide-cd>"
+        },
+        {
+          "path": "/machine/unattached/device[18]",
+          "type": "child<ICH9-SMB>"
+        },
+        {
+          "path": "/machine/unattached/device[18]/bus master container[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[18]/bus master[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[18]/i2c",
+          "type": "child<i2c-bus>"
+        },
+        {
+          "path": "/machine/unattached/device[18]/pm-smbus[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[19]",
+          "type": "child<smbus-eeprom>"
+        },
+        {
+          "path": "/machine/unattached/device[1]",
+          "type": "child<kvmvapic>"
+        },
+        {
+          "path": "/machine/unattached/device[1]/kvmvapic-rom[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[1]/kvmvapic[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[20]",
+          "type": "child<smbus-eeprom>"
+        },
+        {
+          "path": "/machine/unattached/device[21]",
+          "type": "child<smbus-eeprom>"
+        },
+        {
+          "path": "/machine/unattached/device[22]",
+          "type": "child<smbus-eeprom>"
+        },
+        {
+          "path": "/machine/unattached/device[23]",
+          "type": "child<smbus-eeprom>"
+        },
+        {
+          "path": "/machine/unattached/device[24]",
+          "type": "child<smbus-eeprom>"
+        },
+        {
+          "path": "/machine/unattached/device[25]",
+          "type": "child<smbus-eeprom>"
+        },
+        {
+          "path": "/machine/unattached/device[26]",
+          "type": "child<smbus-eeprom>"
+        },
+        {
+          "path": "/machine/unattached/device[27]",
+          "type": "child<VGA>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/bochs dispi interface[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/bus master container[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/bus master[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/edid[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/qemu extended regs[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vbe[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga ioports remapped[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga-lowmem[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga.mmio[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga.rom[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga.vram[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga[2]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga[3]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga[4]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[2]",
+          "type": "child<max-x86_64-cpu>"
+        },
+        {
+          "path": "/machine/unattached/device[2]/lapic",
+          "type": "child<apic>"
+        },
+        {
+          "path": "/machine/unattached/device[2]/lapic/apic-msi[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[2]/memory[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[2]/memory[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[2]/smram[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]",
+          "type": "child<ICH9-LPC>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/acpi-cnt[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/acpi-cpu-hotplug[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/acpi-cpu-hotplug[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/acpi-evt[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/acpi-gpe0[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/acpi-pci-hotplug[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/acpi-smi[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/acpi-tmr[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/apm-io[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/bus master container[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/bus master[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[0]",
+          "type": "child<i8257>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[0]/dma-chan[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[0]/dma-cont[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[0]/dma-page[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[0]/dma-page[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[1]",
+          "type": "child<i8257>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[1]/dma-chan[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[1]/dma-cont[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[1]/dma-page[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[1]/dma-page[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/ich9-pm[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/isa.0",
+          "type": "child<ISA>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/lpc-rcrb-mmio[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/lpc-reset-control[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/rtc",
+          "type": "child<mc146818rtc>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/rtc/rtc-index[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/rtc/rtc[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/sm-tco[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[4]",
+          "type": "child<isa-i8259>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/elcr[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/pic[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/unnamed-gpio-in[0]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/unnamed-gpio-in[1]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/unnamed-gpio-in[2]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/unnamed-gpio-in[3]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/unnamed-gpio-in[4]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/unnamed-gpio-in[5]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/unnamed-gpio-in[6]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/unnamed-gpio-in[7]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[5]",
+          "type": "child<isa-i8259>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/elcr[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/pic[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/unnamed-gpio-in[0]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/unnamed-gpio-in[1]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/unnamed-gpio-in[2]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/unnamed-gpio-in[3]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/unnamed-gpio-in[4]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/unnamed-gpio-in[5]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/unnamed-gpio-in[6]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/unnamed-gpio-in[7]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[6]",
+          "type": "child<hpet>"
+        },
+        {
+          "path": "/machine/unattached/device[6]/hpet[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[6]/unnamed-gpio-in[0]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[6]/unnamed-gpio-in[1]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[7]",
+          "type": "child<isa-pit>"
+        },
+        {
+          "path": "/machine/unattached/device[7]/pit[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[7]/unnamed-gpio-in[0]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[8]",
+          "type": "child<isa-pcspk>"
+        },
+        {
+          "path": "/machine/unattached/device[8]/pcspk[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[9]",
+          "type": "child<isa-serial>"
+        },
+        {
+          "path": "/machine/unattached/device[9]/serial",
+          "type": "child<serial>"
+        },
+        {
+          "path": "/machine/unattached/device[9]/serial[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/io[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/ioport80[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/ioportF0[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/isa-bios[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[0]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[10]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[11]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[12]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[13]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[14]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[15]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[16]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[17]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[18]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[19]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[1]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[20]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[21]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[22]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[23]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[24]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[25]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[26]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[2]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[3]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[4]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[5]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[6]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[7]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[8]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[9]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/pc.bios[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/pc.rom[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/pci[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/ram-below-4g[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/sysbus",
+          "type": "child<System>"
+        },
+        {
+          "path": "/machine/unattached/system[0]",
+          "type": "child<memory-region>"
+        }
+      ],
+      "owned": {
+        "live-vfs": 0,
+        "mailbox-pending": 0,
+        "pending-completions": 0,
+        "worker-pending": 0
+      },
+      "pci": [
+        {
+          "bus": 0,
+          "devices": [
+            {
+              "bus": 0,
+              "class_info": {
+                "class": 1536,
+                "desc": "Host bridge"
+              },
+              "function": 0,
+              "id": {
+                "device": 10688,
+                "subsystem": 4352,
+                "subsystem-vendor": 6900,
+                "vendor": 32902
+              },
+              "irq_pin": 0,
+              "qdev_id": "",
+              "regions": [],
+              "slot": 0
+            },
+            {
+              "bus": 0,
+              "class_info": {
+                "class": 768,
+                "desc": "VGA controller"
+              },
+              "function": 0,
+              "id": {
+                "device": 4369,
+                "subsystem": 4352,
+                "subsystem-vendor": 6900,
+                "vendor": 4660
+              },
+              "irq_pin": 0,
+              "qdev_id": "",
+              "regions": [
+                {
+                  "address": 4244635648,
+                  "bar": 0,
+                  "mem_type_64": false,
+                  "prefetch": true,
+                  "size": 16777216,
+                  "type": "memory"
+                },
+                {
+                  "address": 4271964160,
+                  "bar": 2,
+                  "mem_type_64": false,
+                  "prefetch": false,
+                  "size": 4096,
+                  "type": "memory"
+                },
+                {
+                  "address": -1,
+                  "bar": 6,
+                  "mem_type_64": false,
+                  "prefetch": false,
+                  "size": 65536,
+                  "type": "memory"
+                }
+              ],
+              "slot": 1
+            },
+            {
+              "bus": 0,
+              "class_info": {
+                "class": 1540,
+                "desc": "PCI bridge"
+              },
+              "function": 0,
+              "id": {
+                "device": 12,
+                "vendor": 6966
+              },
+              "irq": 11,
+              "irq_pin": 1,
+              "pci_bridge": {
+                "bus": {
+                  "io_range": {
+                    "base": 4096,
+                    "limit": 8191
+                  },
+                  "memory_range": {
+                    "base": 4269801472,
+                    "limit": 4271898623
+                  },
+                  "number": 0,
+                  "prefetchable_range": {
+                    "base": 4261412864,
+                    "limit": 4263510015
+                  },
+                  "secondary": 1,
+                  "subordinate": 1
+                },
+                "devices": [
+                  {
+                    "bus": 1,
+                    "class_info": {
+                      "class": 1408,
+                      "desc": "Memory controller"
+                    },
+                    "function": 0,
+                    "id": {
+                      "device": 57345,
+                      "subsystem": 4352,
+                      "subsystem-vendor": 6900,
+                      "vendor": 4660
+                    },
+                    "irq_pin": 0,
+                    "qdev_id": "toy",
+                    "regions": [
+                      {
+                        "address": 4269801472,
+                        "bar": 0,
+                        "mem_type_64": true,
+                        "prefetch": false,
+                        "size": 65536,
+                        "type": "memory"
+                      },
+                      {
+                        "address": 4269867008,
+                        "bar": 2,
+                        "mem_type_64": false,
+                        "prefetch": false,
+                        "size": 16384,
+                        "type": "memory"
+                      }
+                    ],
+                    "slot": 0
+                  }
+                ]
+              },
+              "qdev_id": "rp1",
+              "regions": [
+                {
+                  "address": 4271968256,
+                  "bar": 0,
+                  "mem_type_64": false,
+                  "prefetch": false,
+                  "size": 4096,
+                  "type": "memory"
+                }
+              ],
+              "slot": 2
+            },
+            {
+              "bus": 0,
+              "class_info": {
+                "class": 1537,
+                "desc": "ISA bridge"
+              },
+              "function": 0,
+              "id": {
+                "device": 10520,
+                "subsystem": 4352,
+                "subsystem-vendor": 6900,
+                "vendor": 32902
+              },
+              "irq_pin": 0,
+              "qdev_id": "",
+              "regions": [],
+              "slot": 31
+            },
+            {
+              "bus": 0,
+              "class_info": {
+                "class": 262,
+                "desc": "SATA controller"
+              },
+              "function": 2,
+              "id": {
+                "device": 10530,
+                "subsystem": 4352,
+                "subsystem-vendor": 6900,
+                "vendor": 32902
+              },
+              "irq": 10,
+              "irq_pin": 1,
+              "qdev_id": "",
+              "regions": [
+                {
+                  "address": 49216,
+                  "bar": 4,
+                  "size": 32,
+                  "type": "io"
+                },
+                {
+                  "address": 4271972352,
+                  "bar": 5,
+                  "mem_type_64": false,
+                  "prefetch": false,
+                  "size": 4096,
+                  "type": "memory"
+                }
+              ],
+              "slot": 31
+            },
+            {
+              "bus": 0,
+              "class_info": {
+                "class": 3077,
+                "desc": "SMBus"
+              },
+              "function": 3,
+              "id": {
+                "device": 10544,
+                "subsystem": 4352,
+                "subsystem-vendor": 6900,
+                "vendor": 32902
+              },
+              "irq": 10,
+              "irq_pin": 1,
+              "qdev_id": "",
+              "regions": [
+                {
+                  "address": 1792,
+                  "bar": 4,
+                  "size": 64,
+                  "type": "io"
+                }
+              ],
+              "slot": 31
+            }
+          ]
+        }
+      ]
+    },
+    "final": {
+      "children": [
+        {
+          "path": "/machine/fw_cfg",
+          "type": "child<fw_cfg_io>"
+        },
+        {
+          "path": "/machine/fw_cfg/\\x2from@etc\\x2facpi\\x2frsdp[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/fw_cfg/\\x2from@etc\\x2facpi\\x2ftables[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/fw_cfg/\\x2from@etc\\x2ftable-loader[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/fw_cfg/fwcfg.dma[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/fw_cfg/fwcfg[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral",
+          "type": "child<container>"
+        },
+        {
+          "path": "/machine/peripheral-anon",
+          "type": "child<container>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]",
+          "type": "child<intel-iommu>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/intel_iommu[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.0-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.0-dmar[1]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.0[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.0[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.1-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.1[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.2-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.2[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.3-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.3[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.4-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-00.4[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-01.0-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-01.0[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-02.0-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-02.0[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-1f.0-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-1f.0[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-1f.2-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-1f.2[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-1f.3-dmar[0]",
+          "type": "child<intel-iommu-iommu-memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-1f.3[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[10]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[11]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[2]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[3]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[4]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[5]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[6]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[7]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[8]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-ir[9]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[10]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[2]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[3]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[4]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[5]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[6]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[7]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[8]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-no-ir[9]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[10]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[11]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[2]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[3]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[4]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[5]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[6]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[7]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[8]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-nodmar[9]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[0]/vtd-sys-alias[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[1]",
+          "type": "child<isa-debug-exit>"
+        },
+        {
+          "path": "/machine/peripheral-anon/device[1]/isa-debug-exit[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1",
+          "type": "child<pcie-root-port>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/bus master container[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/bus master[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/msix-pba[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/msix-table[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pci_bridge_io[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pci_bridge_io[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pci_bridge_mem[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pci_bridge_pci[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pci_bridge_pref_mem[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pci_bridge_vga_io_hi[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pci_bridge_vga_io_lo[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pci_bridge_vga_mem[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/pcie-root-port-msix[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/rp1/rp1",
+          "type": "child<PCIE>"
+        },
+        {
+          "path": "/machine/peripheral/toy",
+          "type": "child<toy-sriov-pf>"
+        },
+        {
+          "path": "/machine/peripheral/toy/bus master container[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/toy/bus master[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/toy/msix-pba[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/toy/msix-table[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/toy/toy-pf-mmio[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/peripheral/toy/toy-pf-msix[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35",
+          "type": "child<q35-pcihost>"
+        },
+        {
+          "path": "/machine/q35/ioapic",
+          "type": "child<ioapic>"
+        },
+        {
+          "path": "/machine/q35/ioapic/ioapic[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[0]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[10]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[11]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[12]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[13]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[14]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[15]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[16]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[17]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[18]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[19]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[1]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[20]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[21]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[22]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[23]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[2]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[3]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[4]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[5]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[6]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[7]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[8]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/ioapic/unnamed-gpio-in[9]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/q35/mch",
+          "type": "child<mch>"
+        },
+        {
+          "path": "/machine/q35/mch/bus master container[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/bus master[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[10]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[11]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[12]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[13]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[14]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[15]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[16]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[17]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[18]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[19]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[20]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[21]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[22]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[23]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[24]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[25]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[2]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[3]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[4]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[5]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[6]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[7]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[8]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-pci[9]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[10]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[11]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[12]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[2]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[3]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[4]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[5]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[6]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[7]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[8]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-ram[9]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[10]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[11]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[12]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[2]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[3]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[4]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[5]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[6]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[7]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[8]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/pam-rom[9]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/smbase-blackhole[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/smbase-window[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/smram-high[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/smram-low[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/smram-open-high[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/smram-region[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/smram[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/tseg-blackhole[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/mch/tseg-window[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/pci-conf-data[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/pci-conf-idx[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/pcie-mmcfg-mmio[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/q35/pcie.0",
+          "type": "child<PCIE>"
+        },
+        {
+          "path": "/machine/unattached",
+          "type": "child<container>"
+        },
+        {
+          "path": "/machine/unattached/device[0]",
+          "type": "child<max-x86_64-cpu>"
+        },
+        {
+          "path": "/machine/unattached/device[0]/lapic",
+          "type": "child<apic>"
+        },
+        {
+          "path": "/machine/unattached/device[0]/lapic/apic-msi[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[0]/memory[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[0]/memory[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[0]/smram[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[10]",
+          "type": "child<isa-serial>"
+        },
+        {
+          "path": "/machine/unattached/device[10]/serial",
+          "type": "child<serial>"
+        },
+        {
+          "path": "/machine/unattached/device[10]/serial[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[11]",
+          "type": "child<isa-parallel>"
+        },
+        {
+          "path": "/machine/unattached/device[11]/parallel[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[12]",
+          "type": "child<i8042>"
+        },
+        {
+          "path": "/machine/unattached/device[12]/i8042-cmd[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[12]/i8042-data[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[12]/ps2-kbd-input-irq[0]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[12]/ps2-mouse-input-irq[0]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[12]/ps2kbd",
+          "type": "child<ps2-kbd>"
+        },
+        {
+          "path": "/machine/unattached/device[12]/ps2mouse",
+          "type": "child<ps2-mouse>"
+        },
+        {
+          "path": "/machine/unattached/device[13]",
+          "type": "child<vmport>"
+        },
+        {
+          "path": "/machine/unattached/device[13]/vmport[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[14]",
+          "type": "child<vmmouse>"
+        },
+        {
+          "path": "/machine/unattached/device[15]",
+          "type": "child<port92>"
+        },
+        {
+          "path": "/machine/unattached/device[15]/port92[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[16]",
+          "type": "child<ich9-ahci>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/ahci-idp[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/ahci[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/bus master container[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/bus master[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/ide.0",
+          "type": "child<IDE>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/ide.1",
+          "type": "child<IDE>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/ide.2",
+          "type": "child<IDE>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/ide.3",
+          "type": "child<IDE>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/ide.4",
+          "type": "child<IDE>"
+        },
+        {
+          "path": "/machine/unattached/device[16]/ide.5",
+          "type": "child<IDE>"
+        },
+        {
+          "path": "/machine/unattached/device[17]",
+          "type": "child<ide-cd>"
+        },
+        {
+          "path": "/machine/unattached/device[18]",
+          "type": "child<ICH9-SMB>"
+        },
+        {
+          "path": "/machine/unattached/device[18]/bus master container[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[18]/bus master[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[18]/i2c",
+          "type": "child<i2c-bus>"
+        },
+        {
+          "path": "/machine/unattached/device[18]/pm-smbus[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[19]",
+          "type": "child<smbus-eeprom>"
+        },
+        {
+          "path": "/machine/unattached/device[1]",
+          "type": "child<kvmvapic>"
+        },
+        {
+          "path": "/machine/unattached/device[1]/kvmvapic-rom[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[1]/kvmvapic[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[20]",
+          "type": "child<smbus-eeprom>"
+        },
+        {
+          "path": "/machine/unattached/device[21]",
+          "type": "child<smbus-eeprom>"
+        },
+        {
+          "path": "/machine/unattached/device[22]",
+          "type": "child<smbus-eeprom>"
+        },
+        {
+          "path": "/machine/unattached/device[23]",
+          "type": "child<smbus-eeprom>"
+        },
+        {
+          "path": "/machine/unattached/device[24]",
+          "type": "child<smbus-eeprom>"
+        },
+        {
+          "path": "/machine/unattached/device[25]",
+          "type": "child<smbus-eeprom>"
+        },
+        {
+          "path": "/machine/unattached/device[26]",
+          "type": "child<smbus-eeprom>"
+        },
+        {
+          "path": "/machine/unattached/device[27]",
+          "type": "child<VGA>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/bochs dispi interface[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/bus master container[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/bus master[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/edid[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/qemu extended regs[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vbe[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga ioports remapped[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga-lowmem[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga.mmio[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga.rom[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga.vram[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga[2]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga[3]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[27]/vga[4]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[2]",
+          "type": "child<max-x86_64-cpu>"
+        },
+        {
+          "path": "/machine/unattached/device[2]/lapic",
+          "type": "child<apic>"
+        },
+        {
+          "path": "/machine/unattached/device[2]/lapic/apic-msi[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[2]/memory[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[2]/memory[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[2]/smram[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]",
+          "type": "child<ICH9-LPC>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/acpi-cnt[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/acpi-cpu-hotplug[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/acpi-cpu-hotplug[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/acpi-evt[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/acpi-gpe0[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/acpi-pci-hotplug[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/acpi-smi[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/acpi-tmr[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/apm-io[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/bus master container[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/bus master[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[0]",
+          "type": "child<i8257>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[0]/dma-chan[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[0]/dma-cont[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[0]/dma-page[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[0]/dma-page[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[1]",
+          "type": "child<i8257>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[1]/dma-chan[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[1]/dma-cont[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[1]/dma-page[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/dma[1]/dma-page[1]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/ich9-pm[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/isa.0",
+          "type": "child<ISA>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/lpc-rcrb-mmio[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/lpc-reset-control[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/rtc",
+          "type": "child<mc146818rtc>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/rtc/rtc-index[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/rtc/rtc[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[3]/sm-tco[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[4]",
+          "type": "child<isa-i8259>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/elcr[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/pic[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/unnamed-gpio-in[0]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/unnamed-gpio-in[1]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/unnamed-gpio-in[2]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/unnamed-gpio-in[3]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/unnamed-gpio-in[4]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/unnamed-gpio-in[5]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/unnamed-gpio-in[6]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[4]/unnamed-gpio-in[7]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[5]",
+          "type": "child<isa-i8259>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/elcr[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/pic[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/unnamed-gpio-in[0]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/unnamed-gpio-in[1]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/unnamed-gpio-in[2]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/unnamed-gpio-in[3]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/unnamed-gpio-in[4]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/unnamed-gpio-in[5]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/unnamed-gpio-in[6]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[5]/unnamed-gpio-in[7]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[6]",
+          "type": "child<hpet>"
+        },
+        {
+          "path": "/machine/unattached/device[6]/hpet[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[6]/unnamed-gpio-in[0]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[6]/unnamed-gpio-in[1]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[7]",
+          "type": "child<isa-pit>"
+        },
+        {
+          "path": "/machine/unattached/device[7]/pit[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[7]/unnamed-gpio-in[0]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/device[8]",
+          "type": "child<isa-pcspk>"
+        },
+        {
+          "path": "/machine/unattached/device[8]/pcspk[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/device[9]",
+          "type": "child<isa-serial>"
+        },
+        {
+          "path": "/machine/unattached/device[9]/serial",
+          "type": "child<serial>"
+        },
+        {
+          "path": "/machine/unattached/device[9]/serial[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/io[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/ioport80[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/ioportF0[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/isa-bios[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[0]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[10]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[11]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[12]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[13]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[14]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[15]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[16]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[17]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[18]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[19]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[1]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[20]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[21]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[22]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[23]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[24]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[25]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[26]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[2]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[3]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[4]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[5]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[6]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[7]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[8]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/non-qdev-gpio[9]",
+          "type": "child<irq>"
+        },
+        {
+          "path": "/machine/unattached/pc.bios[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/pc.rom[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/pci[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/ram-below-4g[0]",
+          "type": "child<memory-region>"
+        },
+        {
+          "path": "/machine/unattached/sysbus",
+          "type": "child<System>"
+        },
+        {
+          "path": "/machine/unattached/system[0]",
+          "type": "child<memory-region>"
+        }
+      ],
+      "owned": {
+        "live-vfs": 0,
+        "mailbox-pending": 0,
+        "pending-completions": 0,
+        "worker-pending": 0
+      },
+      "pci": [
+        {
+          "bus": 0,
+          "devices": [
+            {
+              "bus": 0,
+              "class_info": {
+                "class": 1536,
+                "desc": "Host bridge"
+              },
+              "function": 0,
+              "id": {
+                "device": 10688,
+                "subsystem": 4352,
+                "subsystem-vendor": 6900,
+                "vendor": 32902
+              },
+              "irq_pin": 0,
+              "qdev_id": "",
+              "regions": [],
+              "slot": 0
+            },
+            {
+              "bus": 0,
+              "class_info": {
+                "class": 768,
+                "desc": "VGA controller"
+              },
+              "function": 0,
+              "id": {
+                "device": 4369,
+                "subsystem": 4352,
+                "subsystem-vendor": 6900,
+                "vendor": 4660
+              },
+              "irq_pin": 0,
+              "qdev_id": "",
+              "regions": [
+                {
+                  "address": 4244635648,
+                  "bar": 0,
+                  "mem_type_64": false,
+                  "prefetch": true,
+                  "size": 16777216,
+                  "type": "memory"
+                },
+                {
+                  "address": 4271964160,
+                  "bar": 2,
+                  "mem_type_64": false,
+                  "prefetch": false,
+                  "size": 4096,
+                  "type": "memory"
+                },
+                {
+                  "address": -1,
+                  "bar": 6,
+                  "mem_type_64": false,
+                  "prefetch": false,
+                  "size": 65536,
+                  "type": "memory"
+                }
+              ],
+              "slot": 1
+            },
+            {
+              "bus": 0,
+              "class_info": {
+                "class": 1540,
+                "desc": "PCI bridge"
+              },
+              "function": 0,
+              "id": {
+                "device": 12,
+                "vendor": 6966
+              },
+              "irq": 11,
+              "irq_pin": 1,
+              "pci_bridge": {
+                "bus": {
+                  "io_range": {
+                    "base": 4096,
+                    "limit": 8191
+                  },
+                  "memory_range": {
+                    "base": 4269801472,
+                    "limit": 4271898623
+                  },
+                  "number": 0,
+                  "prefetchable_range": {
+                    "base": 4261412864,
+                    "limit": 4263510015
+                  },
+                  "secondary": 1,
+                  "subordinate": 1
+                },
+                "devices": [
+                  {
+                    "bus": 1,
+                    "class_info": {
+                      "class": 1408,
+                      "desc": "Memory controller"
+                    },
+                    "function": 0,
+                    "id": {
+                      "device": 57345,
+                      "subsystem": 4352,
+                      "subsystem-vendor": 6900,
+                      "vendor": 4660
+                    },
+                    "irq_pin": 0,
+                    "qdev_id": "toy",
+                    "regions": [
+                      {
+                        "address": 4269801472,
+                        "bar": 0,
+                        "mem_type_64": true,
+                        "prefetch": false,
+                        "size": 65536,
+                        "type": "memory"
+                      },
+                      {
+                        "address": 4269867008,
+                        "bar": 2,
+                        "mem_type_64": false,
+                        "prefetch": false,
+                        "size": 16384,
+                        "type": "memory"
+                      }
+                    ],
+                    "slot": 0
+                  }
+                ]
+              },
+              "qdev_id": "rp1",
+              "regions": [
+                {
+                  "address": 4271968256,
+                  "bar": 0,
+                  "mem_type_64": false,
+                  "prefetch": false,
+                  "size": 4096,
+                  "type": "memory"
+                }
+              ],
+              "slot": 2
+            },
+            {
+              "bus": 0,
+              "class_info": {
+                "class": 1537,
+                "desc": "ISA bridge"
+              },
+              "function": 0,
+              "id": {
+                "device": 10520,
+                "subsystem": 4352,
+                "subsystem-vendor": 6900,
+                "vendor": 32902
+              },
+              "irq_pin": 0,
+              "qdev_id": "",
+              "regions": [],
+              "slot": 31
+            },
+            {
+              "bus": 0,
+              "class_info": {
+                "class": 262,
+                "desc": "SATA controller"
+              },
+              "function": 2,
+              "id": {
+                "device": 10530,
+                "subsystem": 4352,
+                "subsystem-vendor": 6900,
+                "vendor": 32902
+              },
+              "irq": 10,
+              "irq_pin": 1,
+              "qdev_id": "",
+              "regions": [
+                {
+                  "address": 49216,
+                  "bar": 4,
+                  "size": 32,
+                  "type": "io"
+                },
+                {
+                  "address": 4271972352,
+                  "bar": 5,
+                  "mem_type_64": false,
+                  "prefetch": false,
+                  "size": 4096,
+                  "type": "memory"
+                }
+              ],
+              "slot": 31
+            },
+            {
+              "bus": 0,
+              "class_info": {
+                "class": 3077,
+                "desc": "SMBus"
+              },
+              "function": 3,
+              "id": {
+                "device": 10544,
+                "subsystem": 4352,
+                "subsystem-vendor": 6900,
+                "vendor": 32902
+              },
+              "irq": 10,
+              "irq_pin": 1,
+              "qdev_id": "",
+              "regions": [
+                {
+                  "address": 1792,
+                  "bar": 4,
+                  "size": 64,
+                  "type": "io"
+                }
+              ],
+              "slot": 31
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

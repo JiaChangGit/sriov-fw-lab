@@ -1,0 +1,138 @@
+#!/bin/sh
+# 所有程序在 guest 內執行；不可在 WSL host 載入此模組。
+PATH=/bin:/sbin:/usr/bin:/usr/sbin
+export PATH
+LC_ALL=C
+export LC_ALL
+umask 077
+
+finish()
+{
+    lab_rc=$1
+    if [ "$lab_rc" -ne 0 ]; then
+        printf '%s\n' 'LAB_RESULT=FAIL'
+    fi
+    sync
+    if [ -x /usr/bin/lab-exit ]; then
+        /usr/bin/lab-exit "$lab_rc"
+    fi
+    # debug-exit 不存在或 helper 失敗時，禁止 init 返回造成誤判。
+    printf '%s\n' '{"case":"GUEST_EXIT","status":"FAIL","reason":"debug_exit_returned"}'
+    printf '%s\n' 'LAB_RESULT=FAIL'
+    poweroff -f
+    while :; do sleep 3600; done
+}
+
+fatal()
+{
+    printf '{"case":"GUEST_BOOT","status":"FAIL","reason":"%s"}\n' "$1"
+    finish 1
+}
+
+make_node()
+{
+    node_file=$1
+    node_path=$2
+    [ -r "$node_file" ] || return 1
+    IFS=: read -r node_major node_minor < "$node_file" || return 1
+    case "$node_major:$node_minor" in
+        *[!0-9:]*|:*|*:) return 1 ;;
+    esac
+    if [ ! -c "$node_path" ]; then
+        mknod "$node_path" c "$node_major" "$node_minor" || return 1
+    fi
+    chmod 600 "$node_path" || return 1
+}
+
+refresh_nodes()
+{
+    mkdir -p /dev/vfio || return 1
+    make_node /sys/class/misc/vfio/dev /dev/vfio/vfio || return 1
+    for node_file in /sys/class/vfio/*/dev; do
+        [ -r "$node_file" ] || continue
+        node_group=${node_file%/dev}
+        node_group=${node_group##*/}
+        case "$node_group" in *[!0-9]*|'') continue ;; esac
+        make_node "$node_file" "/dev/vfio/$node_group" || return 1
+    done
+}
+
+mount -t proc proc /proc || fatal mount_proc
+mount -t sysfs sysfs /sys || fatal mount_sysfs
+mount -t devtmpfs devtmpfs /dev || fatal mount_devtmpfs
+mkdir -p /dev/pts /run /tmp || fatal mkdir_runtime
+mount -t devpts devpts /dev/pts || fatal mount_devpts
+mount -t tmpfs -o mode=0755,nosuid,nodev tmpfs /run || fatal mount_run
+mount -t tmpfs -o mode=1777,nosuid,nodev tmpfs /tmp || fatal mount_tmp
+exec </dev/console >/dev/console 2>&1
+
+lab_gate=m1
+lab_case=T03
+lab_entries=16
+lab_dma_fault=0
+lab_seed=101
+for lab_arg in $(cat /proc/cmdline); do
+    case "$lab_arg" in
+        lab_gate=*) lab_gate=${lab_arg#lab_gate=} ;;
+        lab_case=*) lab_case=${lab_arg#lab_case=} ;;
+        lab_entries=*) lab_entries=${lab_arg#lab_entries=} ;;
+        lab_dma_fault=*) lab_dma_fault=${lab_arg#lab_dma_fault=} ;;
+        lab_seed=*) lab_seed=${lab_arg#lab_seed=} ;;
+    esac
+done
+
+# 所有 Linux gate 都分離 printk 與測試協定；M1/UEFI handoff 也會遇到
+# 延遲的 clocksource 訊息插入 JSON，不能只為 M3 分離 UART。
+[ -c /dev/ttyS1 ] || fatal missing_test_uart
+exec </dev/ttyS1 >/dev/ttyS1 2>&1
+
+[ -x /usr/bin/lspci ] || fatal missing_lspci
+[ -x /usr/bin/m1-spike ] || fatal missing_m1_spike
+[ -x /usr/bin/lab-exit ] || fatal missing_exit_helper
+[ -r /lib/modules/toy_pf.ko ] || fatal missing_pf_module
+lspci -Dnn -d 1234:e001 > /run/pf-list || fatal lspci_failed
+pf_count=0
+while IFS= read -r pf_line; do
+    [ -n "$pf_line" ] || continue
+    pf_count=$((pf_count + 1))
+done < /run/pf-list
+cat /run/pf-list
+[ "$pf_count" -eq 1 ] || fatal expected_exactly_one_pf
+if [ "$lab_gate" = m3-case ] && [ "$lab_case" = T02-provision ]; then
+    for lab_point in probe.alloc_ctx probe.enable_mem probe.request_regions probe.map_bar \
+        probe.validate_caps probe.alloc_vectors probe.request_irq0 probe.request_irq1 \
+        probe.version_neg probe.misc_register; do
+        # pci driver register 可成功而 probe 失敗；以真正 misc/driver 綁定觀察判定。
+        insmod /lib/modules/toy_pf.ko forward_failpoint="$lab_point" || fatal failpoint_module_load
+        lab_loaded_point=$(cat /sys/module/toy_pf/parameters/forward_failpoint) || fatal failpoint_parameter_read
+        [ "$lab_loaded_point" = "$lab_point" ] || fatal failpoint_parameter_mismatch
+        [ ! -e /sys/class/misc/toy_pf0/dev ] || fatal failed_probe_exposed_control
+        rmmod toy_pf || fatal failed_probe_module_unload
+        insmod /lib/modules/toy_pf.ko || fatal clean_probe_module_load
+        [ -r /sys/class/misc/toy_pf0/dev ] || fatal clean_probe_control_missing
+        rmmod toy_pf || fatal clean_probe_module_unload
+        printf '{"event":"T02_PROBE","name":"%s","status":"PASS","failed_probe_control_absent":true,"clean_probe_control_present":true,"module_unloaded":true}\n' "$lab_point"
+    done
+fi
+insmod /lib/modules/toy_pf.ko || fatal insmod_toy_pf
+make_node /sys/class/misc/toy_pf0/dev /dev/toy_pf0 || fatal pf_control_node
+refresh_nodes || fatal vfio_nodes
+printf '%s\n' '{"case":"GUEST_BOOT","status":"PASS"}'
+
+if [ "$lab_gate" = m3-case ]; then
+    [ -x /usr/bin/labd ] && [ -x /usr/bin/tenant ] || fatal missing_m3_programs
+    mkdir -p /sys/kernel/debug || fatal debugfs_directory
+    mount -t debugfs debugfs /sys/kernel/debug || fatal debugfs_mount
+    /usr/bin/labd --scenario "$lab_case" --entries "$lab_entries" --seed "$lab_seed" --dma-fault "$lab_dma_fault"
+    finish $?
+fi
+[ "$lab_gate" = m1 ] || fatal unsupported_lab_gate
+
+# spike 自行輸出 case JSON 與 LAB_RESULT；此處不由退出碼產生 PASS。
+/usr/bin/m1-spike
+spike_rc=$?
+if [ "$spike_rc" -ne 0 ]; then
+    printf '{"case":"GUEST_TEST_EXIT","status":"FAIL","exit_code":%s}\n' "$spike_rc"
+    finish 1
+fi
+finish 0

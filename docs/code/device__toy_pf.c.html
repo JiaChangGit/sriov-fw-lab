@@ -1,0 +1,573 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>device/toy_pf.c</title><style>
+:root{color-scheme:light;--ink:#18293c;--blue:#184d83;--line:#ced9e4;--muted:#526477}
+*{box-sizing:border-box}body{margin:0;background:#f2f5f8;color:var(--ink);font:17px/1.8 system-ui,'Microsoft JhengHei',sans-serif}
+a{color:var(--blue);overflow-wrap:anywhere}header{background:#102e4d;color:#fff;padding:48px max(24px,calc((100vw - 1100px)/2))}
+header p{max-width:850px}header a{color:#b8dcff}.label{letter-spacing:.15em;font-size:13px;color:#b8dcff}
+.layout{max-width:1420px;margin:auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:32px;padding:30px}
+nav{position:sticky;top:20px;align-self:start;max-height:95vh;overflow:auto;font-size:14px}nav a{display:block;margin:12px 0}
+main{min-width:0;background:white;padding:36px 44px;border:1px solid var(--line);border-radius:12px}
+h1{font-size:2rem;line-height:1.35}h2{font-size:1.5rem;margin-top:2em;border-bottom:1px solid var(--line);padding-bottom:10px}h3{font-size:1.1rem}
+p{max-width:95ch}section+section{margin-top:80px;border-top:4px solid var(--blue);padding-top:26px}
+pre{overflow:auto;background:#112c45;color:#eaf3fa;padding:20px;border-radius:8px;font-size:14px;line-height:1.6}
+code{font-family:Consolas,monospace;font-size:.88em}p code,li code,td code{background:#edf3f8;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}
+.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;margin:20px 0;font-size:15px}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf1f8}
+img,svg{max-width:100%;height:auto}.diagram{overflow:auto;margin:20px 0}.diagram svg{min-width:900px;width:100%;display:block}blockquote,.notice{border-left:5px solid #c4841b;background:#fff5df;padding:16px 20px;margin:24px 0}.muted{color:var(--muted)}
+.source-line{display:block;white-space:pre}.source-line:target{background:#355b79}.line-no{display:inline-block;width:5em;color:#9db8ce;text-decoration:none;user-select:none}
+@media(max-width:850px){.layout{display:block;padding:14px}nav{position:static;max-height:none}main{padding:24px 18px}header{padding:30px 20px}h1{font-size:1.65rem}}
+@media print{body{background:white;font-size:11pt}header{color:#18293c;background:white;padding:0}nav{display:none}.layout{display:block;padding:0}main{border:0;padding:0}section{break-before:page}pre{white-space:pre-wrap}a{color:inherit}}
+</style><main><a href="../handbook.html">回教材</a><h1>device/toy_pf.c</h1><p>SHA256 <code>f268bc8bc739400f651b29a8dd7cbd94280874ec3b16f37eedd391dac3c6cc9c</code></p><pre><span class="source-line" id="L1"><a class="line-no" href="#L1">1</a>/* PF 的 PCI/MMIO 呈現與 mailbox 排程；VF 的 FSM/ledger 交由 fwcore 處理。 */</span>
+<span class="source-line" id="L2"><a class="line-no" href="#L2">2</a>#include &quot;qemu/osdep.h&quot;</span>
+<span class="source-line" id="L3"><a class="line-no" href="#L3">3</a>#include &quot;hw/pci/pcie.h&quot;</span>
+<span class="source-line" id="L4"><a class="line-no" href="#L4">4</a>#include &quot;hw/pci/pcie_sriov.h&quot;</span>
+<span class="source-line" id="L5"><a class="line-no" href="#L5">5</a>#include &quot;hw/pci/msix.h&quot;</span>
+<span class="source-line" id="L6"><a class="line-no" href="#L6">6</a>#include &quot;hw/qdev-properties.h&quot;</span>
+<span class="source-line" id="L7"><a class="line-no" href="#L7">7</a>#include &quot;qapi/error.h&quot;</span>
+<span class="source-line" id="L8"><a class="line-no" href="#L8">8</a>#include &quot;qapi/visitor.h&quot;</span>
+<span class="source-line" id="L9"><a class="line-no" href="#L9">9</a>#include &quot;toy.h&quot;</span>
+<span class="source-line" id="L10"><a class="line-no" href="#L10">10</a></span>
+<span class="source-line" id="L11"><a class="line-no" href="#L11">11</a>static uint32_t read_slot(ToyPF *pf, unsigned vf, uint32_t reg)</span>
+<span class="source-line" id="L12"><a class="line-no" href="#L12">12</a>{</span>
+<span class="source-line" id="L13"><a class="line-no" href="#L13">13</a>    ToyView *s = &amp;pf-&gt;views[vf];</span>
+<span class="source-line" id="L14"><a class="line-no" href="#L14">14</a>    struct fw_vf *snap = &amp;pf-&gt;snapshot.vf[vf];</span>
+<span class="source-line" id="L15"><a class="line-no" href="#L15">15</a>    switch (reg) {</span>
+<span class="source-line" id="L16"><a class="line-no" href="#L16">16</a>    case TOY_PF_VF_VIEW_HW_STATUS: return s-&gt;hw_flags;</span>
+<span class="source-line" id="L17"><a class="line-no" href="#L17">17</a>    case TOY_PF_VF_VIEW_EPOCH_LO: return (uint32_t)pf-&gt;snapshot.hw[vf].epoch;</span>
+<span class="source-line" id="L18"><a class="line-no" href="#L18">18</a>    case TOY_PF_VF_VIEW_EPOCH_HI: return pf-&gt;snapshot.hw[vf].epoch &gt;&gt; 32;</span>
+<span class="source-line" id="L19"><a class="line-no" href="#L19">19</a>    case TOY_PF_VF_VIEW_STATE: return snap-&gt;state;</span>
+<span class="source-line" id="L20"><a class="line-no" href="#L20">20</a>    case TOY_PF_VF_VIEW_RESERVE: return snap-&gt;reserve;</span>
+<span class="source-line" id="L21"><a class="line-no" href="#L21">21</a>    case TOY_PF_VF_VIEW_OUTSTANDING: return s-&gt;outstanding;</span>
+<span class="source-line" id="L22"><a class="line-no" href="#L22">22</a>    case TOY_PF_VF_VIEW_STALE_DESC: return s-&gt;stale_desc;</span>
+<span class="source-line" id="L23"><a class="line-no" href="#L23">23</a>    case TOY_PF_VF_VIEW_STALE_CPL: return s-&gt;stale_cpl;</span>
+<span class="source-line" id="L24"><a class="line-no" href="#L24">24</a>    case TOY_PF_VF_VIEW_FENCE_BLOCKED: return s-&gt;fence_blocked;</span>
+<span class="source-line" id="L25"><a class="line-no" href="#L25">25</a>    case TOY_PF_VF_VIEW_DMA_FAULT: return s-&gt;dma_fault;</span>
+<span class="source-line" id="L26"><a class="line-no" href="#L26">26</a>    case TOY_PF_VF_VIEW_LAST_FAULT: return s-&gt;last_fault;</span>
+<span class="source-line" id="L27"><a class="line-no" href="#L27">27</a>    case TOY_PF_VF_VIEW_SERVICED_LO: return (uint32_t)snap-&gt;serviced;</span>
+<span class="source-line" id="L28"><a class="line-no" href="#L28">28</a>    case TOY_PF_VF_VIEW_SERVICED_HI: return snap-&gt;serviced &gt;&gt; 32;</span>
+<span class="source-line" id="L29"><a class="line-no" href="#L29">29</a>    case TOY_PF_VF_VIEW_IRQ_SUPPRESSED: return s-&gt;irq_suppressed;</span>
+<span class="source-line" id="L30"><a class="line-no" href="#L30">30</a>    case TOY_PF_VF_VIEW_READY_GEN: return s-&gt;ready_gen;</span>
+<span class="source-line" id="L31"><a class="line-no" href="#L31">31</a>    default: return 0;</span>
+<span class="source-line" id="L32"><a class="line-no" href="#L32">32</a>    }</span>
+<span class="source-line" id="L33"><a class="line-no" href="#L33">33</a>}</span>
+<span class="source-line" id="L34"><a class="line-no" href="#L34">34</a></span>
+<span class="source-line" id="L35"><a class="line-no" href="#L35">35</a>/* Driver 持鎖發出 SNAPSHOT 後，後續寄存器讀取使用同一份快照。 */</span>
+<span class="source-line" id="L36"><a class="line-no" href="#L36">36</a>fw_status toy_snapshot(ToyPF *pf)</span>
+<span class="source-line" id="L37"><a class="line-no" href="#L37">37</a>{</span>
+<span class="source-line" id="L38"><a class="line-no" href="#L38">38</a>    struct fw_snapshot core;</span>
+<span class="source-line" id="L39"><a class="line-no" href="#L39">39</a>    ToyView views[FW_VFS];</span>
+<span class="source-line" id="L40"><a class="line-no" href="#L40">40</a>    fw_status rc=fw_snapshot(&amp;pf-&gt;core, &amp;core);</span>
+<span class="source-line" id="L41"><a class="line-no" href="#L41">41</a>    if (rc!=FW_OK) { return rc; }</span>
+<span class="source-line" id="L42"><a class="line-no" href="#L42">42</a>    /* 全部在同一 BQL 區段取樣，成功後才一次提交；MMIO 讀取不再混入 live 值。 */</span>
+<span class="source-line" id="L43"><a class="line-no" href="#L43">43</a>    for (unsigned i=0; i&lt;FW_VFS; i++) {</span>
+<span class="source-line" id="L44"><a class="line-no" href="#L44">44</a>        ToySlot *s=&amp;pf-&gt;slots[i];</span>
+<span class="source-line" id="L45"><a class="line-no" href="#L45">45</a>        views[i]=(ToyView) {</span>
+<span class="source-line" id="L46"><a class="line-no" href="#L46">46</a>            .hw_flags=toy_hw_flags(pf,i), .outstanding=s-&gt;pending.valid,</span>
+<span class="source-line" id="L47"><a class="line-no" href="#L47">47</a>            .stale_desc=s-&gt;stale_desc, .stale_cpl=s-&gt;stale_cpl,</span>
+<span class="source-line" id="L48"><a class="line-no" href="#L48">48</a>            .fence_blocked=s-&gt;fence_blocked, .dma_fault=s-&gt;dma_fault,</span>
+<span class="source-line" id="L49"><a class="line-no" href="#L49">49</a>            .last_fault=s-&gt;last_fault, .irq_suppressed=s-&gt;irq_suppressed,</span>
+<span class="source-line" id="L50"><a class="line-no" href="#L50">50</a>            .ready_gen=s-&gt;ready_gen,</span>
+<span class="source-line" id="L51"><a class="line-no" href="#L51">51</a>        };</span>
+<span class="source-line" id="L52"><a class="line-no" href="#L52">52</a>    }</span>
+<span class="source-line" id="L53"><a class="line-no" href="#L53">53</a>    pf-&gt;snapshot=core;</span>
+<span class="source-line" id="L54"><a class="line-no" href="#L54">54</a>    memcpy(pf-&gt;views,views,sizeof(views));</span>
+<span class="source-line" id="L55"><a class="line-no" href="#L55">55</a>    return FW_OK;</span>
+<span class="source-line" id="L56"><a class="line-no" href="#L56">56</a>}</span>
+<span class="source-line" id="L57"><a class="line-no" href="#L57">57</a></span>
+<span class="source-line" id="L58"><a class="line-no" href="#L58">58</a>static uint64_t read_pf(void *opaque, hwaddr addr, unsigned size)</span>
+<span class="source-line" id="L59"><a class="line-no" href="#L59">59</a>{</span>
+<span class="source-line" id="L60"><a class="line-no" href="#L60">60</a>    ToyPF *pf = opaque;</span>
+<span class="source-line" id="L61"><a class="line-no" href="#L61">61</a>    if (size != 4 || (addr &amp; 3)) {</span>
+<span class="source-line" id="L62"><a class="line-no" href="#L62">62</a>        toy_saturate(&amp;pf-&gt;bad_mmio);</span>
+<span class="source-line" id="L63"><a class="line-no" href="#L63">63</a>        return 0;</span>
+<span class="source-line" id="L64"><a class="line-no" href="#L64">64</a>    }</span>
+<span class="source-line" id="L65"><a class="line-no" href="#L65">65</a>    if (addr &gt;= TOY_PF_VF_BASE &amp;&amp; addr &lt; TOY_PF_VF_BASE + FW_VFS * TOY_PF_VF_STRIDE) {</span>
+<span class="source-line" id="L66"><a class="line-no" href="#L66">66</a>        return read_slot(pf, (addr - TOY_PF_VF_BASE) / TOY_PF_VF_STRIDE,</span>
+<span class="source-line" id="L67"><a class="line-no" href="#L67">67</a>                         (addr - TOY_PF_VF_BASE) % TOY_PF_VF_STRIDE);</span>
+<span class="source-line" id="L68"><a class="line-no" href="#L68">68</a>    }</span>
+<span class="source-line" id="L69"><a class="line-no" href="#L69">69</a>    if (addr &gt;= TOY_PF_MBX_ARG0 &amp;&amp; addr &lt;= TOY_PF_MBX_ARG3) {</span>
+<span class="source-line" id="L70"><a class="line-no" href="#L70">70</a>        return pf-&gt;mbx_staging.arg[(addr - TOY_PF_MBX_ARG0) / 4];</span>
+<span class="source-line" id="L71"><a class="line-no" href="#L71">71</a>    }</span>
+<span class="source-line" id="L72"><a class="line-no" href="#L72">72</a>    if (addr &gt;= TOY_PF_MBX_REPLY0 &amp;&amp; addr &lt;= TOY_PF_MBX_REPLY3) {</span>
+<span class="source-line" id="L73"><a class="line-no" href="#L73">73</a>        return pf-&gt;mbx_reply.value[(addr - TOY_PF_MBX_REPLY0) / 4];</span>
+<span class="source-line" id="L74"><a class="line-no" href="#L74">74</a>    }</span>
+<span class="source-line" id="L75"><a class="line-no" href="#L75">75</a>    switch (addr) {</span>
+<span class="source-line" id="L76"><a class="line-no" href="#L76">76</a>    case TOY_PF_MAGIC: return TOY_PF_MAGIC_VALUE;</span>
+<span class="source-line" id="L77"><a class="line-no" href="#L77">77</a>    case TOY_PF_ABI: return TOY_ABI_VERSION;</span>
+<span class="source-line" id="L78"><a class="line-no" href="#L78">78</a>    case TOY_PF_CAP_VFS: return FW_VFS;</span>
+<span class="source-line" id="L79"><a class="line-no" href="#L79">79</a>    case TOY_PF_CAP_QUEUES: return FW_VFS;</span>
+<span class="source-line" id="L80"><a class="line-no" href="#L80">80</a>    case TOY_PF_CAP_VECTORS: return 16;</span>
+<span class="source-line" id="L81"><a class="line-no" href="#L81">81</a>    case TOY_PF_CAP_CREDIT: return FW_CAP_CREDIT;</span>
+<span class="source-line" id="L82"><a class="line-no" href="#L82">82</a>    case TOY_PF_CAP_FEATURES: return TOY_FEATURES_DMA_FENCE | TOY_FEATURES_VF_KILL | TOY_FEATURES_MODELED_FLR;</span>
+<span class="source-line" id="L83"><a class="line-no" href="#L83">83</a>    case TOY_PF_SESSION_LO: return (uint32_t)pf-&gt;snapshot.session;</span>
+<span class="source-line" id="L84"><a class="line-no" href="#L84">84</a>    case TOY_PF_SESSION_HI: return pf-&gt;snapshot.session &gt;&gt; 32;</span>
+<span class="source-line" id="L85"><a class="line-no" href="#L85">85</a>    case TOY_PF_EVENT: return pf-&gt;event;</span>
+<span class="source-line" id="L86"><a class="line-no" href="#L86">86</a>    case TOY_PF_BAD_MMIO: return pf-&gt;bad_mmio;</span>
+<span class="source-line" id="L87"><a class="line-no" href="#L87">87</a>    case TOY_PF_FENCE_TOKEN: return pf-&gt;fence_token;</span>
+<span class="source-line" id="L88"><a class="line-no" href="#L88">88</a>    case TOY_PF_HW_RESULT: return pf-&gt;hw_result;</span>
+<span class="source-line" id="L89"><a class="line-no" href="#L89">89</a>    case TOY_PF_MBX_SEQ: return pf-&gt;mbx_staging.seq;</span>
+<span class="source-line" id="L90"><a class="line-no" href="#L90">90</a>    case TOY_PF_MBX_OPCODE: return pf-&gt;mbx_staging.opcode;</span>
+<span class="source-line" id="L91"><a class="line-no" href="#L91">91</a>    case TOY_PF_MBX_TARGET: return pf-&gt;mbx_staging.target;</span>
+<span class="source-line" id="L92"><a class="line-no" href="#L92">92</a>    case TOY_PF_MBX_STATUS: return pf-&gt;mbx_status;</span>
+<span class="source-line" id="L93"><a class="line-no" href="#L93">93</a>    case TOY_PF_MBX_RESULT: return pf-&gt;mbx_reply.status;</span>
+<span class="source-line" id="L94"><a class="line-no" href="#L94">94</a>    case TOY_PF_MBX_ACK_SEQ: return pf-&gt;mbx_reply.seq;</span>
+<span class="source-line" id="L95"><a class="line-no" href="#L95">95</a>    default: return 0;</span>
+<span class="source-line" id="L96"><a class="line-no" href="#L96">96</a>    }</span>
+<span class="source-line" id="L97"><a class="line-no" href="#L97">97</a>}</span>
+<span class="source-line" id="L98"><a class="line-no" href="#L98">98</a></span>
+<span class="source-line" id="L99"><a class="line-no" href="#L99">99</a>/* 發布回覆與通知；故障注入可丟一次回覆，用來檢查原 request 的重送行為。 */</span>
+<span class="source-line" id="L100"><a class="line-no" href="#L100">100</a>static void mailbox_complete(ToyPF *pf)</span>
+<span class="source-line" id="L101"><a class="line-no" href="#L101">101</a>{</span>
+<span class="source-line" id="L102"><a class="line-no" href="#L102">102</a>    if (pf-&gt;drop_mbx_reply_once) {</span>
+<span class="source-line" id="L103"><a class="line-no" href="#L103">103</a>        pf-&gt;drop_mbx_reply_once = false;</span>
+<span class="source-line" id="L104"><a class="line-no" href="#L104">104</a>        pf-&gt;mbx_status = TOY_MBX_STATUS_IDLE;</span>
+<span class="source-line" id="L105"><a class="line-no" href="#L105">105</a>        fprintf(stderr, &quot;TOY_FAULT_ACK kind=drop_mbx_reply_once seq=%u\n&quot;, pf-&gt;mbx_reply.seq);</span>
+<span class="source-line" id="L106"><a class="line-no" href="#L106">106</a>        memset(&amp;pf-&gt;mbx_reply, 0, sizeof(pf-&gt;mbx_reply));</span>
+<span class="source-line" id="L107"><a class="line-no" href="#L107">107</a>        return;</span>
+<span class="source-line" id="L108"><a class="line-no" href="#L108">108</a>    }</span>
+<span class="source-line" id="L109"><a class="line-no" href="#L109">109</a>    pf-&gt;mbx_status = TOY_MBX_STATUS_DONE;</span>
+<span class="source-line" id="L110"><a class="line-no" href="#L110">110</a>    pf-&gt;event |= TOY_PF_EVENTS_MBX_DONE;</span>
+<span class="source-line" id="L111"><a class="line-no" href="#L111">111</a>    msix_notify(PCI_DEVICE(pf), 0);</span>
+<span class="source-line" id="L112"><a class="line-no" href="#L112">112</a>}</span>
+<span class="source-line" id="L113"><a class="line-no" href="#L113">113</a></span>
+<span class="source-line" id="L114"><a class="line-no" href="#L114">114</a>void toy_mbx_poll(ToyPF *pf)</span>
+<span class="source-line" id="L115"><a class="line-no" href="#L115">115</a>{</span>
+<span class="source-line" id="L116"><a class="line-no" href="#L116">116</a>    unsigned vf=pf-&gt;mbx_current.target;</span>
+<span class="source-line" id="L117"><a class="line-no" href="#L117">117</a>    if (!pf-&gt;core.mailbox_pending || pf-&gt;fw_hang_all ||</span>
+<span class="source-line" id="L118"><a class="line-no" href="#L118">118</a>        (vf&lt;FW_VFS &amp;&amp; pf-&gt;fw_hang_vf &amp;&amp; toy_fault_target(pf,vf))) { return; }</span>
+<span class="source-line" id="L119"><a class="line-no" href="#L119">119</a>    if (fw_poll_mailbox(&amp;pf-&gt;core,&amp;pf-&gt;mbx_reply)!=FW_BUSY) { mailbox_complete(pf); }</span>
+<span class="source-line" id="L120"><a class="line-no" href="#L120">120</a>}</span>
+<span class="source-line" id="L121"><a class="line-no" href="#L121">121</a></span>
+<span class="source-line" id="L122"><a class="line-no" href="#L122">122</a>void toy_mbx_work(void *opaque)</span>
+<span class="source-line" id="L123"><a class="line-no" href="#L123">123</a>{</span>
+<span class="source-line" id="L124"><a class="line-no" href="#L124">124</a>    ToyPF *pf = opaque;</span>
+<span class="source-line" id="L125"><a class="line-no" href="#L125">125</a>    struct fw_request *req = &amp;pf-&gt;mbx_current;</span>
+<span class="source-line" id="L126"><a class="line-no" href="#L126">126</a>    /* BH 已取出；故障注入可能保留 BUSY，但不代表仍有排程中的 BH。 */</span>
+<span class="source-line" id="L127"><a class="line-no" href="#L127">127</a>    pf-&gt;mbx_pending = false;</span>
+<span class="source-line" id="L128"><a class="line-no" href="#L128">128</a>    if (pf-&gt;fw_hang_all || (pf-&gt;fw_hang_vf &amp;&amp; req-&gt;target &lt; FW_VFS &amp;&amp; toy_fault_target(pf, req-&gt;target))) {</span>
+<span class="source-line" id="L129"><a class="line-no" href="#L129">129</a>        fprintf(stderr, &quot;TOY_FAULT_ACK kind=mailbox_hang vf=%u seq=%u\n&quot;, req-&gt;target, req-&gt;seq);</span>
+<span class="source-line" id="L130"><a class="line-no" href="#L130">130</a>        return;</span>
+<span class="source-line" id="L131"><a class="line-no" href="#L131">131</a>    }</span>
+<span class="source-line" id="L132"><a class="line-no" href="#L132">132</a>    fw_handle_mailbox(&amp;pf-&gt;core, req, &amp;pf-&gt;mbx_reply);</span>
+<span class="source-line" id="L133"><a class="line-no" href="#L133">133</a>    toy_schedule(pf);</span>
+<span class="source-line" id="L134"><a class="line-no" href="#L134">134</a>    if (!pf-&gt;core.mailbox_pending) { mailbox_complete(pf); }</span>
+<span class="source-line" id="L135"><a class="line-no" href="#L135">135</a>}</span>
+<span class="source-line" id="L136"><a class="line-no" href="#L136">136</a></span>
+<span class="source-line" id="L137"><a class="line-no" href="#L137">137</a>static void write_pf(void *opaque, hwaddr addr, uint64_t value, unsigned size)</span>
+<span class="source-line" id="L138"><a class="line-no" href="#L138">138</a>{</span>
+<span class="source-line" id="L139"><a class="line-no" href="#L139">139</a>    ToyPF *pf = opaque;</span>
+<span class="source-line" id="L140"><a class="line-no" href="#L140">140</a>    uint32_t val = value;</span>
+<span class="source-line" id="L141"><a class="line-no" href="#L141">141</a>    if (size != 4 || (addr &amp; 3)) {</span>
+<span class="source-line" id="L142"><a class="line-no" href="#L142">142</a>        toy_saturate(&amp;pf-&gt;bad_mmio);</span>
+<span class="source-line" id="L143"><a class="line-no" href="#L143">143</a>        return;</span>
+<span class="source-line" id="L144"><a class="line-no" href="#L144">144</a>    }</span>
+<span class="source-line" id="L145"><a class="line-no" href="#L145">145</a>    if (addr &gt;= TOY_PF_VF_BASE &amp;&amp; addr &lt; TOY_PF_VF_BASE + FW_VFS * TOY_PF_VF_STRIDE) {</span>
+<span class="source-line" id="L146"><a class="line-no" href="#L146">146</a>        unsigned vf = (addr - TOY_PF_VF_BASE) / TOY_PF_VF_STRIDE;</span>
+<span class="source-line" id="L147"><a class="line-no" href="#L147">147</a>        unsigned reg = (addr - TOY_PF_VF_BASE) % TOY_PF_VF_STRIDE;</span>
+<span class="source-line" id="L148"><a class="line-no" href="#L148">148</a>        if (reg != TOY_PF_VF_VIEW_HW_CTL || !val || (val &amp; ~3u)) {</span>
+<span class="source-line" id="L149"><a class="line-no" href="#L149">149</a>            toy_saturate(&amp;pf-&gt;bad_mmio);</span>
+<span class="source-line" id="L150"><a class="line-no" href="#L150">150</a>            pf-&gt;hw_result = FW_INVAL;</span>
+<span class="source-line" id="L151"><a class="line-no" href="#L151">151</a>            return;</span>
+<span class="source-line" id="L152"><a class="line-no" href="#L152">152</a>        }</span>
+<span class="source-line" id="L153"><a class="line-no" href="#L153">153</a>        pf-&gt;hw_result = FW_OK;</span>
+<span class="source-line" id="L154"><a class="line-no" href="#L154">154</a>        if (val &amp; TOY_VF_HW_CONTROL_FENCE_BEGIN) {</span>
+<span class="source-line" id="L155"><a class="line-no" href="#L155">155</a>            pf-&gt;hw_result = toy_fence(pf, vf, pf-&gt;fence_token, true);</span>
+<span class="source-line" id="L156"><a class="line-no" href="#L156">156</a>        }</span>
+<span class="source-line" id="L157"><a class="line-no" href="#L157">157</a>        if (val &amp; TOY_VF_HW_CONTROL_KILL) {</span>
+<span class="source-line" id="L158"><a class="line-no" href="#L158">158</a>            toy_kill(pf, vf);</span>
+<span class="source-line" id="L159"><a class="line-no" href="#L159">159</a>            toy_schedule(pf);</span>
+<span class="source-line" id="L160"><a class="line-no" href="#L160">160</a>        }</span>
+<span class="source-line" id="L161"><a class="line-no" href="#L161">161</a>        return;</span>
+<span class="source-line" id="L162"><a class="line-no" href="#L162">162</a>    }</span>
+<span class="source-line" id="L163"><a class="line-no" href="#L163">163</a>    if (addr &gt;= TOY_PF_MBX_ARG0 &amp;&amp; addr &lt;= TOY_PF_MBX_ARG3) {</span>
+<span class="source-line" id="L164"><a class="line-no" href="#L164">164</a>        pf-&gt;mbx_staging.arg[(addr - TOY_PF_MBX_ARG0) / 4] = val;</span>
+<span class="source-line" id="L165"><a class="line-no" href="#L165">165</a>        return;</span>
+<span class="source-line" id="L166"><a class="line-no" href="#L166">166</a>    }</span>
+<span class="source-line" id="L167"><a class="line-no" href="#L167">167</a>    if (addr &gt;= TOY_CAPSULE_STAGE_OFFSET &amp;&amp; addr &lt; TOY_CAPSULE_STAGE_OFFSET + TOY_CAPSULE_STAGE_LENGTH) {</span>
+<span class="source-line" id="L168"><a class="line-no" href="#L168">168</a>        pf-&gt;hw_result = FW_UNSUP;</span>
+<span class="source-line" id="L169"><a class="line-no" href="#L169">169</a>        return;</span>
+<span class="source-line" id="L170"><a class="line-no" href="#L170">170</a>    }</span>
+<span class="source-line" id="L171"><a class="line-no" href="#L171">171</a>    switch (addr) {</span>
+<span class="source-line" id="L172"><a class="line-no" href="#L172">172</a>    case TOY_PF_SNAPSHOT:</span>
+<span class="source-line" id="L173"><a class="line-no" href="#L173">173</a>        if (val != 1) { break; }</span>
+<span class="source-line" id="L174"><a class="line-no" href="#L174">174</a>        pf-&gt;hw_result = toy_snapshot(pf);</span>
+<span class="source-line" id="L175"><a class="line-no" href="#L175">175</a>        return;</span>
+<span class="source-line" id="L176"><a class="line-no" href="#L176">176</a>    case TOY_PF_EVENT:</span>
+<span class="source-line" id="L177"><a class="line-no" href="#L177">177</a>        if (val &amp; ~15u) { break; }</span>
+<span class="source-line" id="L178"><a class="line-no" href="#L178">178</a>        pf-&gt;event &amp;= ~val;</span>
+<span class="source-line" id="L179"><a class="line-no" href="#L179">179</a>        return;</span>
+<span class="source-line" id="L180"><a class="line-no" href="#L180">180</a>    case TOY_PF_CONTROL:</span>
+<span class="source-line" id="L181"><a class="line-no" href="#L181">181</a>        if (!val || (val &amp; ~3u)) { break; }</span>
+<span class="source-line" id="L182"><a class="line-no" href="#L182">182</a>        if (val &amp; TOY_PF_CONTROL_FENCE_ALL) {</span>
+<span class="source-line" id="L183"><a class="line-no" href="#L183">183</a>            pf-&gt;hw_result = FW_OK;</span>
+<span class="source-line" id="L184"><a class="line-no" href="#L184">184</a>            for (unsigned i = 0; i &lt; FW_VFS; i++) {</span>
+<span class="source-line" id="L185"><a class="line-no" href="#L185">185</a>                fw_status status = toy_fence(pf, i, 0, false);</span>
+<span class="source-line" id="L186"><a class="line-no" href="#L186">186</a>                if (status != FW_OK) { pf-&gt;hw_result = status; }</span>
+<span class="source-line" id="L187"><a class="line-no" href="#L187">187</a>            }</span>
+<span class="source-line" id="L188"><a class="line-no" href="#L188">188</a>        }</span>
+<span class="source-line" id="L189"><a class="line-no" href="#L189">189</a>        if (val &amp; TOY_PF_CONTROL_GLOBAL_RESET) {</span>
+<span class="source-line" id="L190"><a class="line-no" href="#L190">190</a>            pf-&gt;hw_result = toy_global_reset(pf);</span>
+<span class="source-line" id="L191"><a class="line-no" href="#L191">191</a>        }</span>
+<span class="source-line" id="L192"><a class="line-no" href="#L192">192</a>        return;</span>
+<span class="source-line" id="L193"><a class="line-no" href="#L193">193</a>    case TOY_PF_FENCE_TOKEN: pf-&gt;fence_token = val; return;</span>
+<span class="source-line" id="L194"><a class="line-no" href="#L194">194</a>    case TOY_PF_MBX_SEQ: pf-&gt;mbx_staging.seq = val; return;</span>
+<span class="source-line" id="L195"><a class="line-no" href="#L195">195</a>    case TOY_PF_MBX_OPCODE: pf-&gt;mbx_staging.opcode = val; return;</span>
+<span class="source-line" id="L196"><a class="line-no" href="#L196">196</a>    case TOY_PF_MBX_TARGET: pf-&gt;mbx_staging.target = val; return;</span>
+<span class="source-line" id="L197"><a class="line-no" href="#L197">197</a>    case TOY_PF_MBX_SUBMIT:</span>
+<span class="source-line" id="L198"><a class="line-no" href="#L198">198</a>        if (val != 1) { break; }</span>
+<span class="source-line" id="L199"><a class="line-no" href="#L199">199</a>        if (pf-&gt;mbx_status == TOY_MBX_STATUS_BUSY) {</span>
+<span class="source-line" id="L200"><a class="line-no" href="#L200">200</a>            pf-&gt;hw_result = FW_BUSY;</span>
+<span class="source-line" id="L201"><a class="line-no" href="#L201">201</a>            return;</span>
+<span class="source-line" id="L202"><a class="line-no" href="#L202">202</a>        }</span>
+<span class="source-line" id="L203"><a class="line-no" href="#L203">203</a>        pf-&gt;mbx_current = pf-&gt;mbx_staging;</span>
+<span class="source-line" id="L204"><a class="line-no" href="#L204">204</a>        pf-&gt;mbx_current.session = pf-&gt;session;</span>
+<span class="source-line" id="L205"><a class="line-no" href="#L205">205</a>        pf-&gt;mbx_status = TOY_MBX_STATUS_BUSY;</span>
+<span class="source-line" id="L206"><a class="line-no" href="#L206">206</a>        pf-&gt;mbx_pending = true;</span>
+<span class="source-line" id="L207"><a class="line-no" href="#L207">207</a>        qemu_bh_schedule(pf-&gt;mbx_bh);</span>
+<span class="source-line" id="L208"><a class="line-no" href="#L208">208</a>        return;</span>
+<span class="source-line" id="L209"><a class="line-no" href="#L209">209</a>    case TOY_PF_MBX_ACK:</span>
+<span class="source-line" id="L210"><a class="line-no" href="#L210">210</a>        if (val != 1) { break; }</span>
+<span class="source-line" id="L211"><a class="line-no" href="#L211">211</a>        if (pf-&gt;mbx_status == TOY_MBX_STATUS_DONE) {</span>
+<span class="source-line" id="L212"><a class="line-no" href="#L212">212</a>            pf-&gt;mbx_status = TOY_MBX_STATUS_IDLE;</span>
+<span class="source-line" id="L213"><a class="line-no" href="#L213">213</a>        }</span>
+<span class="source-line" id="L214"><a class="line-no" href="#L214">214</a>        return;</span>
+<span class="source-line" id="L215"><a class="line-no" href="#L215">215</a>    default: break;</span>
+<span class="source-line" id="L216"><a class="line-no" href="#L216">216</a>    }</span>
+<span class="source-line" id="L217"><a class="line-no" href="#L217">217</a>    toy_saturate(&amp;pf-&gt;bad_mmio);</span>
+<span class="source-line" id="L218"><a class="line-no" href="#L218">218</a>}</span>
+<span class="source-line" id="L219"><a class="line-no" href="#L219">219</a></span>
+<span class="source-line" id="L220"><a class="line-no" href="#L220">220</a>static const MemoryRegionOps pf_mmio_ops = {</span>
+<span class="source-line" id="L221"><a class="line-no" href="#L221">221</a>    .read = read_pf, .write = write_pf, .endianness = DEVICE_LITTLE_ENDIAN,</span>
+<span class="source-line" id="L222"><a class="line-no" href="#L222">222</a>    .valid = { .min_access_size = 1, .max_access_size = 8, .unaligned = true },</span>
+<span class="source-line" id="L223"><a class="line-no" href="#L223">223</a>    .impl = { .min_access_size = 1, .max_access_size = 8, .unaligned = true },</span>
+<span class="source-line" id="L224"><a class="line-no" href="#L224">224</a>};</span>
+<span class="source-line" id="L225"><a class="line-no" href="#L225">225</a></span>
+<span class="source-line" id="L226"><a class="line-no" href="#L226">226</a>static void pf_config_write(PCIDevice *dev, uint32_t address, uint32_t value, int length)</span>
+<span class="source-line" id="L227"><a class="line-no" href="#L227">227</a>{</span>
+<span class="source-line" id="L228"><a class="line-no" href="#L228">228</a>    pci_default_write_config(dev, address, value, length);</span>
+<span class="source-line" id="L229"><a class="line-no" href="#L229">229</a>    pcie_cap_flr_write_config(dev, address, value, length);</span>
+<span class="source-line" id="L230"><a class="line-no" href="#L230">230</a>}</span>
+<span class="source-line" id="L231"><a class="line-no" href="#L231">231</a></span>
+<span class="source-line" id="L232"><a class="line-no" href="#L232">232</a>static void pf_realize(PCIDevice *dev, Error **errp)</span>
+<span class="source-line" id="L233"><a class="line-no" href="#L233">233</a>{</span>
+<span class="source-line" id="L234"><a class="line-no" href="#L234">234</a>    ToyPF *pf = TOY_PF(dev);</span>
+<span class="source-line" id="L235"><a class="line-no" href="#L235">235</a>    int result;</span>
+<span class="source-line" id="L236"><a class="line-no" href="#L236">236</a>    if (pf-&gt;total_vfs != FW_VFS) {</span>
+<span class="source-line" id="L237"><a class="line-no" href="#L237">237</a>        error_setg(errp, &quot;total-vfs must be 8 for ABI 1.0&quot;);</span>
+<span class="source-line" id="L238"><a class="line-no" href="#L238">238</a>        return;</span>
+<span class="source-line" id="L239"><a class="line-no" href="#L239">239</a>    }</span>
+<span class="source-line" id="L240"><a class="line-no" href="#L240">240</a>    dev-&gt;config_write = pf_config_write;</span>
+<span class="source-line" id="L241"><a class="line-no" href="#L241">241</a>    memory_region_init_io(&amp;pf-&gt;bar0, OBJECT(pf), &amp;pf_mmio_ops, pf, &quot;toy-pf-mmio&quot;, TOY_LIMITS_PF_BAR0_BYTES);</span>
+<span class="source-line" id="L242"><a class="line-no" href="#L242">242</a>    pci_register_bar(dev, 0, PCI_BASE_ADDRESS_MEM_TYPE_64, &amp;pf-&gt;bar0);</span>
+<span class="source-line" id="L243"><a class="line-no" href="#L243">243</a>    memory_region_init(&amp;pf-&gt;bar2, OBJECT(pf), &quot;toy-pf-msix&quot;, TOY_LIMITS_BAR2_BYTES);</span>
+<span class="source-line" id="L244"><a class="line-no" href="#L244">244</a>    pci_register_bar(dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &amp;pf-&gt;bar2);</span>
+<span class="source-line" id="L245"><a class="line-no" href="#L245">245</a>    result = pcie_endpoint_cap_init(dev, 0x80);</span>
+<span class="source-line" id="L246"><a class="line-no" href="#L246">246</a>    if (result &lt; 0) {</span>
+<span class="source-line" id="L247"><a class="line-no" href="#L247">247</a>        error_setg(errp, &quot;PF PCIe capability initialization failed&quot;);</span>
+<span class="source-line" id="L248"><a class="line-no" href="#L248">248</a>        return;</span>
+<span class="source-line" id="L249"><a class="line-no" href="#L249">249</a>    }</span>
+<span class="source-line" id="L250"><a class="line-no" href="#L250">250</a>    result = msix_init(dev, 2, &amp;pf-&gt;bar2, 2, 0, &amp;pf-&gt;bar2, 2, 0x1000, 0x50, errp);</span>
+<span class="source-line" id="L251"><a class="line-no" href="#L251">251</a>    if (result) {</span>
+<span class="source-line" id="L252"><a class="line-no" href="#L252">252</a>        pcie_cap_exit(dev);</span>
+<span class="source-line" id="L253"><a class="line-no" href="#L253">253</a>        return;</span>
+<span class="source-line" id="L254"><a class="line-no" href="#L254">254</a>    }</span>
+<span class="source-line" id="L255"><a class="line-no" href="#L255">255</a>    msix_vector_use(dev, 0);</span>
+<span class="source-line" id="L256"><a class="line-no" href="#L256">256</a>    msix_vector_use(dev, 1);</span>
+<span class="source-line" id="L257"><a class="line-no" href="#L257">257</a>    pcie_cap_flr_init(dev);</span>
+<span class="source-line" id="L258"><a class="line-no" href="#L258">258</a>    pcie_ari_init(dev, 0x100);</span>
+<span class="source-line" id="L259"><a class="line-no" href="#L259">259</a>    pcie_sriov_pf_init(dev, 0x140, TYPE_TOY_VF, TOY_PCI_VF, FW_VFS, FW_VFS, 1, 1);</span>
+<span class="source-line" id="L260"><a class="line-no" href="#L260">260</a>    pcie_sriov_pf_init_vf_bar(dev, 0, PCI_BASE_ADDRESS_MEM_TYPE_64, TOY_LIMITS_VF_BAR0_BYTES);</span>
+<span class="source-line" id="L261"><a class="line-no" href="#L261">261</a>    pcie_sriov_pf_init_vf_bar(dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, TOY_LIMITS_BAR2_BYTES);</span>
+<span class="source-line" id="L262"><a class="line-no" href="#L262">262</a>    /* 沒有 function-to-function P2P；endpoint ACS optional bits 為 0。 */</span>
+<span class="source-line" id="L263"><a class="line-no" href="#L263">263</a>    /* v9.2.0 的 SR-IOV reset 會以 quad 清至 0x183；保留間距避免覆蓋 ACS。 */</span>
+<span class="source-line" id="L264"><a class="line-no" href="#L264">264</a>    pcie_acs_init(dev, 0x200);</span>
+<span class="source-line" id="L265"><a class="line-no" href="#L265">265</a>    pf-&gt;session = 1;</span>
+<span class="source-line" id="L266"><a class="line-no" href="#L266">266</a>    for (unsigned i = 0; i &lt; FW_VFS; i++) {</span>
+<span class="source-line" id="L267"><a class="line-no" href="#L267">267</a>        pf-&gt;slots[i].epoch = pf-&gt;slots[i].token = 1;</span>
+<span class="source-line" id="L268"><a class="line-no" href="#L268">268</a>        pf-&gt;slots[i].fenced = true;</span>
+<span class="source-line" id="L269"><a class="line-no" href="#L269">269</a>    }</span>
+<span class="source-line" id="L270"><a class="line-no" href="#L270">270</a>    toy_adapter_init(pf);</span>
+<span class="source-line" id="L271"><a class="line-no" href="#L271">271</a>    pf-&gt;worker = timer_new_ms(QEMU_CLOCK_VIRTUAL, toy_worker, pf);</span>
+<span class="source-line" id="L272"><a class="line-no" href="#L272">272</a>    pf-&gt;mbx_bh = qemu_bh_new(toy_mbx_work, pf);</span>
+<span class="source-line" id="L273"><a class="line-no" href="#L273">273</a>    pf-&gt;initialized = true;</span>
+<span class="source-line" id="L274"><a class="line-no" href="#L274">274</a>    pf-&gt;hw_result = toy_snapshot(pf);</span>
+<span class="source-line" id="L275"><a class="line-no" href="#L275">275</a>}</span>
+<span class="source-line" id="L276"><a class="line-no" href="#L276">276</a></span>
+<span class="source-line" id="L277"><a class="line-no" href="#L277">277</a>static void pf_reset(Object *obj, ResetType type)</span>
+<span class="source-line" id="L278"><a class="line-no" href="#L278">278</a>{</span>
+<span class="source-line" id="L279"><a class="line-no" href="#L279">279</a>    ToyPF *pf = TOY_PF(obj);</span>
+<span class="source-line" id="L280"><a class="line-no" href="#L280">280</a>    if (!pf-&gt;initialized) { return; }</span>
+<span class="source-line" id="L281"><a class="line-no" href="#L281">281</a>    /* machine/PF reset 先消除 PCI presentation，再做全域 session transaction。 */</span>
+<span class="source-line" id="L282"><a class="line-no" href="#L282">282</a>    for (unsigned i = 0; i &lt; FW_VFS; i++) { toy_kill(pf, i); }</span>
+<span class="source-line" id="L283"><a class="line-no" href="#L283">283</a>    pcie_sriov_pf_reset(PCI_DEVICE(pf));</span>
+<span class="source-line" id="L284"><a class="line-no" href="#L284">284</a>    qemu_bh_cancel(pf-&gt;mbx_bh);</span>
+<span class="source-line" id="L285"><a class="line-no" href="#L285">285</a>    pf-&gt;mbx_pending = false;</span>
+<span class="source-line" id="L286"><a class="line-no" href="#L286">286</a>    timer_del(pf-&gt;worker);</span>
+<span class="source-line" id="L287"><a class="line-no" href="#L287">287</a>    pf-&gt;mbx_status = TOY_MBX_STATUS_IDLE;</span>
+<span class="source-line" id="L288"><a class="line-no" href="#L288">288</a>    pf-&gt;event = 0;</span>
+<span class="source-line" id="L289"><a class="line-no" href="#L289">289</a>    pf-&gt;hw_result = toy_global_reset(pf);</span>
+<span class="source-line" id="L290"><a class="line-no" href="#L290">290</a>    if (toy_snapshot(pf) != FW_OK) {</span>
+<span class="source-line" id="L291"><a class="line-no" href="#L291">291</a>        pf-&gt;hw_result = FW_IO;</span>
+<span class="source-line" id="L292"><a class="line-no" href="#L292">292</a>    }</span>
+<span class="source-line" id="L293"><a class="line-no" href="#L293">293</a>}</span>
+<span class="source-line" id="L294"><a class="line-no" href="#L294">294</a></span>
+<span class="source-line" id="L295"><a class="line-no" href="#L295">295</a>static void pf_exit(PCIDevice *dev)</span>
+<span class="source-line" id="L296"><a class="line-no" href="#L296">296</a>{</span>
+<span class="source-line" id="L297"><a class="line-no" href="#L297">297</a>    ToyPF *pf = TOY_PF(dev);</span>
+<span class="source-line" id="L298"><a class="line-no" href="#L298">298</a>    if (pf-&gt;initialized) {</span>
+<span class="source-line" id="L299"><a class="line-no" href="#L299">299</a>        for (unsigned i = 0; i &lt; FW_VFS; i++) { toy_kill(pf, i); }</span>
+<span class="source-line" id="L300"><a class="line-no" href="#L300">300</a>        timer_del(pf-&gt;worker);</span>
+<span class="source-line" id="L301"><a class="line-no" href="#L301">301</a>        timer_free(pf-&gt;worker);</span>
+<span class="source-line" id="L302"><a class="line-no" href="#L302">302</a>        pf-&gt;worker = NULL;</span>
+<span class="source-line" id="L303"><a class="line-no" href="#L303">303</a>        qemu_bh_cancel(pf-&gt;mbx_bh);</span>
+<span class="source-line" id="L304"><a class="line-no" href="#L304">304</a>        pf-&gt;mbx_pending = false;</span>
+<span class="source-line" id="L305"><a class="line-no" href="#L305">305</a>        qemu_bh_delete(pf-&gt;mbx_bh);</span>
+<span class="source-line" id="L306"><a class="line-no" href="#L306">306</a>        pf-&gt;mbx_bh = NULL;</span>
+<span class="source-line" id="L307"><a class="line-no" href="#L307">307</a>        pcie_sriov_pf_exit(dev);</span>
+<span class="source-line" id="L308"><a class="line-no" href="#L308">308</a>        pf-&gt;initialized = false;</span>
+<span class="source-line" id="L309"><a class="line-no" href="#L309">309</a>    }</span>
+<span class="source-line" id="L310"><a class="line-no" href="#L310">310</a>    msix_unuse_all_vectors(dev);</span>
+<span class="source-line" id="L311"><a class="line-no" href="#L311">311</a>    msix_uninit(dev, &amp;pf-&gt;bar2, &amp;pf-&gt;bar2);</span>
+<span class="source-line" id="L312"><a class="line-no" href="#L312">312</a>    pcie_cap_exit(dev);</span>
+<span class="source-line" id="L313"><a class="line-no" href="#L313">313</a>}</span>
+<span class="source-line" id="L314"><a class="line-no" href="#L314">314</a></span>
+<span class="source-line" id="L315"><a class="line-no" href="#L315">315</a>static void telemetry_get(Object *obj, Visitor *v, const char *name, void *opaque, Error **errp)</span>
+<span class="source-line" id="L316"><a class="line-no" href="#L316">316</a>{</span>
+<span class="source-line" id="L317"><a class="line-no" href="#L317">317</a>    ToyPF *pf = TOY_PF(obj);</span>
+<span class="source-line" id="L318"><a class="line-no" href="#L318">318</a>    uint32_t value = 0;</span>
+<span class="source-line" id="L319"><a class="line-no" href="#L319">319</a>    /* 只讀實際物件與工作狀態，不透過 fault setter 也不更動裝置。 */</span>
+<span class="source-line" id="L320"><a class="line-no" href="#L320">320</a>    if (!strcmp(name, &quot;live-vfs&quot;)) {</span>
+<span class="source-line" id="L321"><a class="line-no" href="#L321">321</a>        for (unsigned i = 0; i &lt; FW_VFS; i++) {</span>
+<span class="source-line" id="L322"><a class="line-no" href="#L322">322</a>            value += pf-&gt;slots[i].vf != NULL;</span>
+<span class="source-line" id="L323"><a class="line-no" href="#L323">323</a>        }</span>
+<span class="source-line" id="L324"><a class="line-no" href="#L324">324</a>    } else if (!strcmp(name, &quot;pending-completions&quot;)) {</span>
+<span class="source-line" id="L325"><a class="line-no" href="#L325">325</a>        for (unsigned i = 0; i &lt; FW_VFS; i++) {</span>
+<span class="source-line" id="L326"><a class="line-no" href="#L326">326</a>            value += pf-&gt;slots[i].pending.valid;</span>
+<span class="source-line" id="L327"><a class="line-no" href="#L327">327</a>        }</span>
+<span class="source-line" id="L328"><a class="line-no" href="#L328">328</a>    } else if (!strcmp(name, &quot;worker-pending&quot;)) {</span>
+<span class="source-line" id="L329"><a class="line-no" href="#L329">329</a>        value = pf-&gt;worker &amp;&amp; timer_pending(pf-&gt;worker);</span>
+<span class="source-line" id="L330"><a class="line-no" href="#L330">330</a>    } else if (!strcmp(name, &quot;mailbox-pending&quot;)) {</span>
+<span class="source-line" id="L331"><a class="line-no" href="#L331">331</a>        value = pf-&gt;mbx_pending;</span>
+<span class="source-line" id="L332"><a class="line-no" href="#L332">332</a>    }</span>
+<span class="source-line" id="L333"><a class="line-no" href="#L333">333</a>    visit_type_uint32(v, name, &amp;value, errp);</span>
+<span class="source-line" id="L334"><a class="line-no" href="#L334">334</a>}</span>
+<span class="source-line" id="L335"><a class="line-no" href="#L335">335</a></span>
+<span class="source-line" id="L336"><a class="line-no" href="#L336">336</a>static void virtual_tick_get(Object *obj, Visitor *v, const char *name, void *opaque, Error **errp)</span>
+<span class="source-line" id="L337"><a class="line-no" href="#L337">337</a>{</span>
+<span class="source-line" id="L338"><a class="line-no" href="#L338">338</a>    uint64_t value = toy_tick();</span>
+<span class="source-line" id="L339"><a class="line-no" href="#L339">339</a>    /* controller 只觀察 device virtual time；不能用 host sleep 當成故障時鐘。 */</span>
+<span class="source-line" id="L340"><a class="line-no" href="#L340">340</a>    visit_type_uint64(v, name, &amp;value, errp);</span>
+<span class="source-line" id="L341"><a class="line-no" href="#L341">341</a>}</span>
+<span class="source-line" id="L342"><a class="line-no" href="#L342">342</a></span>
+<span class="source-line" id="L343"><a class="line-no" href="#L343">343</a>static void fault_get(Object *obj, Visitor *v, const char *name, void *opaque, Error **errp)</span>
+<span class="source-line" id="L344"><a class="line-no" href="#L344">344</a>{</span>
+<span class="source-line" id="L345"><a class="line-no" href="#L345">345</a>    ToyPF *pf = TOY_PF(obj);</span>
+<span class="source-line" id="L346"><a class="line-no" href="#L346">346</a>    uint32_t value = 0;</span>
+<span class="source-line" id="L347"><a class="line-no" href="#L347">347</a>    if (!strcmp(name, &quot;fault-vf&quot;)) { value = pf-&gt;fault_vf; }</span>
+<span class="source-line" id="L348"><a class="line-no" href="#L348">348</a>    else if (!strcmp(name, &quot;fault-after&quot;)) { value = pf-&gt;fault_after; }</span>
+<span class="source-line" id="L349"><a class="line-no" href="#L349">349</a>    else if (!strcmp(name, &quot;delay-cpl-ticks&quot;)) { value = pf-&gt;delay_cpl_ticks; }</span>
+<span class="source-line" id="L350"><a class="line-no" href="#L350">350</a>    else if (!strcmp(name, &quot;fault-ack&quot;)) { value = pf-&gt;fault_ack; }</span>
+<span class="source-line" id="L351"><a class="line-no" href="#L351">351</a>    visit_type_uint32(v, name, &amp;value, errp);</span>
+<span class="source-line" id="L352"><a class="line-no" href="#L352">352</a>}</span>
+<span class="source-line" id="L353"><a class="line-no" href="#L353">353</a></span>
+<span class="source-line" id="L354"><a class="line-no" href="#L354">354</a>static void fault_set(Object *obj, Visitor *v, const char *name, void *opaque, Error **errp)</span>
+<span class="source-line" id="L355"><a class="line-no" href="#L355">355</a>{</span>
+<span class="source-line" id="L356"><a class="line-no" href="#L356">356</a>    ToyPF *pf = TOY_PF(obj);</span>
+<span class="source-line" id="L357"><a class="line-no" href="#L357">357</a>    uint32_t value;</span>
+<span class="source-line" id="L358"><a class="line-no" href="#L358">358</a>    if (!visit_type_uint32(v, name, &amp;value, errp)) { return; }</span>
+<span class="source-line" id="L359"><a class="line-no" href="#L359">359</a>    if (!strcmp(name, &quot;fault-vf&quot;)) {</span>
+<span class="source-line" id="L360"><a class="line-no" href="#L360">360</a>        if (value &gt;= FW_VFS) { error_setg(errp, &quot;fault-vf outside 0..7&quot;); return; }</span>
+<span class="source-line" id="L361"><a class="line-no" href="#L361">361</a>        pf-&gt;fault_vf = value;</span>
+<span class="source-line" id="L362"><a class="line-no" href="#L362">362</a>    } else if (!strcmp(name, &quot;fault-after&quot;)) {</span>
+<span class="source-line" id="L363"><a class="line-no" href="#L363">363</a>        pf-&gt;fault_after = value;</span>
+<span class="source-line" id="L364"><a class="line-no" href="#L364">364</a>    } else if (!strcmp(name, &quot;delay-cpl-ticks&quot;)) {</span>
+<span class="source-line" id="L365"><a class="line-no" href="#L365">365</a>        if (value &gt; 60000) { error_setg(errp, &quot;delay-cpl-ticks exceeds 60000&quot;); return; }</span>
+<span class="source-line" id="L366"><a class="line-no" href="#L366">366</a>        pf-&gt;delay_cpl_ticks = value;</span>
+<span class="source-line" id="L367"><a class="line-no" href="#L367">367</a>    }</span>
+<span class="source-line" id="L368"><a class="line-no" href="#L368">368</a>    toy_saturate(&amp;pf-&gt;fault_ack);</span>
+<span class="source-line" id="L369"><a class="line-no" href="#L369">369</a>    fprintf(stderr, &quot;TOY_FAULT_ACK property=%s value=%u ack=%u\n&quot;, name, value, pf-&gt;fault_ack);</span>
+<span class="source-line" id="L370"><a class="line-no" href="#L370">370</a>}</span>
+<span class="source-line" id="L371"><a class="line-no" href="#L371">371</a></span>
+<span class="source-line" id="L372"><a class="line-no" href="#L372">372</a>static void bool_get(Object *obj, Visitor *v, const char *name, void *opaque, Error **errp)</span>
+<span class="source-line" id="L373"><a class="line-no" href="#L373">373</a>{</span>
+<span class="source-line" id="L374"><a class="line-no" href="#L374">374</a>    bool *field = (bool *)((char *)obj + (uintptr_t)opaque);</span>
+<span class="source-line" id="L375"><a class="line-no" href="#L375">375</a>    visit_type_bool(v, name, field, errp);</span>
+<span class="source-line" id="L376"><a class="line-no" href="#L376">376</a>}</span>
+<span class="source-line" id="L377"><a class="line-no" href="#L377">377</a></span>
+<span class="source-line" id="L378"><a class="line-no" href="#L378">378</a>static void bool_set(Object *obj, Visitor *v, const char *name, void *opaque, Error **errp)</span>
+<span class="source-line" id="L379"><a class="line-no" href="#L379">379</a>{</span>
+<span class="source-line" id="L380"><a class="line-no" href="#L380">380</a>    ToyPF *pf = TOY_PF(obj);</span>
+<span class="source-line" id="L381"><a class="line-no" href="#L381">381</a>    bool value;</span>
+<span class="source-line" id="L382"><a class="line-no" href="#L382">382</a>    bool *field = (bool *)((char *)obj + (uintptr_t)opaque);</span>
+<span class="source-line" id="L383"><a class="line-no" href="#L383">383</a>    if (!visit_type_bool(v, name, &amp;value, errp)) { return; }</span>
+<span class="source-line" id="L384"><a class="line-no" href="#L384">384</a>    *field = value;</span>
+<span class="source-line" id="L385"><a class="line-no" href="#L385">385</a>    toy_saturate(&amp;pf-&gt;fault_ack);</span>
+<span class="source-line" id="L386"><a class="line-no" href="#L386">386</a>    if (!value) { toy_schedule(pf); }</span>
+<span class="source-line" id="L387"><a class="line-no" href="#L387">387</a>    fprintf(stderr, &quot;TOY_FAULT_ACK property=%s value=%u ack=%u\n&quot;, name, value, pf-&gt;fault_ack);</span>
+<span class="source-line" id="L388"><a class="line-no" href="#L388">388</a>}</span>
+<span class="source-line" id="L389"><a class="line-no" href="#L389">389</a></span>
+<span class="source-line" id="L390"><a class="line-no" href="#L390">390</a>static bool trigger_get(Object *obj, Error **errp) { return false; }</span>
+<span class="source-line" id="L391"><a class="line-no" href="#L391">391</a></span>
+<span class="source-line" id="L392"><a class="line-no" href="#L392">392</a>static void stale_set(Object *obj, bool value, Error **errp)</span>
+<span class="source-line" id="L393"><a class="line-no" href="#L393">393</a>{</span>
+<span class="source-line" id="L394"><a class="line-no" href="#L394">394</a>    ToyPF *pf = TOY_PF(obj);</span>
+<span class="source-line" id="L395"><a class="line-no" href="#L395">395</a>    if (value) {</span>
+<span class="source-line" id="L396"><a class="line-no" href="#L396">396</a>        ToyOperation copy = pf-&gt;slots[pf-&gt;fault_vf].retired;</span>
+<span class="source-line" id="L397"><a class="line-no" href="#L397">397</a>        bool was_valid = copy.valid;</span>
+<span class="source-line" id="L398"><a class="line-no" href="#L398">398</a>        toy_complete(pf, pf-&gt;fault_vf, &amp;copy);</span>
+<span class="source-line" id="L399"><a class="line-no" href="#L399">399</a>        toy_saturate(&amp;pf-&gt;fault_ack);</span>
+<span class="source-line" id="L400"><a class="line-no" href="#L400">400</a>        /* callback 會消耗副本；分別保存呼叫前有效性與呼叫後消耗結果。 */</span>
+<span class="source-line" id="L401"><a class="line-no" href="#L401">401</a>        fprintf(stderr, &quot;TOY_FAULT_ACK property=try-stale-cpl valid=%u ack=%u consumed=%u\n&quot;,</span>
+<span class="source-line" id="L402"><a class="line-no" href="#L402">402</a>                was_valid, pf-&gt;fault_ack, !copy.valid);</span>
+<span class="source-line" id="L403"><a class="line-no" href="#L403">403</a>    }</span>
+<span class="source-line" id="L404"><a class="line-no" href="#L404">404</a>}</span>
+<span class="source-line" id="L405"><a class="line-no" href="#L405">405</a></span>
+<span class="source-line" id="L406"><a class="line-no" href="#L406">406</a>static void irq_set(Object *obj, bool value, Error **errp)</span>
+<span class="source-line" id="L407"><a class="line-no" href="#L407">407</a>{</span>
+<span class="source-line" id="L408"><a class="line-no" href="#L408">408</a>    ToyPF *pf = TOY_PF(obj);</span>
+<span class="source-line" id="L409"><a class="line-no" href="#L409">409</a>    if (value) {</span>
+<span class="source-line" id="L410"><a class="line-no" href="#L410">410</a>        toy_irq(pf, pf-&gt;fault_vf, 0, &amp;pf-&gt;slots[pf-&gt;fault_vf].retired);</span>
+<span class="source-line" id="L411"><a class="line-no" href="#L411">411</a>        toy_saturate(&amp;pf-&gt;fault_ack);</span>
+<span class="source-line" id="L412"><a class="line-no" href="#L412">412</a>        fprintf(stderr, &quot;TOY_FAULT_ACK property=try-irq-fenced ack=%u\n&quot;, pf-&gt;fault_ack);</span>
+<span class="source-line" id="L413"><a class="line-no" href="#L413">413</a>    }</span>
+<span class="source-line" id="L414"><a class="line-no" href="#L414">414</a>}</span>
+<span class="source-line" id="L415"><a class="line-no" href="#L415">415</a></span>
+<span class="source-line" id="L416"><a class="line-no" href="#L416">416</a>static const char *checkpoint_names[FW_CP_COUNT] = {</span>
+<span class="source-line" id="L417"><a class="line-no" href="#L417">417</a>    &quot;provision.before_create&quot;, &quot;provision.after_create&quot;, &quot;provision.before_commit&quot;,</span>
+<span class="source-line" id="L418"><a class="line-no" href="#L418">418</a>    &quot;provision.abort_release&quot;, &quot;destroy.release&quot;,</span>
+<span class="source-line" id="L419"><a class="line-no" href="#L419">419</a>};</span>
+<span class="source-line" id="L420"><a class="line-no" href="#L420">420</a></span>
+<span class="source-line" id="L421"><a class="line-no" href="#L421">421</a>fw_status toy_checkpoint(ToyPF *pf, unsigned vf, enum fw_checkpoint point)</span>
+<span class="source-line" id="L422"><a class="line-no" href="#L422">422</a>{</span>
+<span class="source-line" id="L423"><a class="line-no" href="#L423">423</a>    for (unsigned i = 0; i &lt; ARRAY_SIZE(pf-&gt;failpoints); i++) {</span>
+<span class="source-line" id="L424"><a class="line-no" href="#L424">424</a>        ToyFailpoint *slot = &amp;pf-&gt;failpoints[i];</span>
+<span class="source-line" id="L425"><a class="line-no" href="#L425">425</a>        if (slot-&gt;point != point || slot-&gt;fired ||</span>
+<span class="source-line" id="L426"><a class="line-no" href="#L426">426</a>            (slot-&gt;vf != UINT32_MAX &amp;&amp; slot-&gt;vf != vf)) {</span>
+<span class="source-line" id="L427"><a class="line-no" href="#L427">427</a>            continue;</span>
+<span class="source-line" id="L428"><a class="line-no" href="#L428">428</a>        }</span>
+<span class="source-line" id="L429"><a class="line-no" href="#L429">429</a>        toy_saturate(&amp;slot-&gt;seen);</span>
+<span class="source-line" id="L430"><a class="line-no" href="#L430">430</a>        if (slot-&gt;seen == slot-&gt;hit) {</span>
+<span class="source-line" id="L431"><a class="line-no" href="#L431">431</a>            slot-&gt;fired = 1;</span>
+<span class="source-line" id="L432"><a class="line-no" href="#L432">432</a>            fprintf(stderr, &quot;TOY_FAILPOINT_HIT slot=%s name=%s vf=%u hit=%u\n&quot;,</span>
+<span class="source-line" id="L433"><a class="line-no" href="#L433">433</a>                    i ? &quot;unwind&quot; : &quot;forward&quot;, checkpoint_names[point], vf, slot-&gt;hit);</span>
+<span class="source-line" id="L434"><a class="line-no" href="#L434">434</a>            return FW_IO;</span>
+<span class="source-line" id="L435"><a class="line-no" href="#L435">435</a>        }</span>
+<span class="source-line" id="L436"><a class="line-no" href="#L436">436</a>    }</span>
+<span class="source-line" id="L437"><a class="line-no" href="#L437">437</a>    return FW_OK;</span>
+<span class="source-line" id="L438"><a class="line-no" href="#L438">438</a>}</span>
+<span class="source-line" id="L439"><a class="line-no" href="#L439">439</a></span>
+<span class="source-line" id="L440"><a class="line-no" href="#L440">440</a>static void failpoint_get(Object *obj, Visitor *v, const char *name, void *opaque, Error **errp)</span>
+<span class="source-line" id="L441"><a class="line-no" href="#L441">441</a>{</span>
+<span class="source-line" id="L442"><a class="line-no" href="#L442">442</a>    ToyFailpoint *slot = &amp;TOY_PF(obj)-&gt;failpoints[(uintptr_t)opaque];</span>
+<span class="source-line" id="L443"><a class="line-no" href="#L443">443</a>    const char *field = strrchr(name, &#x27;-&#x27;) + 1;</span>
+<span class="source-line" id="L444"><a class="line-no" href="#L444">444</a>    uint32_t value;</span>
+<span class="source-line" id="L445"><a class="line-no" href="#L445">445</a>    if (!strcmp(field, &quot;name&quot;)) {</span>
+<span class="source-line" id="L446"><a class="line-no" href="#L446">446</a>        char *value = (char *)(slot-&gt;point &lt; 0 ? &quot;&quot; : checkpoint_names[slot-&gt;point]);</span>
+<span class="source-line" id="L447"><a class="line-no" href="#L447">447</a>        visit_type_str(v, name, &amp;value, errp);</span>
+<span class="source-line" id="L448"><a class="line-no" href="#L448">448</a>        return;</span>
+<span class="source-line" id="L449"><a class="line-no" href="#L449">449</a>    }</span>
+<span class="source-line" id="L450"><a class="line-no" href="#L450">450</a>    value = !strcmp(field, &quot;hit&quot;) ? slot-&gt;hit : !strcmp(field, &quot;vf&quot;) ? slot-&gt;vf :</span>
+<span class="source-line" id="L451"><a class="line-no" href="#L451">451</a>            !strcmp(field, &quot;seen&quot;) ? slot-&gt;seen : slot-&gt;fired;</span>
+<span class="source-line" id="L452"><a class="line-no" href="#L452">452</a>    visit_type_uint32(v, name, &amp;value, errp);</span>
+<span class="source-line" id="L453"><a class="line-no" href="#L453">453</a>}</span>
+<span class="source-line" id="L454"><a class="line-no" href="#L454">454</a></span>
+<span class="source-line" id="L455"><a class="line-no" href="#L455">455</a>static void failpoint_set(Object *obj, Visitor *v, const char *name, void *opaque, Error **errp)</span>
+<span class="source-line" id="L456"><a class="line-no" href="#L456">456</a>{</span>
+<span class="source-line" id="L457"><a class="line-no" href="#L457">457</a>    ToyPF *pf = TOY_PF(obj);</span>
+<span class="source-line" id="L458"><a class="line-no" href="#L458">458</a>    ToyFailpoint *slot = &amp;pf-&gt;failpoints[(uintptr_t)opaque];</span>
+<span class="source-line" id="L459"><a class="line-no" href="#L459">459</a>    const char *field = strrchr(name, &#x27;-&#x27;) + 1;</span>
+<span class="source-line" id="L460"><a class="line-no" href="#L460">460</a>    if (!strcmp(field, &quot;name&quot;)) {</span>
+<span class="source-line" id="L461"><a class="line-no" href="#L461">461</a>        char *value = NULL;</span>
+<span class="source-line" id="L462"><a class="line-no" href="#L462">462</a>        int point = -1;</span>
+<span class="source-line" id="L463"><a class="line-no" href="#L463">463</a>        if (!visit_type_str(v, name, &amp;value, errp)) { return; }</span>
+<span class="source-line" id="L464"><a class="line-no" href="#L464">464</a>        for (unsigned i = 0; i &lt; FW_CP_COUNT; i++) {</span>
+<span class="source-line" id="L465"><a class="line-no" href="#L465">465</a>            if (!strcmp(value, checkpoint_names[i])) { point = i; }</span>
+<span class="source-line" id="L466"><a class="line-no" href="#L466">466</a>        }</span>
+<span class="source-line" id="L467"><a class="line-no" href="#L467">467</a>        if (*value &amp;&amp; point &lt; 0) {</span>
+<span class="source-line" id="L468"><a class="line-no" href="#L468">468</a>            error_setg(errp, &quot;Unknown named failpoint: %s&quot;, value);</span>
+<span class="source-line" id="L469"><a class="line-no" href="#L469">469</a>            g_free(value);</span>
+<span class="source-line" id="L470"><a class="line-no" href="#L470">470</a>            return;</span>
+<span class="source-line" id="L471"><a class="line-no" href="#L471">471</a>        }</span>
+<span class="source-line" id="L472"><a class="line-no" href="#L472">472</a>        g_free(value);</span>
+<span class="source-line" id="L473"><a class="line-no" href="#L473">473</a>        slot-&gt;point = point;</span>
+<span class="source-line" id="L474"><a class="line-no" href="#L474">474</a>        slot-&gt;seen = slot-&gt;fired = 0;</span>
+<span class="source-line" id="L475"><a class="line-no" href="#L475">475</a>    } else {</span>
+<span class="source-line" id="L476"><a class="line-no" href="#L476">476</a>        uint32_t value;</span>
+<span class="source-line" id="L477"><a class="line-no" href="#L477">477</a>        if (!visit_type_uint32(v, name, &amp;value, errp)) { return; }</span>
+<span class="source-line" id="L478"><a class="line-no" href="#L478">478</a>        if (!strcmp(field, &quot;hit&quot;)) {</span>
+<span class="source-line" id="L479"><a class="line-no" href="#L479">479</a>            if (!value) { error_setg(errp, &quot;failpoint-hit must be nonzero&quot;); return; }</span>
+<span class="source-line" id="L480"><a class="line-no" href="#L480">480</a>            slot-&gt;hit = value;</span>
+<span class="source-line" id="L481"><a class="line-no" href="#L481">481</a>        } else {</span>
+<span class="source-line" id="L482"><a class="line-no" href="#L482">482</a>            if (value &gt;= FW_VFS &amp;&amp; value != UINT32_MAX) {</span>
+<span class="source-line" id="L483"><a class="line-no" href="#L483">483</a>                error_setg(errp, &quot;failpoint-vf must be 0..7 or UINT32_MAX&quot;); return;</span>
+<span class="source-line" id="L484"><a class="line-no" href="#L484">484</a>            }</span>
+<span class="source-line" id="L485"><a class="line-no" href="#L485">485</a>            slot-&gt;vf = value;</span>
+<span class="source-line" id="L486"><a class="line-no" href="#L486">486</a>        }</span>
+<span class="source-line" id="L487"><a class="line-no" href="#L487">487</a>    }</span>
+<span class="source-line" id="L488"><a class="line-no" href="#L488">488</a>    toy_saturate(&amp;pf-&gt;fault_ack);</span>
+<span class="source-line" id="L489"><a class="line-no" href="#L489">489</a>    fprintf(stderr, &quot;TOY_FAULT_ACK property=%s ack=%u\n&quot;, name, pf-&gt;fault_ack);</span>
+<span class="source-line" id="L490"><a class="line-no" href="#L490">490</a>}</span>
+<span class="source-line" id="L491"><a class="line-no" href="#L491">491</a></span>
+<span class="source-line" id="L492"><a class="line-no" href="#L492">492</a>static void pf_instance_init(Object *obj)</span>
+<span class="source-line" id="L493"><a class="line-no" href="#L493">493</a>{</span>
+<span class="source-line" id="L494"><a class="line-no" href="#L494">494</a>    ToyPF *pf = TOY_PF(obj);</span>
+<span class="source-line" id="L495"><a class="line-no" href="#L495">495</a>    static const struct { const char *name; size_t offset; } boolean[] = {</span>
+<span class="source-line" id="L496"><a class="line-no" href="#L496">496</a>        { &quot;fw-hang-vf&quot;, offsetof(ToyPF, fw_hang_vf) },</span>
+<span class="source-line" id="L497"><a class="line-no" href="#L497">497</a>        { &quot;fw-hang-all&quot;, offsetof(ToyPF, fw_hang_all) },</span>
+<span class="source-line" id="L498"><a class="line-no" href="#L498">498</a>        { &quot;drop-mbx-reply-once&quot;, offsetof(ToyPF, drop_mbx_reply_once) },</span>
+<span class="source-line" id="L499"><a class="line-no" href="#L499">499</a>        { &quot;ignore-quiesce&quot;, offsetof(ToyPF, ignore_quiesce) },</span>
+<span class="source-line" id="L500"><a class="line-no" href="#L500">500</a>        { &quot;ignore-reset&quot;, offsetof(ToyPF, ignore_reset) },</span>
+<span class="source-line" id="L501"><a class="line-no" href="#L501">501</a>    };</span>
+<span class="source-line" id="L502"><a class="line-no" href="#L502">502</a>    const char *numbers[] = { &quot;fault-vf&quot;, &quot;fault-after&quot;, &quot;delay-cpl-ticks&quot; };</span>
+<span class="source-line" id="L503"><a class="line-no" href="#L503">503</a>    const char *telemetry[] = { &quot;live-vfs&quot;, &quot;pending-completions&quot;, &quot;worker-pending&quot;, &quot;mailbox-pending&quot; };</span>
+<span class="source-line" id="L504"><a class="line-no" href="#L504">504</a>    for (unsigned i = 0; i &lt; ARRAY_SIZE(boolean); i++) {</span>
+<span class="source-line" id="L505"><a class="line-no" href="#L505">505</a>        object_property_add(obj, boolean[i].name, &quot;bool&quot;, bool_get, bool_set, NULL,</span>
+<span class="source-line" id="L506"><a class="line-no" href="#L506">506</a>                            (void *)(uintptr_t)boolean[i].offset);</span>
+<span class="source-line" id="L507"><a class="line-no" href="#L507">507</a>    }</span>
+<span class="source-line" id="L508"><a class="line-no" href="#L508">508</a>    for (unsigned i = 0; i &lt; ARRAY_SIZE(numbers); i++) {</span>
+<span class="source-line" id="L509"><a class="line-no" href="#L509">509</a>        object_property_add(obj, numbers[i], &quot;uint32&quot;, fault_get, fault_set, NULL, NULL);</span>
+<span class="source-line" id="L510"><a class="line-no" href="#L510">510</a>    }</span>
+<span class="source-line" id="L511"><a class="line-no" href="#L511">511</a>    for (unsigned i = 0; i &lt; ARRAY_SIZE(telemetry); i++) {</span>
+<span class="source-line" id="L512"><a class="line-no" href="#L512">512</a>        object_property_add(obj, telemetry[i], &quot;uint32&quot;, telemetry_get, NULL, NULL, NULL);</span>
+<span class="source-line" id="L513"><a class="line-no" href="#L513">513</a>    }</span>
+<span class="source-line" id="L514"><a class="line-no" href="#L514">514</a>    object_property_add(obj, &quot;fault-ack&quot;, &quot;uint32&quot;, fault_get, NULL, NULL, NULL);</span>
+<span class="source-line" id="L515"><a class="line-no" href="#L515">515</a>    object_property_add(obj, &quot;virtual-tick&quot;, &quot;uint64&quot;, virtual_tick_get, NULL, NULL, NULL);</span>
+<span class="source-line" id="L516"><a class="line-no" href="#L516">516</a>    object_property_add_bool(obj, &quot;try-stale-cpl&quot;, trigger_get, stale_set);</span>
+<span class="source-line" id="L517"><a class="line-no" href="#L517">517</a>    object_property_add_bool(obj, &quot;try-irq-fenced&quot;, trigger_get, irq_set);</span>
+<span class="source-line" id="L518"><a class="line-no" href="#L518">518</a>    for (unsigned i = 0; i &lt; ARRAY_SIZE(pf-&gt;failpoints); i++) {</span>
+<span class="source-line" id="L519"><a class="line-no" href="#L519">519</a>        const char *fields[] = { &quot;name&quot;, &quot;hit&quot;, &quot;vf&quot;, &quot;seen&quot;, &quot;fired&quot; };</span>
+<span class="source-line" id="L520"><a class="line-no" href="#L520">520</a>        pf-&gt;failpoints[i] = (ToyFailpoint){ .point = -1, .hit = 1, .vf = UINT32_MAX };</span>
+<span class="source-line" id="L521"><a class="line-no" href="#L521">521</a>        for (unsigned j = 0; j &lt; ARRAY_SIZE(fields); j++) {</span>
+<span class="source-line" id="L522"><a class="line-no" href="#L522">522</a>            g_autofree char *name = g_strdup_printf(&quot;%sfailpoint-%s&quot;, i ? &quot;unwind-&quot; : &quot;&quot;, fields[j]);</span>
+<span class="source-line" id="L523"><a class="line-no" href="#L523">523</a>            object_property_add(obj, name, j ? &quot;uint32&quot; : &quot;str&quot;, failpoint_get,</span>
+<span class="source-line" id="L524"><a class="line-no" href="#L524">524</a>                                j &lt; 3 ? failpoint_set : NULL, NULL, (void *)(uintptr_t)i);</span>
+<span class="source-line" id="L525"><a class="line-no" href="#L525">525</a>        }</span>
+<span class="source-line" id="L526"><a class="line-no" href="#L526">526</a>    }</span>
+<span class="source-line" id="L527"><a class="line-no" href="#L527">527</a>}</span>
+<span class="source-line" id="L528"><a class="line-no" href="#L528">528</a></span>
+<span class="source-line" id="L529"><a class="line-no" href="#L529">529</a>static Property properties[] = {</span>
+<span class="source-line" id="L530"><a class="line-no" href="#L530">530</a>    DEFINE_PROP_UINT32(&quot;total-vfs&quot;, ToyPF, total_vfs, FW_VFS),</span>
+<span class="source-line" id="L531"><a class="line-no" href="#L531">531</a>    DEFINE_PROP_END_OF_LIST(),</span>
+<span class="source-line" id="L532"><a class="line-no" href="#L532">532</a>};</span>
+<span class="source-line" id="L533"><a class="line-no" href="#L533">533</a></span>
+<span class="source-line" id="L534"><a class="line-no" href="#L534">534</a>static void pf_class_init(ObjectClass *klass, void *data)</span>
+<span class="source-line" id="L535"><a class="line-no" href="#L535">535</a>{</span>
+<span class="source-line" id="L536"><a class="line-no" href="#L536">536</a>    PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);</span>
+<span class="source-line" id="L537"><a class="line-no" href="#L537">537</a>    DeviceClass *dc = DEVICE_CLASS(klass);</span>
+<span class="source-line" id="L538"><a class="line-no" href="#L538">538</a>    pc-&gt;realize = pf_realize;</span>
+<span class="source-line" id="L539"><a class="line-no" href="#L539">539</a>    pc-&gt;exit = pf_exit;</span>
+<span class="source-line" id="L540"><a class="line-no" href="#L540">540</a>    pc-&gt;vendor_id = TOY_PCI_VENDOR;</span>
+<span class="source-line" id="L541"><a class="line-no" href="#L541">541</a>    pc-&gt;device_id = TOY_PCI_PF;</span>
+<span class="source-line" id="L542"><a class="line-no" href="#L542">542</a>    pc-&gt;revision = TOY_PCI_REVISION;</span>
+<span class="source-line" id="L543"><a class="line-no" href="#L543">543</a>    pc-&gt;class_id = TOY_PCI_CLASS_CODE &gt;&gt; 8;</span>
+<span class="source-line" id="L544"><a class="line-no" href="#L544">544</a>    RESETTABLE_CLASS(klass)-&gt;phases.hold = pf_reset;</span>
+<span class="source-line" id="L545"><a class="line-no" href="#L545">545</a>    dc-&gt;desc = &quot;SR-IOV Controller Firmware Lab PF (migration unsupported)&quot;;</span>
+<span class="source-line" id="L546"><a class="line-no" href="#L546">546</a>    device_class_set_props(dc, properties);</span>
+<span class="source-line" id="L547"><a class="line-no" href="#L547">547</a>}</span>
+<span class="source-line" id="L548"><a class="line-no" href="#L548">548</a></span>
+<span class="source-line" id="L549"><a class="line-no" href="#L549">549</a>static const TypeInfo pf_type = {</span>
+<span class="source-line" id="L550"><a class="line-no" href="#L550">550</a>    .name = TYPE_TOY_PF, .parent = TYPE_PCI_DEVICE,</span>
+<span class="source-line" id="L551"><a class="line-no" href="#L551">551</a>    .instance_size = sizeof(ToyPF), .instance_init = pf_instance_init, .class_init = pf_class_init,</span>
+<span class="source-line" id="L552"><a class="line-no" href="#L552">552</a>    .interfaces = (InterfaceInfo[]) { { INTERFACE_PCIE_DEVICE }, { } },</span>
+<span class="source-line" id="L553"><a class="line-no" href="#L553">553</a>};</span>
+<span class="source-line" id="L554"><a class="line-no" href="#L554">554</a></span>
+<span class="source-line" id="L555"><a class="line-no" href="#L555">555</a>static void register_pf(void) { type_register_static(&amp;pf_type); }</span>
+<span class="source-line" id="L556"><a class="line-no" href="#L556">556</a>type_init(register_pf)</span></pre></main></html>

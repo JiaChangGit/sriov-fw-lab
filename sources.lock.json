@@ -1,0 +1,487 @@
+{
+  "candidate_matrix_status": "NOT_RUN",
+  "compiler_provenance": {
+    "clang_target": "x86_64-pc-linux-gnu\n",
+    "clang_version": "Ubuntu clang version 21.1.8 (6ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/lib/llvm-21/bin\n",
+    "gcc_target": "x86_64-linux-gnu\n",
+    "gcc_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0\nCopyright (C) 2025 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+    "meson": "1.10.1\n",
+    "ninja": "1.13.2\n",
+    "python": "Python 3.14.4\n"
+  },
+  "generated_utc": "2026-10-04T17:21:58.248375+00:00",
+  "kernel_toolchain": {
+    "command": "gcc-14",
+    "package": "gcc-14\t14.3.0-14ubuntu1",
+    "reason": "Linux v6.12 EFI stub omits C dialect flag; GCC 15 defaults to C23 and conflicts with kernel bool/false definitions",
+    "target": "x86_64-linux-gnu\n",
+    "version": "gcc-14 (Ubuntu 14.3.0-14ubuntu1) 14.3.0\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+  },
+  "python_wheel_note": "Bundled QEMU wheels hashed. Actual venv installation must be recorded by build manifest; no system pip changes.",
+  "python_wheels": [
+    {
+      "installation_status": "NOT_RUN",
+      "path": "downloads/qemu/python/wheels/meson-1.5.0-py3-none-any.whl",
+      "sha256": "52b34f4903b882df52ad0d533146d4b992c018ea77399f825579737672ae7b20",
+      "source_commit": "ae35f033b874c627d81d51070187fbf55f0bf1a7"
+    },
+    {
+      "installation_evidence": "artifacts/build-qemu/20261007T005602Z-4vca4cqv/configure.log",
+      "installation_status": "PASS",
+      "installed_into": "build/qemu/pyvenv",
+      "path": "downloads/qemu/python/wheels/pycotap-1.3.1-py3-none-any.whl",
+      "sha256": "1c3a25b3ff89e48f4e00f1f71dbbc1642b4f65c65d416524d07e73492fff25ea",
+      "source_commit": "ae35f033b874c627d81d51070187fbf55f0bf1a7"
+    }
+  ],
+  "qemu_build_toolchain": {
+    "build_evidence": "artifacts/build-qemu/20261007T005602Z-4vca4cqv/result.json",
+    "meson_source": "system package exposed to project pyvenv",
+    "meson_version": "1.10.1",
+    "pycotap_source": "pinned QEMU bundled wheel",
+    "pycotap_version": "1.3.1",
+    "runtime_status": "NOT_RUN"
+  },
+  "schema_version": 1,
+  "sources": {
+    "busybox": {
+      "canonical_url": "https://git.busybox.net/busybox",
+      "checkout_line_endings": "core.autocrlf=false; tracked source files rechecked from immutable Git index",
+      "commit": "1a64f6a20aaf6ea4dbba68bbfa8cc1ab7e5c57c4",
+      "compatibility_status": "NOT_RUN",
+      "fetch_url": "https://git.busybox.net/busybox",
+      "lf_restored_files_last_fetch": 2768,
+      "patches": [],
+      "path": "downloads/busybox",
+      "source_status": "FETCHED",
+      "submodules": [],
+      "tag": "1_36_1",
+      "tag_object": "1a64f6a20aaf6ea4dbba68bbfa8cc1ab7e5c57c4",
+      "tracked_tree_manifest_sha256": "0dad7d69635f662528e318e498f20636c371f99d56def3b4a8e29a545dda49f3",
+      "tree": "02f1de40c7d267ea6e6252b4c185fa05a25640b3",
+      "url": "https://git.busybox.net/busybox"
+    },
+    "edk2": {
+      "canonical_url": "https://github.com/tianocore/edk2.git",
+      "checkout_line_endings": "core.autocrlf=false; tracked source files rechecked from immutable Git index",
+      "commit": "0f3867fa6ef0553e26c42f7d71ff6bdb98429742",
+      "compatibility_status": "NOT_RUN",
+      "fetch_url": "https://github.com/tianocore/edk2.git",
+      "gitmodules_sha256": "74ab1b82bfdb55967c4254c61a1002ecace02e6ae7a5107137e85ac474d86411",
+      "lf_restored_files_last_fetch": 21498,
+      "patches": [
+        {
+          "original_file": "UefiCpuPkg/Library/CpuExceptionHandlerLib/X64/ExceptionHandlerAsm.nasm",
+          "original_file_sha256": "5e40d31d024492a4670267ac7605f629ba004a036f0aa6ce0d4315a253609fc0",
+          "patched_file_sha256": "f41a69ebf8c694f85ad3a6a2aa2351ea726e277a2444992d439dbc1cb0784156",
+          "path": "uefi/patches/0001-nasm3-x64-push.patch",
+          "reason": "Backport X64 PUSH strict qword operands for NASM 3; EDK2 base source pin unchanged",
+          "sha256": "ebb78166fb22f655dcaeb79db1a74335566bf3ecf932a320cf71f831807e03bd",
+          "upstream_commit": "9ccf8751a74f26142e584c7b7c7572a182b67997",
+          "upstream_url": "https://github.com/tianocore/edk2/commit/9ccf8751a74f26142e584c7b7c7572a182b67997"
+        }
+      ],
+      "path": "downloads/edk2",
+      "source_status": "FETCHED",
+      "submodules": [
+        {
+          "commit": "b64af41c3276f97f0e181920400ee056b9c88037",
+          "path": "ArmPkg/Library/ArmSoftFloatLib/berkeley-softfloat-3"
+        },
+        {
+          "commit": "f4153a09f87cbb9c826d8fc12c74642bb2d879ea",
+          "path": "BaseTools/Source/C/BrotliCompress/brotli"
+        },
+        {
+          "commit": "8c89224991adff88d53cd380f42a2baa36f91454",
+          "path": "CryptoPkg/Library/MbedTlsLib/mbedtls"
+        },
+        {
+          "commit": "c523121f902fde2929909dc7f76b13ceb4961efe",
+          "path": "CryptoPkg/Library/OpensslLib/openssl"
+        },
+        {
+          "commit": "2a8a5e0ecaa3e3d6f4ec722a49aa72476755c2b7",
+          "path": "CryptoPkg/Library/OpensslLib/openssl/gost-engine"
+        },
+        {
+          "commit": "8a126e09547630ef900177625626b6156052f0ee",
+          "path": "CryptoPkg/Library/OpensslLib/openssl/gost-engine/libprov"
+        },
+        {
+          "commit": "784c38f50e70a739400cdd3f2620bac2e2788e6c",
+          "path": "CryptoPkg/Library/OpensslLib/openssl/krb5"
+        },
+        {
+          "commit": "7e33b0e7739d633c77b8c478620167f693ed13f4",
+          "path": "CryptoPkg/Library/OpensslLib/openssl/pyca-cryptography"
+        },
+        {
+          "commit": "2196000605e45d91097147c9c71f26b72af58003",
+          "path": "CryptoPkg/Library/OpensslLib/openssl/wycheproof"
+        },
+        {
+          "commit": "f4153a09f87cbb9c826d8fc12c74642bb2d879ea",
+          "path": "MdeModulePkg/Library/BrotliCustomDecompressLib/brotli"
+        },
+        {
+          "commit": "abfc8ff81df4067f309032467785e06975678f0d",
+          "path": "MdeModulePkg/Universal/RegularExpressionDxe/oniguruma"
+        },
+        {
+          "commit": "cfff805481bdea27f900c32698171286542b8d3c",
+          "path": "MdePkg/Library/BaseFdtLib/libfdt"
+        },
+        {
+          "commit": "370b5944c046bab043dd8b133727b2135af7747a",
+          "path": "MdePkg/Library/MipiSysTLib/mipisyst"
+        },
+        {
+          "commit": "a6f06bf2fd3b832822cd4e9e554b7d47f32ec084",
+          "path": "MdePkg/Library/MipiSysTLib/mipisyst/external/googletest"
+        },
+        {
+          "commit": "c53fdab93af76106b963216d85897614b996f8b6",
+          "path": "MdePkg/Library/MipiSysTLib/mipisyst/external/pugixml"
+        },
+        {
+          "commit": "e9ebfa7e77a6bee77df44e096b100e7131044059",
+          "path": "RedfishPkg/Library/JsonLib/jansson"
+        },
+        {
+          "commit": "50924a4c8145fc721e17208f55814d2b38766fe6",
+          "path": "SecurityPkg/DeviceSecurity/SpdmLib/libspdm"
+        },
+        {
+          "commit": "dd79db10014d85b26d11fe57218431f2e5ede6f2",
+          "path": "SecurityPkg/DeviceSecurity/SpdmLib/libspdm/os_stub/mbedtlslib/mbedtls"
+        },
+        {
+          "commit": "de90e54bbe82e5be4fb9608b6f5c308bb837d355",
+          "path": "SecurityPkg/DeviceSecurity/SpdmLib/libspdm/os_stub/openssllib/openssl"
+        },
+        {
+          "commit": "b2b4d629f100eaee9f5942a106b1ccefe85b8808",
+          "path": "SecurityPkg/DeviceSecurity/SpdmLib/libspdm/os_stub/openssllib/openssl/gost-engine"
+        },
+        {
+          "commit": "8a126e09547630ef900177625626b6156052f0ee",
+          "path": "SecurityPkg/DeviceSecurity/SpdmLib/libspdm/os_stub/openssllib/openssl/gost-engine/libprov"
+        },
+        {
+          "commit": "aa9b4a2a64046afd2fab7cb49c346295874a5fb6",
+          "path": "SecurityPkg/DeviceSecurity/SpdmLib/libspdm/os_stub/openssllib/openssl/krb5"
+        },
+        {
+          "commit": "c18d0567386414efa3caef7ed586c4ca75bf3a8b",
+          "path": "SecurityPkg/DeviceSecurity/SpdmLib/libspdm/os_stub/openssllib/openssl/pyca-cryptography"
+        },
+        {
+          "commit": "2196000605e45d91097147c9c71f26b72af58003",
+          "path": "SecurityPkg/DeviceSecurity/SpdmLib/libspdm/os_stub/openssllib/openssl/wycheproof"
+        },
+        {
+          "commit": "a01cc69ee9536f90e57c61a198f2d1944d3d4313",
+          "path": "SecurityPkg/DeviceSecurity/SpdmLib/libspdm/unit_test/cmockalib/cmocka"
+        },
+        {
+          "commit": "1cc9cde3448cdd2e000886a26acf1caac2db7cf1",
+          "path": "UnitTestFrameworkPkg/Library/CmockaLib/cmocka"
+        },
+        {
+          "commit": "86add13493e5c881d7e4ba77fb91c1f57752b3a4",
+          "path": "UnitTestFrameworkPkg/Library/GoogleTestLib/googletest"
+        },
+        {
+          "commit": "83d4e1ebef3588fae48b69a7352cc21801cb70bc",
+          "path": "UnitTestFrameworkPkg/Library/SubhookLib/subhook"
+        }
+      ],
+      "tag": "edk2-stable202411",
+      "tag_object": "0f3867fa6ef0553e26c42f7d71ff6bdb98429742",
+      "tracked_tree_manifest_sha256": "0032553636d41beaa9d753af8aaabe9c2f0022d2c61c53841b319745425a0b3f",
+      "tree": "ee57094a15a2c106490cc7aa7d7651695c95acf2",
+      "url": "https://github.com/tianocore/edk2.git"
+    },
+    "linux": {
+      "canonical_url": "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git",
+      "checkout_line_endings": "core.autocrlf=false; tracked source files rechecked from immutable Git index",
+      "commit": "adc218676eef25575469234709c2d87185ca223a",
+      "compatibility_status": "NOT_RUN",
+      "fetch_url": "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git",
+      "lf_restored_files_last_fetch": 86585,
+      "patches": [
+        {
+          "path": "patches/linux/0001-toy-pci-enumeration-failpoint.patch",
+          "scope": "guest-only deterministic partial SR-IOV enumeration failure for toy PF 1234:e001",
+          "sha256": "98d5ce17d014e45df92a581e9c81f5a56fff46d4dadc7f7b84eb7bf682984a3d"
+        },
+        {
+          "path": "patches/linux/0002-toy-vfio-strict-write-only.patch",
+          "scope": "opt-in toy-only single-VF unmanaged second-level domain strict WRITE-only IOMMU permissions; default upstream behavior unchanged",
+          "sha256": "3a830c19e29d8262e3283d8d3e6a070ed4118d31b9c306192235f2e350c62ea0"
+        }
+      ],
+      "path": "downloads/linux",
+      "source_status": "FETCHED",
+      "submodules": [],
+      "tag": "v6.12",
+      "tag_object": "06090c9b622a7e1f797e775db4c035e0d779b76e",
+      "tracked_tree_manifest_sha256": "e44239c8087d28f5be4258864f3ce12091e41999f94c05717176cc9c4f8884d8",
+      "tree": "ac4266ccaf1cf79e8fb22ad3e0d86deac358ffb9",
+      "url": "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git"
+    },
+    "qemu": {
+      "canonical_url": "https://gitlab.com/qemu-project/qemu.git",
+      "checkout_line_endings": "core.autocrlf=false; tracked source files rechecked from immutable Git index",
+      "commit": "ae35f033b874c627d81d51070187fbf55f0bf1a7",
+      "compatibility_status": "NOT_RUN",
+      "fetch_url": "https://gitlab.com/qemu-project/qemu.git",
+      "gitmodules_sha256": "f1a1d63e587078c1a2992beacc0b6446b7a4091cffaadfb5c953ab2b8be8aa10",
+      "lf_restored_files_last_fetch": 32424,
+      "meson_wrap_sources": [
+        {
+          "commit": "b64af41c3276f97f0e181920400ee056b9c88037",
+          "name": "berkeley-softfloat-3",
+          "packagefiles": [
+            {
+              "path": "subprojects/packagefiles/berkeley-softfloat-3/meson.build",
+              "sha256": "8104589664dc6ba779c1a213be5244c408c45f10f948a6bfd97a4cd2769a8776"
+            },
+            {
+              "path": "subprojects/packagefiles/berkeley-softfloat-3/meson_options.txt",
+              "sha256": "47c42c20a764882121e5249331b8bc86cf7732c3ef0962d3d201fd8cfef8f225"
+            }
+          ],
+          "path": "downloads/qemu-subprojects/berkeley-softfloat-3",
+          "tree": "5f46f374bcf9aef50442ba5fd25f3b5bcdf963c4",
+          "url": "https://gitlab.com/qemu-project/berkeley-softfloat-3.git",
+          "wrap_sha256": "f5b245e02a2f9400d7cfcc4a10860ed8c6d088577cf753ce6fe161e475a7d9ff"
+        },
+        {
+          "commit": "e7af9751d9f9fd3b47911f51a5cfd08af256a9ab",
+          "name": "berkeley-testfloat-3",
+          "packagefiles": [
+            {
+              "path": "subprojects/packagefiles/berkeley-testfloat-3/meson.build",
+              "sha256": "66dfc76a49e9213074ef71d57e86ff8731aad2137cf97163aba7fdac65d65f23"
+            },
+            {
+              "path": "subprojects/packagefiles/berkeley-testfloat-3/meson_options.txt",
+              "sha256": "47c42c20a764882121e5249331b8bc86cf7732c3ef0962d3d201fd8cfef8f225"
+            }
+          ],
+          "path": "downloads/qemu-subprojects/berkeley-testfloat-3",
+          "tree": "9e166ce5ee90e0cb45f975a89c877bc4114de601",
+          "url": "https://gitlab.com/qemu-project/berkeley-testfloat-3.git",
+          "wrap_sha256": "b4d204e9f59e671c1c636259d8521b9c7f29116cc4b9ff6598e8e635f0359bef"
+        },
+        {
+          "commit": "f5772a62ec52591ff6870b7e8ef32482371f22c6",
+          "name": "keycodemapdb",
+          "packagefiles": [],
+          "path": "downloads/qemu-subprojects/keycodemapdb",
+          "tree": "eaa3f9fb1e2c7687b334f57cb605140cb5450f16",
+          "url": "https://gitlab.com/qemu-project/keycodemapdb.git",
+          "wrap_sha256": "306b37c10ce735432220c08c6832dc67c0a306b88a0023c65937c90c638dba97"
+        },
+        {
+          "commit": "b6910bec11614980a21e46fbccc35934b671bd81",
+          "name": "dtc",
+          "packagefiles": [],
+          "path": "downloads/qemu-subprojects/dtc",
+          "tree": "5de1e174f53a6ea499a49ac7b5eb7fe816dd9902",
+          "url": "https://gitlab.com/qemu-project/dtc.git",
+          "wrap_sha256": "932ca47fc50a6932207a6fc82e15d07d848e93c4ff9abcd0cc34c15f40a30885"
+        }
+      ],
+      "patches": [
+        {
+          "path": "patches/qemu/0001-toy-sriov-build.patch",
+          "sha256": "679fac52a9bdad6220ba6eeb43fa41f3411cca61bad0186df60461a89146fe75"
+        }
+      ],
+      "path": "downloads/qemu",
+      "source_status": "FETCHED",
+      "submodules": [
+        {
+          "commit": "90c488d5f4a407342247b9ea869df1c2d9c8e266",
+          "path": "roms/QemuMacDrivers"
+        },
+        {
+          "commit": "3a259df2449fc4a4e43ab5f33f0b2c66484b4bc3",
+          "path": "roms/SLOF"
+        },
+        {
+          "commit": "4dfdca63a93497203f197ec98ba20e2327e4afe4",
+          "path": "roms/edk2"
+        },
+        {
+          "commit": "b64af41c3276f97f0e181920400ee056b9c88037",
+          "path": "roms/edk2/ArmPkg/Library/ArmSoftFloatLib/berkeley-softfloat-3"
+        },
+        {
+          "commit": "f4153a09f87cbb9c826d8fc12c74642bb2d879ea",
+          "path": "roms/edk2/BaseTools/Source/C/BrotliCompress/brotli"
+        },
+        {
+          "commit": "8c89224991adff88d53cd380f42a2baa36f91454",
+          "path": "roms/edk2/CryptoPkg/Library/MbedTlsLib/mbedtls"
+        },
+        {
+          "commit": "de90e54bbe82e5be4fb9608b6f5c308bb837d355",
+          "path": "roms/edk2/CryptoPkg/Library/OpensslLib/openssl"
+        },
+        {
+          "commit": "b2b4d629f100eaee9f5942a106b1ccefe85b8808",
+          "path": "roms/edk2/CryptoPkg/Library/OpensslLib/openssl/gost-engine"
+        },
+        {
+          "commit": "8a126e09547630ef900177625626b6156052f0ee",
+          "path": "roms/edk2/CryptoPkg/Library/OpensslLib/openssl/gost-engine/libprov"
+        },
+        {
+          "commit": "aa9b4a2a64046afd2fab7cb49c346295874a5fb6",
+          "path": "roms/edk2/CryptoPkg/Library/OpensslLib/openssl/krb5"
+        },
+        {
+          "commit": "c18d0567386414efa3caef7ed586c4ca75bf3a8b",
+          "path": "roms/edk2/CryptoPkg/Library/OpensslLib/openssl/pyca-cryptography"
+        },
+        {
+          "commit": "2196000605e45d91097147c9c71f26b72af58003",
+          "path": "roms/edk2/CryptoPkg/Library/OpensslLib/openssl/wycheproof"
+        },
+        {
+          "commit": "f4153a09f87cbb9c826d8fc12c74642bb2d879ea",
+          "path": "roms/edk2/MdeModulePkg/Library/BrotliCustomDecompressLib/brotli"
+        },
+        {
+          "commit": "abfc8ff81df4067f309032467785e06975678f0d",
+          "path": "roms/edk2/MdeModulePkg/Universal/RegularExpressionDxe/oniguruma"
+        },
+        {
+          "commit": "cfff805481bdea27f900c32698171286542b8d3c",
+          "path": "roms/edk2/MdePkg/Library/BaseFdtLib/libfdt"
+        },
+        {
+          "commit": "370b5944c046bab043dd8b133727b2135af7747a",
+          "path": "roms/edk2/MdePkg/Library/MipiSysTLib/mipisyst"
+        },
+        {
+          "commit": "a6f06bf2fd3b832822cd4e9e554b7d47f32ec084",
+          "path": "roms/edk2/MdePkg/Library/MipiSysTLib/mipisyst/external/googletest"
+        },
+        {
+          "commit": "c53fdab93af76106b963216d85897614b996f8b6",
+          "path": "roms/edk2/MdePkg/Library/MipiSysTLib/mipisyst/external/pugixml"
+        },
+        {
+          "commit": "e9ebfa7e77a6bee77df44e096b100e7131044059",
+          "path": "roms/edk2/RedfishPkg/Library/JsonLib/jansson"
+        },
+        {
+          "commit": "50924a4c8145fc721e17208f55814d2b38766fe6",
+          "path": "roms/edk2/SecurityPkg/DeviceSecurity/SpdmLib/libspdm"
+        },
+        {
+          "commit": "dd79db10014d85b26d11fe57218431f2e5ede6f2",
+          "path": "roms/edk2/SecurityPkg/DeviceSecurity/SpdmLib/libspdm/os_stub/mbedtlslib/mbedtls"
+        },
+        {
+          "commit": "de90e54bbe82e5be4fb9608b6f5c308bb837d355",
+          "path": "roms/edk2/SecurityPkg/DeviceSecurity/SpdmLib/libspdm/os_stub/openssllib/openssl"
+        },
+        {
+          "commit": "b2b4d629f100eaee9f5942a106b1ccefe85b8808",
+          "path": "roms/edk2/SecurityPkg/DeviceSecurity/SpdmLib/libspdm/os_stub/openssllib/openssl/gost-engine"
+        },
+        {
+          "commit": "8a126e09547630ef900177625626b6156052f0ee",
+          "path": "roms/edk2/SecurityPkg/DeviceSecurity/SpdmLib/libspdm/os_stub/openssllib/openssl/gost-engine/libprov"
+        },
+        {
+          "commit": "aa9b4a2a64046afd2fab7cb49c346295874a5fb6",
+          "path": "roms/edk2/SecurityPkg/DeviceSecurity/SpdmLib/libspdm/os_stub/openssllib/openssl/krb5"
+        },
+        {
+          "commit": "c18d0567386414efa3caef7ed586c4ca75bf3a8b",
+          "path": "roms/edk2/SecurityPkg/DeviceSecurity/SpdmLib/libspdm/os_stub/openssllib/openssl/pyca-cryptography"
+        },
+        {
+          "commit": "2196000605e45d91097147c9c71f26b72af58003",
+          "path": "roms/edk2/SecurityPkg/DeviceSecurity/SpdmLib/libspdm/os_stub/openssllib/openssl/wycheproof"
+        },
+        {
+          "commit": "a01cc69ee9536f90e57c61a198f2d1944d3d4313",
+          "path": "roms/edk2/SecurityPkg/DeviceSecurity/SpdmLib/libspdm/unit_test/cmockalib/cmocka"
+        },
+        {
+          "commit": "1cc9cde3448cdd2e000886a26acf1caac2db7cf1",
+          "path": "roms/edk2/UnitTestFrameworkPkg/Library/CmockaLib/cmocka"
+        },
+        {
+          "commit": "86add13493e5c881d7e4ba77fb91c1f57752b3a4",
+          "path": "roms/edk2/UnitTestFrameworkPkg/Library/GoogleTestLib/googletest"
+        },
+        {
+          "commit": "83d4e1ebef3588fae48b69a7352cc21801cb70bc",
+          "path": "roms/edk2/UnitTestFrameworkPkg/Library/SubhookLib/subhook"
+        },
+        {
+          "commit": "4bd064de239dab2426b31c9789a1f4d78087dc63",
+          "path": "roms/ipxe"
+        },
+        {
+          "commit": "c3a19c1e54977a53027d6232050e1e3e39a98a1b",
+          "path": "roms/openbios"
+        },
+        {
+          "commit": "43cace6c3671e5172d0df0a8963e552bb04b7b20",
+          "path": "roms/opensbi"
+        },
+        {
+          "commit": "8ca302e86d685fa05b16e2b208888243da319941",
+          "path": "roms/qboot"
+        },
+        {
+          "commit": "99d9b4dcf27d7fbcbadab71bdc88ef6531baf6bf",
+          "path": "roms/qemu-palcode"
+        },
+        {
+          "commit": "a6ed6b701f0a57db0569ab98b0661c12a6ec3ff8",
+          "path": "roms/seabios"
+        },
+        {
+          "commit": "a528f01d7abd511d3cc71b7acaab6e036ee524bd",
+          "path": "roms/seabios-hppa"
+        },
+        {
+          "commit": "24a7eb35966d93455520bc2debdd7954314b638b",
+          "path": "roms/skiboot"
+        },
+        {
+          "commit": "840658b093976390e9537724f802281c9c8439f5",
+          "path": "roms/u-boot"
+        },
+        {
+          "commit": "60b3916f33e617a815973c5a6df77055b2e3a588",
+          "path": "roms/u-boot-sam460ex"
+        },
+        {
+          "commit": "0c37a43527f0ee2b9584e7fb2fdc805e902635ac",
+          "path": "roms/vbootrom"
+        },
+        {
+          "commit": "9ad3f70bde9865d5ad18f36d256d472e72b5cbf3",
+          "path": "tests/lcitool/libvirt-ci"
+        }
+      ],
+      "tag": "v9.2.0",
+      "tag_object": "55162f76c8d6698c22d9e805f29b1faf15d9724a",
+      "tracked_tree_manifest_sha256": "ccb547a6a97ea1b0cd89700629df95b502f9e5cc24db76a69fec3a4b99add12d",
+      "tree": "4a14da021169b648620916239c3589ac5333d65b",
+      "url": "https://gitlab.com/qemu-project/qemu.git"
+    }
+  }
+}

@@ -1,0 +1,190 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>fwcore/mailbox.c</title><style>
+:root{color-scheme:light;--ink:#18293c;--blue:#184d83;--line:#ced9e4;--muted:#526477}
+*{box-sizing:border-box}body{margin:0;background:#f2f5f8;color:var(--ink);font:17px/1.8 system-ui,'Microsoft JhengHei',sans-serif}
+a{color:var(--blue);overflow-wrap:anywhere}header{background:#102e4d;color:#fff;padding:48px max(24px,calc((100vw - 1100px)/2))}
+header p{max-width:850px}header a{color:#b8dcff}.label{letter-spacing:.15em;font-size:13px;color:#b8dcff}
+.layout{max-width:1420px;margin:auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:32px;padding:30px}
+nav{position:sticky;top:20px;align-self:start;max-height:95vh;overflow:auto;font-size:14px}nav a{display:block;margin:12px 0}
+main{min-width:0;background:white;padding:36px 44px;border:1px solid var(--line);border-radius:12px}
+h1{font-size:2rem;line-height:1.35}h2{font-size:1.5rem;margin-top:2em;border-bottom:1px solid var(--line);padding-bottom:10px}h3{font-size:1.1rem}
+p{max-width:95ch}section+section{margin-top:80px;border-top:4px solid var(--blue);padding-top:26px}
+pre{overflow:auto;background:#112c45;color:#eaf3fa;padding:20px;border-radius:8px;font-size:14px;line-height:1.6}
+code{font-family:Consolas,monospace;font-size:.88em}p code,li code,td code{background:#edf3f8;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}
+.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;margin:20px 0;font-size:15px}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf1f8}
+img,svg{max-width:100%;height:auto}.diagram{overflow:auto;margin:20px 0}.diagram svg{min-width:900px;width:100%;display:block}blockquote,.notice{border-left:5px solid #c4841b;background:#fff5df;padding:16px 20px;margin:24px 0}.muted{color:var(--muted)}
+.source-line{display:block;white-space:pre}.source-line:target{background:#355b79}.line-no{display:inline-block;width:5em;color:#9db8ce;text-decoration:none;user-select:none}
+@media(max-width:850px){.layout{display:block;padding:14px}nav{position:static;max-height:none}main{padding:24px 18px}header{padding:30px 20px}h1{font-size:1.65rem}}
+@media print{body{background:white;font-size:11pt}header{color:#18293c;background:white;padding:0}nav{display:none}.layout{display:block;padding:0}main{border:0;padding:0}section{break-before:page}pre{white-space:pre-wrap}a{color:inherit}}
+</style><main><a href="../handbook.html">回教材</a><h1>fwcore/mailbox.c</h1><p>SHA256 <code>60c702b82fb41ed0d888198fd3414c3a91ae372cb3bd9774242c8cd159dc8fd5</code></p><pre><span class="source-line" id="L1"><a class="line-no" href="#L1">1</a>/* Mailbox 協定：先驗 request，再執行交易；同一 session 只快取最近一筆已接受的 request。 */</span>
+<span class="source-line" id="L2"><a class="line-no" href="#L2">2</a>#include &quot;fw_internal.h&quot;</span>
+<span class="source-line" id="L3"><a class="line-no" href="#L3">3</a></span>
+<span class="source-line" id="L4"><a class="line-no" href="#L4">4</a>static fw_u8 same_request(const struct fw_request *a, const struct fw_request *b)</span>
+<span class="source-line" id="L5"><a class="line-no" href="#L5">5</a>{</span>
+<span class="source-line" id="L6"><a class="line-no" href="#L6">6</a>    unsigned i;</span>
+<span class="source-line" id="L7"><a class="line-no" href="#L7">7</a>    if (a-&gt;session!=b-&gt;session || a-&gt;seq!=b-&gt;seq || a-&gt;opcode!=b-&gt;opcode || a-&gt;target!=b-&gt;target) return 0;</span>
+<span class="source-line" id="L8"><a class="line-no" href="#L8">8</a>    for (i=0; i&lt;4; ++i) if (a-&gt;arg[i]!=b-&gt;arg[i]) return 0;</span>
+<span class="source-line" id="L9"><a class="line-no" href="#L9">9</a>    return 1;</span>
+<span class="source-line" id="L10"><a class="line-no" href="#L10">10</a>}</span>
+<span class="source-line" id="L11"><a class="line-no" href="#L11">11</a></span>
+<span class="source-line" id="L12"><a class="line-no" href="#L12">12</a>static fw_status shape(const struct fw_context *ctx, const struct fw_request *req)</span>
+<span class="source-line" id="L13"><a class="line-no" href="#L13">13</a>{</span>
+<span class="source-line" id="L14"><a class="line-no" href="#L14">14</a>    unsigned i, used=0;</span>
+<span class="source-line" id="L15"><a class="line-no" href="#L15">15</a>    if (req-&gt;opcode&lt;FW_VERSION_NEG || req-&gt;opcode&gt;FW_GLOBAL_RESET) return FW_UNSUP;</span>
+<span class="source-line" id="L16"><a class="line-no" href="#L16">16</a>    if (req-&gt;opcode==FW_VERSION_NEG) {</span>
+<span class="source-line" id="L17"><a class="line-no" href="#L17">17</a>        if (req-&gt;target!=FW_GLOBAL || req-&gt;arg[3] || req-&gt;arg[1]&gt;req-&gt;arg[2]) return FW_INVAL;</span>
+<span class="source-line" id="L18"><a class="line-no" href="#L18">18</a>        if (req-&gt;arg[0]!=1 || req-&gt;arg[1]&gt;0) return FW_UNSUP;</span>
+<span class="source-line" id="L19"><a class="line-no" href="#L19">19</a>        return FW_OK;</span>
+<span class="source-line" id="L20"><a class="line-no" href="#L20">20</a>    }</span>
+<span class="source-line" id="L21"><a class="line-no" href="#L21">21</a>    if (!ctx-&gt;negotiated) return FW_NO_NEG;</span>
+<span class="source-line" id="L22"><a class="line-no" href="#L22">22</a>    if (req-&gt;opcode==FW_GLOBAL_RESET) {</span>
+<span class="source-line" id="L23"><a class="line-no" href="#L23">23</a>        if (req-&gt;target!=FW_GLOBAL) return FW_INVAL;</span>
+<span class="source-line" id="L24"><a class="line-no" href="#L24">24</a>        if (!ctx-&gt;hal.begin_global || !ctx-&gt;hal.end_global) return FW_UNSUP;</span>
+<span class="source-line" id="L25"><a class="line-no" href="#L25">25</a>    } else if (req-&gt;target&gt;=FW_VFS) return FW_INVAL;</span>
+<span class="source-line" id="L26"><a class="line-no" href="#L26">26</a>    if (req-&gt;opcode==FW_PROVISION || req-&gt;opcode==FW_SET_RESERVE) {</span>
+<span class="source-line" id="L27"><a class="line-no" href="#L27">27</a>        used=1;</span>
+<span class="source-line" id="L28"><a class="line-no" href="#L28">28</a>        if (!req-&gt;arg[0] || req-&gt;arg[0]&gt;FW_CAP_CREDIT) return FW_INVAL;</span>
+<span class="source-line" id="L29"><a class="line-no" href="#L29">29</a>    }</span>
+<span class="source-line" id="L30"><a class="line-no" href="#L30">30</a>    if (req-&gt;opcode==FW_REARM) { used=3; if (!req-&gt;arg[2]) return FW_INVAL; }</span>
+<span class="source-line" id="L31"><a class="line-no" href="#L31">31</a>    for (i=used; i&lt;4; ++i) if (req-&gt;arg[i]) return FW_INVAL;</span>
+<span class="source-line" id="L32"><a class="line-no" href="#L32">32</a>    return FW_OK;</span>
+<span class="source-line" id="L33"><a class="line-no" href="#L33">33</a>}</span>
+<span class="source-line" id="L34"><a class="line-no" href="#L34">34</a></span>
+<span class="source-line" id="L35"><a class="line-no" href="#L35">35</a>static fw_status run_checkpoint(struct fw_context *ctx, fw_u16 vf, enum fw_checkpoint point)</span>
+<span class="source-line" id="L36"><a class="line-no" href="#L36">36</a>{</span>
+<span class="source-line" id="L37"><a class="line-no" href="#L37">37</a>    return ctx-&gt;hal.checkpoint ? ctx-&gt;hal.checkpoint(ctx-&gt;hal.opaque,vf,point) : FW_OK;</span>
+<span class="source-line" id="L38"><a class="line-no" href="#L38">38</a>}</span>
+<span class="source-line" id="L39"><a class="line-no" href="#L39">39</a></span>
+<span class="source-line" id="L40"><a class="line-no" href="#L40">40</a>/* 釋放失敗時走 FAILED 並保留配額，避免後續配置重用尚未確認回收的資源。 */</span>
+<span class="source-line" id="L41"><a class="line-no" href="#L41">41</a>static void rollback(struct fw_context *ctx, fw_u16 vf, fw_u8 destroying)</span>
+<span class="source-line" id="L42"><a class="line-no" href="#L42">42</a>{</span>
+<span class="source-line" id="L43"><a class="line-no" href="#L43">43</a>    fw_status rc=run_checkpoint(ctx,vf,destroying?FW_CP_DESTROY_RELEASE:FW_CP_ABORT_RELEASE);</span>
+<span class="source-line" id="L44"><a class="line-no" href="#L44">44</a>    if (rc==FW_OK) rc=fw_vf_event(ctx,vf,destroying?FW_RELEASE_OK:FW_ABORT_OK);</span>
+<span class="source-line" id="L45"><a class="line-no" href="#L45">45</a>    fw_note(ctx,destroying?&quot;destroy_release_status&quot;:&quot;provision_abort_status&quot;,vf,rc);</span>
+<span class="source-line" id="L46"><a class="line-no" href="#L46">46</a>    if (rc!=FW_OK) {</span>
+<span class="source-line" id="L47"><a class="line-no" href="#L47">47</a>        rc=fw_vf_event(ctx,vf,destroying?FW_RELEASE_FAIL:FW_ABORT_FAIL);</span>
+<span class="source-line" id="L48"><a class="line-no" href="#L48">48</a>        fw_note(ctx,&quot;rollback_quarantine_status&quot;,vf,rc);</span>
+<span class="source-line" id="L49"><a class="line-no" href="#L49">49</a>    }</span>
+<span class="source-line" id="L50"><a class="line-no" href="#L50">50</a>}</span>
+<span class="source-line" id="L51"><a class="line-no" href="#L51">51</a></span>
+<span class="source-line" id="L52"><a class="line-no" href="#L52">52</a>static fw_status progress(struct fw_context *ctx, fw_u16 vf, fw_u32 opcode,</span>
+<span class="source-line" id="L53"><a class="line-no" href="#L53">53</a>                          fw_u64 epoch, fw_u64 deadline)</span>
+<span class="source-line" id="L54"><a class="line-no" href="#L54">54</a>{</span>
+<span class="source-line" id="L55"><a class="line-no" href="#L55">55</a>    enum fw_state expected=opcode==FW_QUIESCE?FW_QUIESCING:FW_RESETTING;</span>
+<span class="source-line" id="L56"><a class="line-no" href="#L56">56</a>    fw_status rc;</span>
+<span class="source-line" id="L57"><a class="line-no" href="#L57">57</a>    if (ctx-&gt;vf[vf].epoch!=epoch) return FW_STATE;</span>
+<span class="source-line" id="L58"><a class="line-no" href="#L58">58</a>    if (ctx-&gt;vf[vf].state==FW_FAILED &amp;&amp; ctx-&gt;hal.now_tick(ctx-&gt;hal.opaque)&gt;=deadline) return FW_TIMEOUT;</span>
+<span class="source-line" id="L59"><a class="line-no" href="#L59">59</a>    if (ctx-&gt;vf[vf].state!=expected) return FW_STATE;</span>
+<span class="source-line" id="L60"><a class="line-no" href="#L60">60</a>    /* 期限優先於晚到的完成回呼，100 tick 的邊界不依 host timeout。 */</span>
+<span class="source-line" id="L61"><a class="line-no" href="#L61">61</a>    if (ctx-&gt;hal.now_tick(ctx-&gt;hal.opaque)&gt;=deadline) {</span>
+<span class="source-line" id="L62"><a class="line-no" href="#L62">62</a>        rc=fw_vf_event(ctx,vf,FW_EV_TIMEOUT);</span>
+<span class="source-line" id="L63"><a class="line-no" href="#L63">63</a>        return rc==FW_OK?FW_TIMEOUT:rc;</span>
+<span class="source-line" id="L64"><a class="line-no" href="#L64">64</a>    }</span>
+<span class="source-line" id="L65"><a class="line-no" href="#L65">65</a>    rc=ctx-&gt;hal.mailbox_progress?ctx-&gt;hal.mailbox_progress(ctx-&gt;hal.opaque,vf,opcode):FW_OK;</span>
+<span class="source-line" id="L66"><a class="line-no" href="#L66">66</a>    if (rc!=FW_OK) return rc;</span>
+<span class="source-line" id="L67"><a class="line-no" href="#L67">67</a>    return fw_vf_event(ctx,vf,opcode==FW_QUIESCE?FW_DRAIN_OK:FW_RESET_DONE);</span>
+<span class="source-line" id="L68"><a class="line-no" href="#L68">68</a>}</span>
+<span class="source-line" id="L69"><a class="line-no" href="#L69">69</a></span>
+<span class="source-line" id="L70"><a class="line-no" href="#L70">70</a>fw_status fw_poll_mailbox(struct fw_context *ctx, struct fw_reply *reply)</span>
+<span class="source-line" id="L71"><a class="line-no" href="#L71">71</a>{</span>
+<span class="source-line" id="L72"><a class="line-no" href="#L72">72</a>    fw_status rc;</span>
+<span class="source-line" id="L73"><a class="line-no" href="#L73">73</a>    if (!ctx || !reply) return FW_INVAL;</span>
+<span class="source-line" id="L74"><a class="line-no" href="#L74">74</a>    fw_zero(reply,sizeof(*reply));</span>
+<span class="source-line" id="L75"><a class="line-no" href="#L75">75</a>    if (!ctx-&gt;mailbox_pending) return FW_STATE;</span>
+<span class="source-line" id="L76"><a class="line-no" href="#L76">76</a>    rc=progress(ctx,(fw_u16)ctx-&gt;cached_request.target,ctx-&gt;cached_request.opcode,</span>
+<span class="source-line" id="L77"><a class="line-no" href="#L77">77</a>                ctx-&gt;pending_epoch,ctx-&gt;pending_deadline);</span>
+<span class="source-line" id="L78"><a class="line-no" href="#L78">78</a>    ctx-&gt;cached_reply.status=rc;</span>
+<span class="source-line" id="L79"><a class="line-no" href="#L79">79</a>    *reply=ctx-&gt;cached_reply;</span>
+<span class="source-line" id="L80"><a class="line-no" href="#L80">80</a>    if (rc!=FW_BUSY) {</span>
+<span class="source-line" id="L81"><a class="line-no" href="#L81">81</a>        ctx-&gt;mailbox_pending=0; ctx-&gt;pending_epoch=0; ctx-&gt;pending_deadline=0;</span>
+<span class="source-line" id="L82"><a class="line-no" href="#L82">82</a>        fw_note(ctx,&quot;mailbox_completed&quot;,(fw_u16)ctx-&gt;cached_request.target,rc);</span>
+<span class="source-line" id="L83"><a class="line-no" href="#L83">83</a>    }</span>
+<span class="source-line" id="L84"><a class="line-no" href="#L84">84</a>    return rc;</span>
+<span class="source-line" id="L85"><a class="line-no" href="#L85">85</a>}</span>
+<span class="source-line" id="L86"><a class="line-no" href="#L86">86</a></span>
+<span class="source-line" id="L87"><a class="line-no" href="#L87">87</a>fw_status fw_handle_mailbox(struct fw_context *ctx, const struct fw_request *req, struct fw_reply *reply)</span>
+<span class="source-line" id="L88"><a class="line-no" href="#L88">88</a>{</span>
+<span class="source-line" id="L89"><a class="line-no" href="#L89">89</a>    fw_status rc;</span>
+<span class="source-line" id="L90"><a class="line-no" href="#L90">90</a>    fw_u16 vf;</span>
+<span class="source-line" id="L91"><a class="line-no" href="#L91">91</a>    struct fw_hw_snapshot hw;</span>
+<span class="source-line" id="L92"><a class="line-no" href="#L92">92</a>    fw_u64 session, epochs[FW_VFS];</span>
+<span class="source-line" id="L93"><a class="line-no" href="#L93">93</a>    if (!ctx || !req || !reply) return FW_INVAL;</span>
+<span class="source-line" id="L94"><a class="line-no" href="#L94">94</a>    fw_zero(reply,sizeof(*reply)); reply-&gt;seq=req-&gt;seq;</span>
+<span class="source-line" id="L95"><a class="line-no" href="#L95">95</a>    if (!req-&gt;seq) { reply-&gt;status=FW_INVAL; return FW_INVAL; }</span>
+<span class="source-line" id="L96"><a class="line-no" href="#L96">96</a>    if (req-&gt;session!=ctx-&gt;session) { reply-&gt;status=FW_STALE_SEQ; return FW_STALE_SEQ; }</span>
+<span class="source-line" id="L97"><a class="line-no" href="#L97">97</a>    /* 重送必須逐欄相同；同序號卻改內容是衝突，不能再次執行副作用。 */</span>
+<span class="source-line" id="L98"><a class="line-no" href="#L98">98</a>    if (ctx-&gt;cache_valid &amp;&amp; req-&gt;seq==ctx-&gt;last_seq) {</span>
+<span class="source-line" id="L99"><a class="line-no" href="#L99">99</a>        if (!same_request(req,&amp;ctx-&gt;cached_request)) { reply-&gt;status=FW_SEQ_CONFLICT; return FW_SEQ_CONFLICT; }</span>
+<span class="source-line" id="L100"><a class="line-no" href="#L100">100</a>        *reply=ctx-&gt;cached_reply; return reply-&gt;status;</span>
+<span class="source-line" id="L101"><a class="line-no" href="#L101">101</a>    }</span>
+<span class="source-line" id="L102"><a class="line-no" href="#L102">102</a>    if (req-&gt;seq&lt;=ctx-&gt;last_seq) { reply-&gt;status=FW_STALE_SEQ; return FW_STALE_SEQ; }</span>
+<span class="source-line" id="L103"><a class="line-no" href="#L103">103</a>    rc=shape(ctx,req);</span>
+<span class="source-line" id="L104"><a class="line-no" href="#L104">104</a>    if (rc!=FW_OK) { reply-&gt;status=rc; return rc; }</span>
+<span class="source-line" id="L105"><a class="line-no" href="#L105">105</a>    /* 尚在等 quiesce/reset 的交易由 poll 推進；新 request 不可蓋掉它的 cache。 */</span>
+<span class="source-line" id="L106"><a class="line-no" href="#L106">106</a>    if (ctx-&gt;mailbox_pending) { reply-&gt;status=FW_BUSY; return FW_BUSY; }</span>
+<span class="source-line" id="L107"><a class="line-no" href="#L107">107</a>    vf=(fw_u16)req-&gt;target;</span>
+<span class="source-line" id="L108"><a class="line-no" href="#L108">108</a>    switch (req-&gt;opcode) {</span>
+<span class="source-line" id="L109"><a class="line-no" href="#L109">109</a>    case FW_VERSION_NEG:</span>
+<span class="source-line" id="L110"><a class="line-no" href="#L110">110</a>        ctx-&gt;negotiated=1; reply-&gt;value[0]=1U&lt;&lt;16; rc=FW_OK;</span>
+<span class="source-line" id="L111"><a class="line-no" href="#L111">111</a>        break;</span>
+<span class="source-line" id="L112"><a class="line-no" href="#L112">112</a>    case FW_GET_STATE:</span>
+<span class="source-line" id="L113"><a class="line-no" href="#L113">113</a>        rc=fw_hw(ctx,vf,&amp;hw);</span>
+<span class="source-line" id="L114"><a class="line-no" href="#L114">114</a>        if (rc==FW_OK) {</span>
+<span class="source-line" id="L115"><a class="line-no" href="#L115">115</a>            reply-&gt;value[0]=(fw_u32)ctx-&gt;vf[vf].state;</span>
+<span class="source-line" id="L116"><a class="line-no" href="#L116">116</a>            reply-&gt;value[1]=(fw_u32)hw.epoch; reply-&gt;value[2]=(fw_u32)(hw.epoch&gt;&gt;32);</span>
+<span class="source-line" id="L117"><a class="line-no" href="#L117">117</a>            reply-&gt;value[3]=(fw_u32)hw.fenced|((fw_u32)hw.killed&lt;&lt;1)|((fw_u32)hw.pci_present&lt;&lt;2)|</span>
+<span class="source-line" id="L118"><a class="line-no" href="#L118">118</a>                ((fw_u32)hw.bme&lt;&lt;3)|((fw_u32)hw.config_valid&lt;&lt;4)|((fw_u32)hw.ready_pending&lt;&lt;5);</span>
+<span class="source-line" id="L119"><a class="line-no" href="#L119">119</a>        }</span>
+<span class="source-line" id="L120"><a class="line-no" href="#L120">120</a>        break;</span>
+<span class="source-line" id="L121"><a class="line-no" href="#L121">121</a>    case FW_PROVISION:</span>
+<span class="source-line" id="L122"><a class="line-no" href="#L122">122</a>        rc=run_checkpoint(ctx,vf,FW_CP_BEFORE_CREATE);</span>
+<span class="source-line" id="L123"><a class="line-no" href="#L123">123</a>        if (rc==FW_OK) rc=fw_create(ctx,vf,req-&gt;arg[0]);</span>
+<span class="source-line" id="L124"><a class="line-no" href="#L124">124</a>        if (rc==FW_OK) {</span>
+<span class="source-line" id="L125"><a class="line-no" href="#L125">125</a>            rc=run_checkpoint(ctx,vf,FW_CP_AFTER_CREATE);</span>
+<span class="source-line" id="L126"><a class="line-no" href="#L126">126</a>            if (rc==FW_OK) rc=run_checkpoint(ctx,vf,FW_CP_BEFORE_COMMIT);</span>
+<span class="source-line" id="L127"><a class="line-no" href="#L127">127</a>            if (rc==FW_OK) rc=fw_vf_event(ctx,vf,FW_COMMIT);</span>
+<span class="source-line" id="L128"><a class="line-no" href="#L128">128</a>            if (rc!=FW_OK) rollback(ctx,vf,0);</span>
+<span class="source-line" id="L129"><a class="line-no" href="#L129">129</a>        }</span>
+<span class="source-line" id="L130"><a class="line-no" href="#L130">130</a>        break;</span>
+<span class="source-line" id="L131"><a class="line-no" href="#L131">131</a>    case FW_QUIESCE:</span>
+<span class="source-line" id="L132"><a class="line-no" href="#L132">132</a>        rc=fw_vf_event(ctx,vf,FW_FENCE);</span>
+<span class="source-line" id="L133"><a class="line-no" href="#L133">133</a>        if (rc==FW_OK) rc=progress(ctx,vf,req-&gt;opcode,ctx-&gt;vf[vf].epoch,ctx-&gt;vf[vf].deadline);</span>
+<span class="source-line" id="L134"><a class="line-no" href="#L134">134</a>        break;</span>
+<span class="source-line" id="L135"><a class="line-no" href="#L135">135</a>    case FW_RESET:</span>
+<span class="source-line" id="L136"><a class="line-no" href="#L136">136</a>        rc=progress(ctx,vf,req-&gt;opcode,ctx-&gt;vf[vf].epoch,ctx-&gt;vf[vf].deadline);</span>
+<span class="source-line" id="L137"><a class="line-no" href="#L137">137</a>        break;</span>
+<span class="source-line" id="L138"><a class="line-no" href="#L138">138</a>    case FW_REARM:</span>
+<span class="source-line" id="L139"><a class="line-no" href="#L139">139</a>        rc=fw_rearm(ctx,vf,(fw_u64)req-&gt;arg[0]|((fw_u64)req-&gt;arg[1]&lt;&lt;32),req-&gt;arg[2]);</span>
+<span class="source-line" id="L140"><a class="line-no" href="#L140">140</a>        break;</span>
+<span class="source-line" id="L141"><a class="line-no" href="#L141">141</a>    case FW_DESTROY_CMD:</span>
+<span class="source-line" id="L142"><a class="line-no" href="#L142">142</a>        rc=fw_vf_event(ctx,vf,FW_DESTROY);</span>
+<span class="source-line" id="L143"><a class="line-no" href="#L143">143</a>        if (rc==FW_OK) {</span>
+<span class="source-line" id="L144"><a class="line-no" href="#L144">144</a>            rc=run_checkpoint(ctx,vf,FW_CP_DESTROY_RELEASE);</span>
+<span class="source-line" id="L145"><a class="line-no" href="#L145">145</a>            if (rc==FW_OK) rc=fw_vf_event(ctx,vf,FW_RELEASE_OK);</span>
+<span class="source-line" id="L146"><a class="line-no" href="#L146">146</a>            fw_note(ctx,&quot;destroy_release_status&quot;,vf,rc);</span>
+<span class="source-line" id="L147"><a class="line-no" href="#L147">147</a>            if (rc!=FW_OK) {</span>
+<span class="source-line" id="L148"><a class="line-no" href="#L148">148</a>                fw_status failed=fw_vf_event(ctx,vf,FW_RELEASE_FAIL);</span>
+<span class="source-line" id="L149"><a class="line-no" href="#L149">149</a>                fw_note(ctx,&quot;rollback_quarantine_status&quot;,vf,failed);</span>
+<span class="source-line" id="L150"><a class="line-no" href="#L150">150</a>            }</span>
+<span class="source-line" id="L151"><a class="line-no" href="#L151">151</a>        }</span>
+<span class="source-line" id="L152"><a class="line-no" href="#L152">152</a>        break;</span>
+<span class="source-line" id="L153"><a class="line-no" href="#L153">153</a>    case FW_SET_RESERVE: rc=fw_set_reserve(ctx,vf,req-&gt;arg[0]); break;</span>
+<span class="source-line" id="L154"><a class="line-no" href="#L154">154</a>    case FW_GLOBAL_RESET:</span>
+<span class="source-line" id="L155"><a class="line-no" href="#L155">155</a>        if (!ctx-&gt;hal.owners_closed(ctx-&gt;hal.opaque,FW_GLOBAL)) { rc=FW_STATE; break; }</span>
+<span class="source-line" id="L156"><a class="line-no" href="#L156">156</a>        rc=ctx-&gt;hal.begin_global(ctx-&gt;hal.opaque,&amp;session,epochs);</span>
+<span class="source-line" id="L157"><a class="line-no" href="#L157">157</a>        if (rc!=FW_OK) break;</span>
+<span class="source-line" id="L158"><a class="line-no" href="#L158">158</a>        rc=fw_global_recover(ctx,session,epochs);</span>
+<span class="source-line" id="L159"><a class="line-no" href="#L159">159</a>        if (rc!=FW_OK) { reply-&gt;status=rc; return rc; }</span>
+<span class="source-line" id="L160"><a class="line-no" href="#L160">160</a>        rc=ctx-&gt;hal.end_global(ctx-&gt;hal.opaque);</span>
+<span class="source-line" id="L161"><a class="line-no" href="#L161">161</a>        reply-&gt;status=rc; reply-&gt;value[0]=(fw_u32)session; reply-&gt;value[1]=(fw_u32)(session&gt;&gt;32);</span>
+<span class="source-line" id="L162"><a class="line-no" href="#L162">162</a>        /* 舊 session 的 transaction 不能重新污染剛清空的協商與 cache。 */</span>
+<span class="source-line" id="L163"><a class="line-no" href="#L163">163</a>        return rc;</span>
+<span class="source-line" id="L164"><a class="line-no" href="#L164">164</a>    default: rc=FW_UNSUP; break;</span>
+<span class="source-line" id="L165"><a class="line-no" href="#L165">165</a>    }</span>
+<span class="source-line" id="L166"><a class="line-no" href="#L166">166</a>    reply-&gt;status=rc; ctx-&gt;last_seq=req-&gt;seq; ctx-&gt;cache_valid=1;</span>
+<span class="source-line" id="L167"><a class="line-no" href="#L167">167</a>    ctx-&gt;cached_request=*req; ctx-&gt;cached_reply=*reply;</span>
+<span class="source-line" id="L168"><a class="line-no" href="#L168">168</a>    if (rc==FW_BUSY &amp;&amp; (req-&gt;opcode==FW_QUIESCE || req-&gt;opcode==FW_RESET)) {</span>
+<span class="source-line" id="L169"><a class="line-no" href="#L169">169</a>        ctx-&gt;mailbox_pending=1;</span>
+<span class="source-line" id="L170"><a class="line-no" href="#L170">170</a>        ctx-&gt;pending_epoch=ctx-&gt;vf[vf].epoch; ctx-&gt;pending_deadline=ctx-&gt;vf[vf].deadline;</span>
+<span class="source-line" id="L171"><a class="line-no" href="#L171">171</a>    }</span>
+<span class="source-line" id="L172"><a class="line-no" href="#L172">172</a>    return rc;</span>
+<span class="source-line" id="L173"><a class="line-no" href="#L173">173</a>}</span></pre></main></html>

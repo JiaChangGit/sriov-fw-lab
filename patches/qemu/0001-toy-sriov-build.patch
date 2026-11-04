@@ -1,0 +1,19 @@
+--- a/hw/misc/meson.build
++++ b/hw/misc/meson.build
+@@ -152,3 +152,5 @@
+ 
+ # HPPA devices
+ system_ss.add(when: 'CONFIG_LASI', if_true: files('lasi.c'))
++
++subdir('sriov-fw-lab')
+--- a/hw/misc/Kconfig
++++ b/hw/misc/Kconfig
+@@ -216,3 +216,8 @@
+     bool
+ 
+ source macio/Kconfig
++
++config TOY_SRIOV
++    bool
++    default y
++    depends on PCI_EXPRESS && MSI_NONBROKEN

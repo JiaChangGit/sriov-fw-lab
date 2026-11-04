@@ -1,0 +1,124 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>fwcore/fsm.c</title><style>
+:root{color-scheme:light;--ink:#18293c;--blue:#184d83;--line:#ced9e4;--muted:#526477}
+*{box-sizing:border-box}body{margin:0;background:#f2f5f8;color:var(--ink);font:17px/1.8 system-ui,'Microsoft JhengHei',sans-serif}
+a{color:var(--blue);overflow-wrap:anywhere}header{background:#102e4d;color:#fff;padding:48px max(24px,calc((100vw - 1100px)/2))}
+header p{max-width:850px}header a{color:#b8dcff}.label{letter-spacing:.15em;font-size:13px;color:#b8dcff}
+.layout{max-width:1420px;margin:auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:32px;padding:30px}
+nav{position:sticky;top:20px;align-self:start;max-height:95vh;overflow:auto;font-size:14px}nav a{display:block;margin:12px 0}
+main{min-width:0;background:white;padding:36px 44px;border:1px solid var(--line);border-radius:12px}
+h1{font-size:2rem;line-height:1.35}h2{font-size:1.5rem;margin-top:2em;border-bottom:1px solid var(--line);padding-bottom:10px}h3{font-size:1.1rem}
+p{max-width:95ch}section+section{margin-top:80px;border-top:4px solid var(--blue);padding-top:26px}
+pre{overflow:auto;background:#112c45;color:#eaf3fa;padding:20px;border-radius:8px;font-size:14px;line-height:1.6}
+code{font-family:Consolas,monospace;font-size:.88em}p code,li code,td code{background:#edf3f8;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}
+.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;margin:20px 0;font-size:15px}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf1f8}
+img,svg{max-width:100%;height:auto}.diagram{overflow:auto;margin:20px 0}.diagram svg{min-width:900px;width:100%;display:block}blockquote,.notice{border-left:5px solid #c4841b;background:#fff5df;padding:16px 20px;margin:24px 0}.muted{color:var(--muted)}
+.source-line{display:block;white-space:pre}.source-line:target{background:#355b79}.line-no{display:inline-block;width:5em;color:#9db8ce;text-decoration:none;user-select:none}
+@media(max-width:850px){.layout{display:block;padding:14px}nav{position:static;max-height:none}main{padding:24px 18px}header{padding:30px 20px}h1{font-size:1.65rem}}
+@media print{body{background:white;font-size:11pt}header{color:#18293c;background:white;padding:0}nav{display:none}.layout{display:block;padding:0}main{border:0;padding:0}section{break-before:page}pre{white-space:pre-wrap}a{color:inherit}}
+</style><main><a href="../handbook.html">回教材</a><h1>fwcore/fsm.c</h1><p>SHA256 <code>ba4138cac89a16581fcb1932e6f66778debbc553025b8f94b99ea293fdade841</code></p><pre><span class="source-line" id="L1"><a class="line-no" href="#L1">1</a>#include &quot;fw_internal.h&quot;</span>
+<span class="source-line" id="L2"><a class="line-no" href="#L2">2</a></span>
+<span class="source-line" id="L3"><a class="line-no" href="#L3">3</a>struct edge { enum fw_state from; enum fw_event event; enum fw_state to; };</span>
+<span class="source-line" id="L4"><a class="line-no" href="#L4">4</a>/* 此表只定義合法轉移；資源、硬體狀態及期限的 guard 在 fw_transition 中檢查。 */</span>
+<span class="source-line" id="L5"><a class="line-no" href="#L5">5</a>static const struct edge edges[] = {</span>
+<span class="source-line" id="L6"><a class="line-no" href="#L6">6</a>    {FW_FREE,FW_CREATE,FW_PROVISIONING},</span>
+<span class="source-line" id="L7"><a class="line-no" href="#L7">7</a>    {FW_PROVISIONING,FW_COMMIT,FW_ACTIVE},</span>
+<span class="source-line" id="L8"><a class="line-no" href="#L8">8</a>    {FW_PROVISIONING,FW_ABORT_OK,FW_FREE},</span>
+<span class="source-line" id="L9"><a class="line-no" href="#L9">9</a>    {FW_PROVISIONING,FW_ABORT_FAIL,FW_FAILED},</span>
+<span class="source-line" id="L10"><a class="line-no" href="#L10">10</a>    {FW_ACTIVE,FW_FENCE,FW_QUIESCING},</span>
+<span class="source-line" id="L11"><a class="line-no" href="#L11">11</a>    {FW_QUIESCING,FW_DRAIN_OK,FW_RESETTING},</span>
+<span class="source-line" id="L12"><a class="line-no" href="#L12">12</a>    {FW_QUIESCING,FW_EV_TIMEOUT,FW_FAILED},</span>
+<span class="source-line" id="L13"><a class="line-no" href="#L13">13</a>    {FW_RESETTING,FW_RESET_DONE,FW_RECOVERING},</span>
+<span class="source-line" id="L14"><a class="line-no" href="#L14">14</a>    {FW_RESETTING,FW_EV_TIMEOUT,FW_FAILED},</span>
+<span class="source-line" id="L15"><a class="line-no" href="#L15">15</a>    {FW_RECOVERING,FW_READY_REARM,FW_ACTIVE},</span>
+<span class="source-line" id="L16"><a class="line-no" href="#L16">16</a>    {FW_RECOVERING,FW_VERIFY_FAIL,FW_FAILED},</span>
+<span class="source-line" id="L17"><a class="line-no" href="#L17">17</a>    {FW_ACTIVE,FW_FLR,FW_RECOVERING},</span>
+<span class="source-line" id="L18"><a class="line-no" href="#L18">18</a>    {FW_QUIESCING,FW_FLR,FW_RECOVERING},</span>
+<span class="source-line" id="L19"><a class="line-no" href="#L19">19</a>    {FW_RESETTING,FW_FLR,FW_RECOVERING},</span>
+<span class="source-line" id="L20"><a class="line-no" href="#L20">20</a>    {FW_RECOVERING,FW_FLR,FW_RECOVERING},</span>
+<span class="source-line" id="L21"><a class="line-no" href="#L21">21</a>    {FW_ACTIVE,FW_DESTROY,FW_DESTROYING},</span>
+<span class="source-line" id="L22"><a class="line-no" href="#L22">22</a>    {FW_FAILED,FW_DESTROY,FW_DESTROYING},</span>
+<span class="source-line" id="L23"><a class="line-no" href="#L23">23</a>    {FW_RECOVERING,FW_DESTROY,FW_DESTROYING},</span>
+<span class="source-line" id="L24"><a class="line-no" href="#L24">24</a>    {FW_DESTROYING,FW_RELEASE_OK,FW_FREE},</span>
+<span class="source-line" id="L25"><a class="line-no" href="#L25">25</a>    {FW_DESTROYING,FW_RELEASE_FAIL,FW_FAILED}</span>
+<span class="source-line" id="L26"><a class="line-no" href="#L26">26</a>};</span>
+<span class="source-line" id="L27"><a class="line-no" href="#L27">27</a></span>
+<span class="source-line" id="L28"><a class="line-no" href="#L28">28</a>fw_status fw_transition(struct fw_context *ctx, fw_u16 vf, enum fw_event event)</span>
+<span class="source-line" id="L29"><a class="line-no" href="#L29">29</a>{</span>
+<span class="source-line" id="L30"><a class="line-no" href="#L30">30</a>    fw_size i;</span>
+<span class="source-line" id="L31"><a class="line-no" href="#L31">31</a>    enum fw_state to=FW_STATE_COUNT;</span>
+<span class="source-line" id="L32"><a class="line-no" href="#L32">32</a>    struct fw_hw_snapshot hw;</span>
+<span class="source-line" id="L33"><a class="line-no" href="#L33">33</a>    fw_u64 deadline=0;</span>
+<span class="source-line" id="L34"><a class="line-no" href="#L34">34</a>    fw_status rc;</span>
+<span class="source-line" id="L35"><a class="line-no" href="#L35">35</a>    if (!ctx || vf&gt;=FW_VFS) return FW_INVAL;</span>
+<span class="source-line" id="L36"><a class="line-no" href="#L36">36</a>    /* 不合法的邊在任何 HAL 呼叫前拒絕，包含 context padding 都不更動。 */</span>
+<span class="source-line" id="L37"><a class="line-no" href="#L37">37</a>    for (i=0; i&lt;sizeof(edges)/sizeof(edges[0]); ++i) {</span>
+<span class="source-line" id="L38"><a class="line-no" href="#L38">38</a>        if (edges[i].from==ctx-&gt;vf[vf].state &amp;&amp; edges[i].event==event) { to=edges[i].to; break; }</span>
+<span class="source-line" id="L39"><a class="line-no" href="#L39">39</a>    }</span>
+<span class="source-line" id="L40"><a class="line-no" href="#L40">40</a>    if (to==FW_STATE_COUNT) return FW_STATE;</span>
+<span class="source-line" id="L41"><a class="line-no" href="#L41">41</a>    if (event==FW_CREATE) return fw_create(ctx,vf,8);</span>
+<span class="source-line" id="L42"><a class="line-no" href="#L42">42</a>    rc=fw_hw(ctx,vf,&amp;hw); if (rc!=FW_OK) return rc;</span>
+<span class="source-line" id="L43"><a class="line-no" href="#L43">43</a>    if (!hw.fenced) return FW_STATE;</span>
+<span class="source-line" id="L44"><a class="line-no" href="#L44">44</a>    if (event==FW_FENCE || event==FW_DRAIN_OK || event==FW_FLR || event==FW_RESET_DONE) {</span>
+<span class="source-line" id="L45"><a class="line-no" href="#L45">45</a>        rc=fw_deadline(ctx,(event==FW_FLR || event==FW_RESET_DONE)?1000:100,&amp;deadline);</span>
+<span class="source-line" id="L46"><a class="line-no" href="#L46">46</a>        if (rc!=FW_OK) return rc;</span>
+<span class="source-line" id="L47"><a class="line-no" href="#L47">47</a>    }</span>
+<span class="source-line" id="L48"><a class="line-no" href="#L48">48</a>    switch (event) {</span>
+<span class="source-line" id="L49"><a class="line-no" href="#L49">49</a>    case FW_COMMIT:</span>
+<span class="source-line" id="L50"><a class="line-no" href="#L50">50</a>        if (!ctx-&gt;vf[vf].reserve || hw.killed || hw.config_valid || hw.outstanding) return FW_STATE;</span>
+<span class="source-line" id="L51"><a class="line-no" href="#L51">51</a>        break;</span>
+<span class="source-line" id="L52"><a class="line-no" href="#L52">52</a>    case FW_ABORT_OK:</span>
+<span class="source-line" id="L53"><a class="line-no" href="#L53">53</a>    case FW_RELEASE_OK:</span>
+<span class="source-line" id="L54"><a class="line-no" href="#L54">54</a>        if (hw.pci_present || hw.config_valid || hw.outstanding ||</span>
+<span class="source-line" id="L55"><a class="line-no" href="#L55">55</a>            !ctx-&gt;hal.owners_closed(ctx-&gt;hal.opaque,vf) || !ctx-&gt;vf[vf].reserve ||</span>
+<span class="source-line" id="L56"><a class="line-no" href="#L56">56</a>            ctx-&gt;used_credit&lt;ctx-&gt;vf[vf].reserve || !ctx-&gt;used_queues || ctx-&gt;used_vectors&lt;2) return FW_STATE;</span>
+<span class="source-line" id="L57"><a class="line-no" href="#L57">57</a>        ctx-&gt;used_credit-=ctx-&gt;vf[vf].reserve; --ctx-&gt;used_queues; ctx-&gt;used_vectors-=2;</span>
+<span class="source-line" id="L58"><a class="line-no" href="#L58">58</a>        ctx-&gt;vf[vf].reserve=0;</span>
+<span class="source-line" id="L59"><a class="line-no" href="#L59">59</a>        break;</span>
+<span class="source-line" id="L60"><a class="line-no" href="#L60">60</a>    case FW_EV_TIMEOUT:</span>
+<span class="source-line" id="L61"><a class="line-no" href="#L61">61</a>        if (ctx-&gt;hal.now_tick(ctx-&gt;hal.opaque)&lt;ctx-&gt;vf[vf].deadline) return FW_STATE;</span>
+<span class="source-line" id="L62"><a class="line-no" href="#L62">62</a>        /* fall through */</span>
+<span class="source-line" id="L63"><a class="line-no" href="#L63">63</a>    case FW_ABORT_FAIL:</span>
+<span class="source-line" id="L64"><a class="line-no" href="#L64">64</a>    case FW_VERIFY_FAIL:</span>
+<span class="source-line" id="L65"><a class="line-no" href="#L65">65</a>    case FW_RELEASE_FAIL:</span>
+<span class="source-line" id="L66"><a class="line-no" href="#L66">66</a>        rc=ctx-&gt;hal.kill(ctx-&gt;hal.opaque,vf); if (rc!=FW_OK) return rc;</span>
+<span class="source-line" id="L67"><a class="line-no" href="#L67">67</a>        break;</span>
+<span class="source-line" id="L68"><a class="line-no" href="#L68">68</a>    case FW_FENCE:</span>
+<span class="source-line" id="L69"><a class="line-no" href="#L69">69</a>        if (hw.epoch&lt;=ctx-&gt;vf[vf].epoch) return FW_STATE;</span>
+<span class="source-line" id="L70"><a class="line-no" href="#L70">70</a>        rc=ctx-&gt;hal.cancel_io(ctx-&gt;hal.opaque,vf); if (rc!=FW_OK) return rc;</span>
+<span class="source-line" id="L71"><a class="line-no" href="#L71">71</a>        break;</span>
+<span class="source-line" id="L72"><a class="line-no" href="#L72">72</a>    case FW_DRAIN_OK:</span>
+<span class="source-line" id="L73"><a class="line-no" href="#L73">73</a>        if (hw.outstanding) return FW_STATE;</span>
+<span class="source-line" id="L74"><a class="line-no" href="#L74">74</a>        break;</span>
+<span class="source-line" id="L75"><a class="line-no" href="#L75">75</a>    case FW_RESET_DONE:</span>
+<span class="source-line" id="L76"><a class="line-no" href="#L76">76</a>        if (hw.outstanding) return FW_STATE;</span>
+<span class="source-line" id="L77"><a class="line-no" href="#L77">77</a>        rc=ctx-&gt;hal.clear_queue(ctx-&gt;hal.opaque,vf); if (rc!=FW_OK) return rc;</span>
+<span class="source-line" id="L78"><a class="line-no" href="#L78">78</a>        break;</span>
+<span class="source-line" id="L79"><a class="line-no" href="#L79">79</a>    case FW_FLR:</span>
+<span class="source-line" id="L80"><a class="line-no" href="#L80">80</a>        if (hw.epoch&lt;=ctx-&gt;vf[vf].epoch || hw.outstanding || hw.config_valid) return FW_STATE;</span>
+<span class="source-line" id="L81"><a class="line-no" href="#L81">81</a>        break;</span>
+<span class="source-line" id="L82"><a class="line-no" href="#L82">82</a>    case FW_DESTROY:</span>
+<span class="source-line" id="L83"><a class="line-no" href="#L83">83</a>        if (!ctx-&gt;hal.owners_closed(ctx-&gt;hal.opaque,vf) || hw.outstanding ||</span>
+<span class="source-line" id="L84"><a class="line-no" href="#L84">84</a>            (ctx-&gt;vf[vf].state!=FW_FAILED &amp;&amp; hw.epoch&lt;=ctx-&gt;vf[vf].epoch)) return FW_STATE;</span>
+<span class="source-line" id="L85"><a class="line-no" href="#L85">85</a>        rc=ctx-&gt;hal.clear_queue(ctx-&gt;hal.opaque,vf); if (rc!=FW_OK) return rc;</span>
+<span class="source-line" id="L86"><a class="line-no" href="#L86">86</a>        break;</span>
+<span class="source-line" id="L87"><a class="line-no" href="#L87">87</a>    default:</span>
+<span class="source-line" id="L88"><a class="line-no" href="#L88">88</a>        return FW_STATE;</span>
+<span class="source-line" id="L89"><a class="line-no" href="#L89">89</a>    }</span>
+<span class="source-line" id="L90"><a class="line-no" href="#L90">90</a>    /* HAL 操作成功後才更新 core 狀態；失敗不能只改 state，假裝回收已完成。 */</span>
+<span class="source-line" id="L91"><a class="line-no" href="#L91">91</a>    ctx-&gt;vf[vf].epoch=hw.epoch; ctx-&gt;vf[vf].deadline=deadline; ctx-&gt;vf[vf].state=to;</span>
+<span class="source-line" id="L92"><a class="line-no" href="#L92">92</a>    fw_note(ctx,&quot;vf_transition&quot;,vf,(fw_u64)to);</span>
+<span class="source-line" id="L93"><a class="line-no" href="#L93">93</a>    return FW_OK;</span>
+<span class="source-line" id="L94"><a class="line-no" href="#L94">94</a>}</span>
+<span class="source-line" id="L95"><a class="line-no" href="#L95">95</a></span>
+<span class="source-line" id="L96"><a class="line-no" href="#L96">96</a>fw_status fw_vf_event(struct fw_context *ctx, fw_u16 vf, enum fw_event event)</span>
+<span class="source-line" id="L97"><a class="line-no" href="#L97">97</a>{</span>
+<span class="source-line" id="L98"><a class="line-no" href="#L98">98</a>    struct fw_hw_snapshot hw;</span>
+<span class="source-line" id="L99"><a class="line-no" href="#L99">99</a>    fw_status rc;</span>
+<span class="source-line" id="L100"><a class="line-no" href="#L100">100</a>    /* READY 路徑與一般 transition 分層，timeout 收斂不再形成遞迴。 */</span>
+<span class="source-line" id="L101"><a class="line-no" href="#L101">101</a>    if (event==FW_READY_REARM &amp;&amp; ctx &amp;&amp; vf&lt;FW_VFS &amp;&amp; ctx-&gt;vf[vf].state==FW_RECOVERING) {</span>
+<span class="source-line" id="L102"><a class="line-no" href="#L102">102</a>        rc=fw_hw(ctx,vf,&amp;hw);</span>
+<span class="source-line" id="L103"><a class="line-no" href="#L103">103</a>        if (rc!=FW_OK) return rc;</span>
+<span class="source-line" id="L104"><a class="line-no" href="#L104">104</a>        return fw_rearm(ctx,vf,hw.epoch,hw.ready_gen);</span>
+<span class="source-line" id="L105"><a class="line-no" href="#L105">105</a>    }</span>
+<span class="source-line" id="L106"><a class="line-no" href="#L106">106</a>    return fw_transition(ctx,vf,event);</span>
+<span class="source-line" id="L107"><a class="line-no" href="#L107">107</a>}</span></pre></main></html>

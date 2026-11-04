@@ -1,0 +1,2 @@
+obj-m += toy_pf.o
+ccflags-y += -I$(src)/../include-lab -I$(src)/../../include

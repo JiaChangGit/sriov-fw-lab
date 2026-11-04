@@ -1,0 +1,432 @@
+{
+  "provenance": {
+    "path": "artifacts/m3-case/20261012T005543Z-yuc8qxtm",
+    "result_sha256": "c4b42dbeb3e8db7686f08e93fe2168aaf246c867843555a642df55b087ec009e"
+  },
+  "cases": {
+    "T10": {
+      "event": "M3_CASE",
+      "id": "T10",
+      "scenario": "T10",
+      "variant": "entries-16",
+      "status": "PASS",
+      "checks": {
+        "entries": 16,
+        "requests": 4096,
+        "seed": 101,
+        "owner_closed": true,
+        "all_free": true
+      }
+    }
+  },
+  "events": [
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-55/control.sock"
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 3,
+      "operation": 1,
+      "errno": 0,
+      "session": 2,
+      "epoch": 3,
+      "state": 2,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "vf": 0,
+      "pid": 58,
+      "uid": 0,
+      "pidfd": true
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0x0",
+      "end": "0xfedfffff"
+    },
+    {
+      "event": "iova_range",
+      "vf": "0000:01:00.1",
+      "start": "0xfef00000",
+      "end": "0x7fffffffff"
+    },
+    {
+      "event": "vfio_open",
+      "vf": "0000:01:00.1",
+      "group": 5,
+      "container_fd": 4,
+      "group_fd": 5,
+      "device_fd": 6,
+      "vectors": 2,
+      "page_sizes": "0x40201000",
+      "reset_supported": true
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 0,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 2,
+      "argsz": 40,
+      "caps": 1,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_REGION",
+      "bdf": "0000:01:00.1",
+      "index": 7,
+      "argsz": 32,
+      "caps": 0,
+      "access": "pread_pwrite"
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 58,
+      "bdf": "0000:01:00.1",
+      "kind": 0,
+      "iova": 1048576,
+      "size": 4096,
+      "flags": 1
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 58,
+      "bdf": "0000:01:00.1",
+      "kind": 1,
+      "iova": 2097152,
+      "size": 4096,
+      "flags": 2
+    },
+    {
+      "event": "OWNER_MAP",
+      "pid": 58,
+      "bdf": "0000:01:00.1",
+      "kind": 2,
+      "iova": 4194304,
+      "size": 131072,
+      "flags": 3
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 7,
+      "operation": 2,
+      "errno": 0,
+      "session": 2,
+      "epoch": 4,
+      "state": 2,
+      "flags": 28,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "T10_SNAPSHOT",
+      "attempt": 0,
+      "vf": 0,
+      "state": 2,
+      "reserve": 8,
+      "flags": 28,
+      "outstanding": 0,
+      "epoch": 4,
+      "lease": 1,
+      "unchanged": true
+    },
+    {
+      "event": "T10_SNAPSHOT",
+      "attempt": 0,
+      "vf": 1,
+      "state": 2,
+      "reserve": 8,
+      "flags": 5,
+      "outstanding": 0,
+      "epoch": 3,
+      "lease": 0,
+      "unchanged": true
+    },
+    {
+      "event": "T10_SNAPSHOT",
+      "attempt": 0,
+      "vf": 2,
+      "state": 2,
+      "reserve": 8,
+      "flags": 5,
+      "outstanding": 0,
+      "epoch": 3,
+      "lease": 0,
+      "unchanged": true
+    },
+    {
+      "event": "T10_SNAPSHOT",
+      "attempt": 0,
+      "vf": 3,
+      "state": 2,
+      "reserve": 8,
+      "flags": 5,
+      "outstanding": 0,
+      "epoch": 3,
+      "lease": 0,
+      "unchanged": true
+    },
+    {
+      "event": "T10_SNAPSHOT",
+      "attempt": 0,
+      "vf": 4,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0,
+      "epoch": 2,
+      "lease": 0,
+      "unchanged": true
+    },
+    {
+      "event": "T10_SNAPSHOT",
+      "attempt": 0,
+      "vf": 5,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0,
+      "epoch": 2,
+      "lease": 0,
+      "unchanged": true
+    },
+    {
+      "event": "T10_SNAPSHOT",
+      "attempt": 0,
+      "vf": 6,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0,
+      "epoch": 2,
+      "lease": 0,
+      "unchanged": true
+    },
+    {
+      "event": "T10_SNAPSHOT",
+      "attempt": 0,
+      "vf": 7,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0,
+      "epoch": 2,
+      "lease": 0,
+      "unchanged": true
+    },
+    {
+      "event": "T10_BUSY",
+      "attempt": 0,
+      "requested": 0,
+      "errno": 16,
+      "enabled": 4,
+      "topology_unchanged": true,
+      "ledger_unchanged": true,
+      "owner_pid": 58
+    },
+    {
+      "event": "T10_SNAPSHOT",
+      "attempt": 1,
+      "vf": 0,
+      "state": 2,
+      "reserve": 8,
+      "flags": 28,
+      "outstanding": 0,
+      "epoch": 4,
+      "lease": 1,
+      "unchanged": true
+    },
+    {
+      "event": "T10_SNAPSHOT",
+      "attempt": 1,
+      "vf": 1,
+      "state": 2,
+      "reserve": 8,
+      "flags": 5,
+      "outstanding": 0,
+      "epoch": 3,
+      "lease": 0,
+      "unchanged": true
+    },
+    {
+      "event": "T10_SNAPSHOT",
+      "attempt": 1,
+      "vf": 2,
+      "state": 2,
+      "reserve": 8,
+      "flags": 5,
+      "outstanding": 0,
+      "epoch": 3,
+      "lease": 0,
+      "unchanged": true
+    },
+    {
+      "event": "T10_SNAPSHOT",
+      "attempt": 1,
+      "vf": 3,
+      "state": 2,
+      "reserve": 8,
+      "flags": 5,
+      "outstanding": 0,
+      "epoch": 3,
+      "lease": 0,
+      "unchanged": true
+    },
+    {
+      "event": "T10_SNAPSHOT",
+      "attempt": 1,
+      "vf": 4,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0,
+      "epoch": 2,
+      "lease": 0,
+      "unchanged": true
+    },
+    {
+      "event": "T10_SNAPSHOT",
+      "attempt": 1,
+      "vf": 5,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0,
+      "epoch": 2,
+      "lease": 0,
+      "unchanged": true
+    },
+    {
+      "event": "T10_SNAPSHOT",
+      "attempt": 1,
+      "vf": 6,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0,
+      "epoch": 2,
+      "lease": 0,
+      "unchanged": true
+    },
+    {
+      "event": "T10_SNAPSHOT",
+      "attempt": 1,
+      "vf": 7,
+      "state": 0,
+      "reserve": 0,
+      "flags": 1,
+      "outstanding": 0,
+      "epoch": 2,
+      "lease": 0,
+      "unchanged": true
+    },
+    {
+      "event": "T10_BUSY",
+      "attempt": 1,
+      "requested": 2,
+      "errno": 16,
+      "enabled": 4,
+      "topology_unchanged": true,
+      "ledger_unchanged": true,
+      "owner_pid": 58
+    },
+    {
+      "event": "OWNER_WORKLOAD",
+      "pid": 58,
+      "bdf": "0000:01:00.1",
+      "entries": 16,
+      "completed": 4096,
+      "sq_tail": 4096,
+      "cq_head": 4096,
+      "irq_wakes": 256,
+      "irq_count": 256,
+      "payload_crc": 3515606758,
+      "fixed_crc": 3421780262
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 5,
+      "operation": 3,
+      "errno": 0,
+      "session": 2,
+      "epoch": 5,
+      "state": 2,
+      "flags": 29,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 58,
+      "kind": 2,
+      "requested": 131072,
+      "returned": 131072
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 58,
+      "kind": 1,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "pid": 58,
+      "kind": 0,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_EXIT",
+      "pid": 58,
+      "vf": 0,
+      "fds": 0,
+      "maps": 0,
+      "eventfds": 0,
+      "buffers": 0
+    },
+    {
+      "event": "M3_CONTROL",
+      "vf": 0,
+      "command": 4,
+      "operation": 4,
+      "errno": 0,
+      "session": 2,
+      "epoch": 6,
+      "state": 5,
+      "flags": 5,
+      "outstanding": 0,
+      "fw_status": 0
+    },
+    {
+      "event": "M3_CASE",
+      "id": "T10",
+      "scenario": "T10",
+      "variant": "entries-16",
+      "status": "PASS",
+      "checks": {
+        "entries": 16,
+        "requests": 4096,
+        "seed": 101,
+        "owner_closed": true,
+        "all_free": true
+      }
+    }
+  ],
+  "kernel": "\n",
+  "device": "TOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0"
+}

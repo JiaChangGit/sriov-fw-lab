@@ -1,0 +1,381 @@
+{
+  "cases": {
+    "T09": {
+      "checks": {
+        "all_free": true,
+        "entries": 16,
+        "owner_closed": true,
+        "requests": 4096,
+        "seed": 101
+      },
+      "event": "M3_CASE",
+      "id": "T09",
+      "scenario": "T09",
+      "status": "PASS",
+      "variant": "entries-16"
+    }
+  },
+  "device": "TOY_CORE event=global_recovered vf=65535 value=2\nTOY_CORE event=vf_reserved vf=0 value=8\nTOY_CORE event=vf_transition vf=0 value=2\nTOY_CORE event=vf_reserved vf=1 value=8\nTOY_CORE event=vf_transition vf=1 value=2\nTOY_CORE event=vf_reserved vf=2 value=8\nTOY_CORE event=vf_transition vf=2 value=2\nTOY_CORE event=vf_reserved vf=3 value=8\nTOY_CORE event=vf_transition vf=3 value=2\nTOY_VF_REALIZE vf=0 rid=0101 reserve=8\nTOY_VF_POWER_ON vf=0 epoch=3 status=0\nTOY_VF_REALIZE vf=1 rid=0102 reserve=8\nTOY_VF_POWER_ON vf=1 epoch=3 status=0\nTOY_VF_REALIZE vf=2 rid=0103 reserve=8\nTOY_VF_POWER_ON vf=2 epoch=3 status=0\nTOY_VF_REALIZE vf=3 rid=0104 reserve=8\nTOY_VF_POWER_ON vf=3 epoch=3 status=0\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_FLR vf=0 epoch=4 status=0\nTOY_CORE event=vf_rearmed vf=0 value=4\nTOY_DMA_OK vf=0 rid=0101 role=sq addr=100000 length=32 write=0 epoch=4\nTOY_DMA_OK vf=0 rid=0101 role=payload_write addr=400000 length=1 write=1 epoch=4\nTOY_DMA_OK vf=0 rid=0101 role=cq addr=200000 length=24 write=1 epoch=4\nTOY_DMA_OK vf=0 rid=0101 role=cq_phase addr=200018 length=1 write=1 epoch=4\nTOY_DMA_OK vf=0 rid=0101 role=payload_read addr=402000 length=1 write=0 epoch=4\nTOY_CORE event=vf_transition vf=0 value=5\nTOY_FLR vf=0 epoch=6 status=0\nTOY_VF_UNREALIZE vf=0 reserve=8\nTOY_VF_UNREALIZE vf=1 reserve=8\nTOY_VF_UNREALIZE vf=2 reserve=8\nTOY_VF_UNREALIZE vf=3 reserve=8\nTOY_CORE event=vf_transition vf=3 value=7\nTOY_CORE event=vf_transition vf=3 value=0\nTOY_CORE event=destroy_release_status vf=3 value=0\nTOY_CORE event=vf_transition vf=2 value=7\nTOY_CORE event=vf_transition vf=2 value=0\nTOY_CORE event=destroy_release_status vf=2 value=0\nTOY_CORE event=vf_transition vf=1 value=7\nTOY_CORE event=vf_transition vf=1 value=0\nTOY_CORE event=destroy_release_status vf=1 value=0\nTOY_CORE event=vf_transition vf=0 value=7\nTOY_CORE event=vf_transition vf=0 value=0\nTOY_CORE event=destroy_release_status vf=0 value=0\n",
+  "events": [
+    {
+      "event": "M3_ADMIN_SOCKET",
+      "path": "/run/lab-54/control.sock"
+    },
+    {
+      "command": 3,
+      "epoch": 3,
+      "errno": 0,
+      "event": "M3_CONTROL",
+      "flags": 5,
+      "fw_status": 0,
+      "operation": 1,
+      "outstanding": 0,
+      "session": 2,
+      "state": 2,
+      "vf": 0
+    },
+    {
+      "event": "M3_PEER_VERIFIED",
+      "pid": 57,
+      "pidfd": true,
+      "uid": 0,
+      "vf": 0
+    },
+    {
+      "end": "0xfedfffff",
+      "event": "iova_range",
+      "start": "0x0",
+      "vf": "0000:01:00.1"
+    },
+    {
+      "end": "0x7fffffffff",
+      "event": "iova_range",
+      "start": "0xfef00000",
+      "vf": "0000:01:00.1"
+    },
+    {
+      "container_fd": 4,
+      "device_fd": 6,
+      "event": "vfio_open",
+      "group": 5,
+      "group_fd": 5,
+      "page_sizes": "0x40201000",
+      "reset_supported": true,
+      "vectors": 2,
+      "vf": "0000:01:00.1"
+    },
+    {
+      "access": "pread_pwrite",
+      "argsz": 32,
+      "bdf": "0000:01:00.1",
+      "caps": 0,
+      "event": "OWNER_REGION",
+      "index": 0
+    },
+    {
+      "access": "pread_pwrite",
+      "argsz": 40,
+      "bdf": "0000:01:00.1",
+      "caps": 1,
+      "event": "OWNER_REGION",
+      "index": 2
+    },
+    {
+      "access": "pread_pwrite",
+      "argsz": 32,
+      "bdf": "0000:01:00.1",
+      "caps": 0,
+      "event": "OWNER_REGION",
+      "index": 7
+    },
+    {
+      "bdf": "0000:01:00.1",
+      "event": "OWNER_MAP",
+      "flags": 1,
+      "iova": 1048576,
+      "kind": 0,
+      "pid": 57,
+      "size": 4096
+    },
+    {
+      "bdf": "0000:01:00.1",
+      "event": "OWNER_MAP",
+      "flags": 2,
+      "iova": 2097152,
+      "kind": 1,
+      "pid": 57,
+      "size": 4096
+    },
+    {
+      "bdf": "0000:01:00.1",
+      "event": "OWNER_MAP",
+      "flags": 3,
+      "iova": 4194304,
+      "kind": 2,
+      "pid": 57,
+      "size": 131072
+    },
+    {
+      "command": 7,
+      "epoch": 4,
+      "errno": 0,
+      "event": "M3_CONTROL",
+      "flags": 28,
+      "fw_status": 0,
+      "operation": 2,
+      "outstanding": 0,
+      "session": 2,
+      "state": 2,
+      "vf": 0
+    },
+    {
+      "dma_fault": 0,
+      "event": "T09_COUNTERS",
+      "fence_blocked": 0,
+      "irq_suppressed": 0,
+      "phase": "before",
+      "stale_cpl": 0,
+      "stale_desc": 0,
+      "vf": 0
+    },
+    {
+      "bdf": "0000:01:00.1",
+      "completed": 4096,
+      "cq_head": 4096,
+      "entries": 16,
+      "event": "OWNER_WORKLOAD",
+      "fixed_crc": 3421780262,
+      "irq_count": 256,
+      "irq_wakes": 256,
+      "payload_crc": 3515606758,
+      "pid": 57,
+      "sq_tail": 4096
+    },
+    {
+      "bdf": "0000:01:00.1",
+      "bytes": 4096,
+      "bytewise_unchanged": true,
+      "completed": 4096,
+      "crc": 3556261415,
+      "event": "OWNER_HELD_CHECK",
+      "kind": 0,
+      "pattern": 0,
+      "pid": 57
+    },
+    {
+      "bdf": "0000:01:00.1",
+      "bytes": 4096,
+      "bytewise_unchanged": true,
+      "completed": 4096,
+      "crc": 4123254230,
+      "event": "OWNER_HELD_CHECK",
+      "kind": 1,
+      "pattern": 0,
+      "pid": 57
+    },
+    {
+      "bdf": "0000:01:00.1",
+      "bytes": 131072,
+      "bytewise_unchanged": true,
+      "completed": 4096,
+      "crc": 3515606758,
+      "event": "OWNER_HELD_CHECK",
+      "kind": 2,
+      "pattern": 0,
+      "pid": 57
+    },
+    {
+      "completion_hex": "",
+      "completion_status": -1,
+      "cq_after": 4096,
+      "cq_before": 4096,
+      "descriptor_hex": "0000400000000000080000000100001003000000000000007300000000000000",
+      "event": "T09_VECTOR",
+      "irq_after": 256,
+      "irq_before": 256,
+      "live_epoch": 4,
+      "name": "old-epoch",
+      "other_cq_bytes_unchanged": true,
+      "payload_unchanged": true,
+      "pid": 57,
+      "sq_head": 4097,
+      "sq_tail": 4097
+    },
+    {
+      "completion_hex": "01100d0000000000040000000000000000000000000000000100000000000000",
+      "completion_status": 13,
+      "cq_after": 4097,
+      "cq_before": 4096,
+      "descriptor_hex": "000040000000000008000000ff00011004000000000000007300000000000000",
+      "event": "T09_VECTOR",
+      "irq_after": 257,
+      "irq_before": 256,
+      "live_epoch": 4,
+      "name": "unknown-opcode",
+      "other_cq_bytes_unchanged": true,
+      "payload_unchanged": true,
+      "pid": 57,
+      "sq_head": 4098,
+      "sq_tail": 4098
+    },
+    {
+      "completion_hex": "02100d0000000000040000000000000000000000000000000100000000000000",
+      "completion_status": 13,
+      "cq_after": 4098,
+      "cq_before": 4097,
+      "descriptor_hex": "0000400000000000000000000100021004000000000000007300000000000000",
+      "event": "T09_VECTOR",
+      "irq_after": 258,
+      "irq_before": 257,
+      "live_epoch": 4,
+      "name": "zero-length",
+      "other_cq_bytes_unchanged": true,
+      "payload_unchanged": true,
+      "pid": 57,
+      "sq_head": 4099,
+      "sq_tail": 4099
+    },
+    {
+      "completion_hex": "03100d0000000000040000000000000000000000000000000100000000000000",
+      "completion_status": 13,
+      "cq_after": 4099,
+      "cq_before": 4098,
+      "descriptor_hex": "0000400000000000011000000100031004000000000000007300000000000000",
+      "event": "T09_VECTOR",
+      "irq_after": 259,
+      "irq_before": 258,
+      "live_epoch": 4,
+      "name": "length-over-4096",
+      "other_cq_bytes_unchanged": true,
+      "payload_unchanged": true,
+      "pid": 57,
+      "sq_head": 4100,
+      "sq_tail": 4100
+    },
+    {
+      "completion_hex": "04100d0000000000040000000000000000000000000000000100000000000000",
+      "completion_status": 13,
+      "cq_after": 4100,
+      "cq_before": 4099,
+      "descriptor_hex": "fffbffffffffffff000800000100041004000000000000007300000000000000",
+      "event": "T09_VECTOR",
+      "irq_after": 260,
+      "irq_before": 259,
+      "live_epoch": 4,
+      "name": "address-overflow",
+      "other_cq_bytes_unchanged": true,
+      "payload_unchanged": true,
+      "pid": 57,
+      "sq_head": 4101,
+      "sq_tail": 4101
+    },
+    {
+      "completion_hex": "05100d0000000000040000000000000000000000000000000100000000000000",
+      "completion_status": 13,
+      "cq_after": 4101,
+      "cq_before": 4100,
+      "descriptor_hex": "0000400000000000080000000101051004000000000000007300000000000000",
+      "event": "T09_VECTOR",
+      "irq_after": 261,
+      "irq_before": 260,
+      "live_epoch": 4,
+      "name": "nonzero-flags",
+      "other_cq_bytes_unchanged": true,
+      "payload_unchanged": true,
+      "pid": 57,
+      "sq_head": 4102,
+      "sq_tail": 4102
+    },
+    {
+      "dma_fault": 0,
+      "event": "T09_COUNTERS",
+      "fence_blocked": 0,
+      "irq_suppressed": 0,
+      "phase": "after",
+      "stale_cpl": 0,
+      "stale_desc": 1,
+      "vf": 0
+    },
+    {
+      "command": 5,
+      "epoch": 5,
+      "errno": 0,
+      "event": "M3_CONTROL",
+      "flags": 29,
+      "fw_status": 0,
+      "operation": 3,
+      "outstanding": 0,
+      "session": 2,
+      "state": 2,
+      "vf": 0
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "kind": 2,
+      "pid": 57,
+      "requested": 131072,
+      "returned": 131072
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "kind": 1,
+      "pid": 57,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "event": "OWNER_UNMAP",
+      "kind": 0,
+      "pid": 57,
+      "requested": 4096,
+      "returned": 4096
+    },
+    {
+      "baseline_fds": 3,
+      "buffers": 0,
+      "event": "OWNER_EXIT",
+      "eventfds": 0,
+      "fds": 0,
+      "final_fds": 3,
+      "maps": 0,
+      "pid": 57,
+      "vf": 0
+    },
+    {
+      "event": "M3_OWNER_REAP",
+      "exit_code": 0,
+      "pid": 57,
+      "pidfd": true,
+      "vf": 0
+    },
+    {
+      "command": 4,
+      "epoch": 6,
+      "errno": 0,
+      "event": "M3_CONTROL",
+      "flags": 5,
+      "fw_status": 0,
+      "operation": 4,
+      "outstanding": 0,
+      "session": 2,
+      "state": 5,
+      "vf": 0
+    },
+    {
+      "checks": {
+        "all_free": true,
+        "entries": 16,
+        "owner_closed": true,
+        "requests": 4096,
+        "seed": 101
+      },
+      "event": "M3_CASE",
+      "id": "T09",
+      "scenario": "T09",
+      "status": "PASS",
+      "variant": "entries-16"
+    }
+  ],
+  "source": "artifacts/m3-case/20261012T111354Z-nsr6xoxm",
+  "source_result_sha256": "749ee7e0be636a4c01292ccbb70e2ca435808711431ee2a4b9591b15bb0fb76f"
+}
