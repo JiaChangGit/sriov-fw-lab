@@ -1,6 +1,6 @@
 # Design decisions / 設計決策
 
-The original HTML v3.0 was the historical design input. The interview release is scoped by REQUIREMENTS.md; see D016 below. Decisions below resolve
+The original HTML v3.0 was the historical design input. The project release is scoped by REQUIREMENTS.md; see D016 below. Decisions below resolve
 implementation details; they do not remove required gates. Status statements here
 are design decisions, not test results.
 
@@ -242,7 +242,7 @@ M2, T01/T02/T03/T04/T05/T06/T09/T10 and 32 validator tests.
 The initial aggregate exposed a T01 serial-close deadline issue; its failure
 and subsequent 100-cycle validations are recorded in BUG_LOG B001.
 
-## D016 — Scope the laptop interview release to M0–M3
+## D016 — Scope the laptop project release to M0–M3
 
 The supported configuration is M0–M3/T01–T10 on a Lenovo R7000P 2024 with 16 GB RAM, WSL2 Ubuntu 26.04 and QEMU TCG.
 This keeps the project reproducible without a physical SR-IOV adapter. KCSAN/KVM, persistent firmware updates and the M4/M5 acceptance matrix are outside the supported scope.

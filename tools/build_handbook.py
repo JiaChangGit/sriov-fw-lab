@@ -11,7 +11,7 @@ from lab_common import ROOT, artifact_dir, provenance, sha256, write_json
 
 DOCS = ROOT / "docs"
 CHAPTERS = ["BUILD_TUTORIAL_ZH.md", "SYSTEM_ANALYSIS_ZH.md", "KERNEL_WALKTHROUGH_ZH.md",
-            "TRACE_CODE_ZH.md", "DEMO_ZH.md", "INTERVIEW_ZH.md", "BUG_LOG.md", "VALIDATION.md"]
+            "TRACE_CODE_ZH.md", "TRACE_PRACTICE_ZH.md", "DEMO_ZH.md", "SYSTEM_GUIDE_ZH.md", "BUG_LOG.md", "VALIDATION.md"]
 CODE = ["fwcore/fsm.c", "fwcore/context.c", "fwcore/admission.c", "fwcore/mailbox.c", "fwcore/codec.c", "fwcore/scheduler.c", "device/toy_pf.c",
         "device/toy_vf.c", "device/toy_hw.c", "guest/pf/toy_pf.c", "guest/pf/toy_control.inc", "guest/admin/labd.c",
         "guest/admin/t06.inc", "guest/admin/recovery.inc", "guest/tenant/vfio.c", "guest/tenant/owner.c",
@@ -219,13 +219,7 @@ def main():
             if not found: raise RuntimeError("Unknown trace symbol: "+match.group(0))
             return '<a href="code/'+quote(code_name(filename))+'#L'+str(found[0])+'">'+match.group(0)+'</a>'
         body=re.sub(pattern,link,body)
-        def artifact_link(match):
-            relative=html.unescape(match.group(1))
-            path=ROOT/relative
-            if path.is_dir() and (path/"result.json").is_file(): relative=relative.rstrip("/")+"/result.json"
-            if not (ROOT/relative).exists(): return match.group(0)
-            return '<a href="../'+quote(relative)+'">'+match.group(0)+'</a>'
-        body=re.sub(r'<code>(artifacts/[^<]+)</code>',artifact_link,body)
+        # artifacts 不隨版本庫發布；保留文字路徑，避免乾淨 checkout 出現失效連結。
         # 本地 SVG 直接嵌入；斷網及僅複製 HTML 時圖仍可見。
         for image in (DOCS/"diagrams").glob("*.svg"):
             body=re.sub(r'<img src="diagrams/'+re.escape(image.name)+r'" alt="[^"]*"\s*/?>','<div class="diagram">'+image.read_text()+'</div>',body)
@@ -240,8 +234,8 @@ def main():
     table='<h2>來源中的完整 FSM 轉移表</h2><p>由當前 fwcore/fsm.c 抽取；前置條件仍須閱讀函式內的 guard。</p><table><thead><tr><th>From</th><th>Event</th><th>To</th></tr></thead><tbody>'
     table+=''.join('<tr>'+''.join('<td><code>'+esc(c)+'</code></td>' for c in row)+'</tr>' for row in edges)+'</tbody></table>'
     chapters[0]=chapters[0].replace('</section>',table+'</section>')
-    header='<header><div class="label">SR-IOV FIRMWARE & PLATFORM LAB</div><h1>從一筆 DMA，看懂隔離與生命週期</h1><p>Linux driver／虛擬化工程師面試與新手實作教材 · 繁體中文 · 六張離線圖表</p><p>16 GB 筆電 · WSL2 · QEMU TCG · 交付範圍 M0–M3／T01–T10。實測結果與限制請見驗證紀錄。</p></header>'
-    (DOCS/"handbook.html").write_text(page("SR-IOV 系統分析、面試與建置教材",header+'<div class="layout"><nav>'+''.join(toc)+
+    header='<header><div class="label">SR-IOV FIRMWARE & PLATFORM LAB</div><h1>從一筆 DMA，看懂隔離與生命週期</h1><p>Linux driver／虛擬化實作教材 · 繁體中文 · 六張離線圖表</p><p>16 GB 筆電 · WSL2 · QEMU TCG · 交付範圍 M0–M3／T01–T10。實測結果與限制請見驗證紀錄。</p></header>'
+    (DOCS/"handbook.html").write_text(page("SR-IOV 系統分析與建置教材",header+'<div class="layout"><nav>'+''.join(toc)+
         '<a href="handbook-manifest.json">版本與檔案雜湊</a></nav><main>'+''.join(chapters)+'</main></div>'),encoding="utf-8")
     inputs["tools/build_handbook.py"]=sha256(Path(__file__))
     outputs=[DOCS/"handbook.html",*(DOCS/"diagrams").glob("*.svg"),*(DOCS/"code").glob("*.html")]

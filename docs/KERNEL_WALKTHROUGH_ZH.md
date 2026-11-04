@@ -140,7 +140,7 @@ Classic VFIO 的 container/group/device 關係、group viability 與 DMA mapping
 [Linux 6.12 kref 文件](https://docs.kernel.org/6.12/core-api/kref.html)。
 
 讀碼能解釋預期生命週期，但本版驗收只涵蓋已列出的 T01–T10，未涵蓋所有 hostile hot-remove 交錯。
-面試時把「設計如何處理」和「實際測到哪些路徑」分開回答。
+應把「設計如何處理」和「實際測到哪些路徑」分開回答。
 
 ## 8. 四個可自行完成的讀碼練習
 

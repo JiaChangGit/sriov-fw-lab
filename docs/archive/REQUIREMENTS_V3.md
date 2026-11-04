@@ -299,7 +299,7 @@ storage 為每 demo/run 獨立的 regularfile，固定 128KiB；兩 32KiBslots �
 
 journalupdate：寫 inactivejournal 新 generation→sync→驗 readback；舊 validrecord 直到新 record 完整才可覆蓋。重啟選 CRCvalid 且 generation 最大的 record，不依 hostmtime。採 partialwrite/tornrecord/crcwrong 的 modeltests；killQEMU 只能驗 processcrash，無法證明真實 SSD 掉電保護。初始 factoryslotA 已 confirmed，初始化不與 recover 混在一起，只有--initialize 且檔不存在才允許建 factoryimage。
 
-payloadCRC 與 headerCRC 只是非惡意完整性檢查；hash 可供發布 manifest 用 SHA256，但 manifesthash 不等於裝置驗簽。拒絕較舊 fw_version 是模型 policy，若 host 可改 storage 並無可信 antirollbackroot。M5 安全限制必須在 README 與面試說明一致。
+payloadCRC 與 headerCRC 只是非惡意完整性檢查；hash 可供發布 manifest 用 SHA256，但 manifesthash 不等於裝置驗簽。拒絕較舊 fw_version 是模型 policy，若 host 可改 storage 並無可信 antirollbackroot。M5 安全限制必須在 README 與系統說明一致。
 
 ### 持久化位址與 metadata
 

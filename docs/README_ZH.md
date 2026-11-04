@@ -1,6 +1,6 @@
 # SR-IOV 韌體與平台實驗
 
-16 GB RAM 筆電、WSL2 Ubuntu 26.04、Linux driver／虛擬化面試專案。
+16 GB RAM 筆電、WSL2 Ubuntu 26.04、Linux driver／虛擬化教學專案。
 功能範圍為 **M0–M3／T01–T10**，涵蓋 portable core、QEMU、PF driver、VFIO tenant 與 UEFI handoff。
 
 入口：[離線教材](handbook.html)、[從零建置](BUILD_TUTORIAL_ZH.md)、[Kernel 導讀](KERNEL_WALKTHROUGH_ZH.md)、

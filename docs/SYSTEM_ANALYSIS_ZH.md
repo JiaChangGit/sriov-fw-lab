@@ -21,7 +21,7 @@ A reset 時，B 必須繼續工作；A 的舊 callback 不能寫進重新配置�
 
 架構圖回答「在哪裡執行」，資料流回答「資料去哪裡」，控制流回答「誰決定下一步」，
 正常 I/O 與 reset 時序回答「何時發生」，FSM 回答「這個事件現在是否合法」。
-面試時先選一條正常路徑，再指出一個失敗分支，避免一次展示所有細節。
+閱讀時可先選一條正常路徑，再指出一個失敗分支，避免一次展示所有細節。
 
 ![系統分層與所有權](diagrams/architecture.svg)
 
@@ -129,7 +129,7 @@ FAILED 會保留 reserve；已驗證 owners closed、PCI/config/outstanding 清�
 | Whole-buffer + exact UNMAP + pidfd | 資料變化及 ownership cleanup | 所有無限可能時序都沒有 BUG |
 | 保存 raw logs 並重新解析 | PASS 可追溯到真正執行與預期語意 | 沒執行的 case、原始碼存在本身 |
 
-面試時要說明結論來自哪一層測試，以及該測試尚未涵蓋的情境。
+應說明結論來自哪一層測試，以及該測試尚未涵蓋的情境。
 
 ## 錯誤分類決定恢復動作
 

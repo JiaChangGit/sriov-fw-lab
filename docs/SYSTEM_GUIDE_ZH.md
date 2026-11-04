@@ -1,42 +1,6 @@
-# 面試介紹：用證據解釋 SR-IOV 的隔離與生命週期
+# SR-IOV 隔離與生命週期指南
 
-目標職缺是 Linux kernel／driver／虛擬化工程師。專案涵蓋 M0–M3／T01–T10，
-以 PCI 裝置、VFIO、DMA、中斷與資源生命週期為主軸。
-講解時以 [VALIDATION.md](VALIDATION.md) 的實跑範圍為準，不說「沒有任何 BUG」。
-
-## 90 秒版本
-
-我做的是一個可在 16 GB Windows 筆電的 WSL2 執行的 SR-IOV 教學平台。
-QEMU 模擬一個最多支援八個 VF 的 PCIe 加速器，guest Linux 的 PF driver 負責管理，
-不同 tenant 透過 classic VFIO 使用各自的 VF。資料工作是 FILL 和 CRC32，
-因此可以把重點放在位址隔離、重置時序及資源所有權。
-
-我把問題拆成三部分：IOMMU 決定 requester 可以碰哪個位址；PF-only fence
-決定裝置現在能否 DMA；session、epoch、cancel token 決定 callback 是否還屬於這一代。
-這三種保護不能互相取代。控制面則由 portable C core 管理 VF 生命週期的 FSM 和資源 ledger，
-Linux driver 管理 host transaction、lease、IRQ 與 fd lifetime。
-
-我用真實 VFIO MAP／UNMAP、VF requester DMA、整個 buffer 的檢查及故障注入驗證行為。
-例如兩個 VF 使用相同數字 IOVA，A 沒有映射時必須 fault，B 仍能完成正確工作。
-另一個實際問題是四個 owner 串行關閉，讓最早 close 的 VF 等到 READY timeout；
-我修正停止與等待的安排，保留原來的 deadline，再以 100 輪測試確認資源回到基線。
-
-這是軟體裝置模型，沒有實體板卡效能或硬體功耗的結論。驗證結果保存了
-原始紀錄和版本雜湊，並提供清空 build 後重新建置與驗證的命令。
-
-## 五分鐘版本：每段回答一個工程問題
-
-| 時間 | 問題 | 展示內容 |
-|---|---|---|
-| 0:00–0:45 | 為何需要這個系統？ | 在一般筆電重現隔離、VF lifecycle、DMA fault，讓錯誤可觀察、可重播 |
-| 0:45–1:30 | 誰擁有什麼？ | 架構圖；core 擁有 ledger/FSM；PF 擁有控制序列；tenant 擁有 VFIO fd/mapping |
-| 1:30–2:20 | 一筆請求怎麼走？ | SQ → VF requester → IOMMU → payload → CQ phase → MSI-X/eventfd |
-| 2:20–3:20 | reset 為什麼難？ | fence/readback、cancel/drain、舊 owner UNMAP、新 CONFIG/READY/REARM 的時序 |
-| 3:20–4:20 | 怎麼知道沒有假通過？ | 同 IOVA 的兩個 domain、guard、故障 RID、healthy VF 進度、raw log 再解析 |
-| 4:20–5:00 | 找到什麼 BUG？ | B001 串行 close 的 deadline 問題，或 B002 requested flags 與有效權限不同 |
-
-不要先列所有 API。先指出一個必須維持的條件，再給設計、程式位置、反例與證據。
-若面試官追問「完整做到哪裡」，直接打開本版需求與實測表，說明刪減的範圍和原因。
+本指南整理系統設計、故障處理及其驗證界線。實際執行結果見 [VALIDATION.md](VALIDATION.md)。
 
 ## 系統分析：把需求轉成可檢查的條件
 
@@ -50,18 +14,18 @@ Linux driver 管理 host transaction、lease、IRQ 與 fd lifetime。
 | 筆電可重跑 | JOBS=2、一個 guest、TCG 必要、來源/patch/config/build hash | 失敗 exit code、timeout、缺 log 不得轉 PASS |
 
 
-## Kernel 職缺的講解順序
+## PF driver 閱讀順序
 
-如果面試官關心的是 kernel 開發，先用兩分鐘說明 PF driver，再展開整個系統：
+可以依下列順序追蹤 PF driver：
 
 1. **Probe 與 unwind**：畫出 BAR、IRQ、misc device 的取得順序，挑第二個 IRQ 註冊失敗說明反向回收。
 2. **UAPI 與 ownership**：從 open file context 說明 lease、ioctl header、replay cache，解釋為何不能只拿 PID 當 owner。
 3. **IRQ 與同步**：說明 IRQ handler、workqueue、process context 的工作分配，以及 admin → mailbox 的鎖順序。
 4. **Lifetime 與 DMA**：區分 kref、dying、fence、UNMAP，最後連到 reset 時序圖。
 
-白板上至少保留兩欄：「CPU 正在執行的程式」與「裝置仍可能執行的工作」。
+應區分「CPU 正在執行的程式」與「裝置仍可能執行的工作」。
 Mutex 可以保護 driver 的管理資料，卻不會自動取消已經取走的 descriptor。
-能把這兩欄接起來，比列出用過多少 API 更能說明你理解 driver 的責任。
+因此必須同時檢查 driver 的同步與裝置工作的取消流程。
 
 ### 為何 insmod 成功還要檢查 probe？
 
@@ -83,7 +47,7 @@ Read mutex 序列化同一個 open context 的讀者，event lock 則保護短�
 
 不能。它檢查 UAPI 結構的大小、offset 與編譯配置；整合 VM 是 x86_64。
 Driver 提供 compat_ioctl 的安排，不代表已跑過所有 32-bit userspace 系統呼叫。
-面試時應先說實際測試層級，再說程式的相容性設計。
+應區分實際測試層級與程式的相容性設計。
 
 ## 三種狀態要分開說
 
@@ -146,10 +110,10 @@ CRC 能找出部分資料毀損，不能驗證作者身分。本版的 CRC32 是
 
 ### SQ 與 CQ 不一定同步前進
 
-B018 適合白板講解，因為只需要畫兩條 ring：stale descriptor 前 SQ/CQ 同步，
+B018 可用兩條 ring 說明：stale descriptor 前 SQ/CQ 同步，
 丟棄 stale SQ 後 SQ 比 CQ 多一筆；下一筆工作使用 SQ slot 6，但完成記錄位於 CQ slot 5。
 問題不是 CRC 算法錯，而是用完成位置猜原請求的 payload 位置。
-我把 payload 定位改回 submission cursor，加入五個 N、正常／差一／wrap 共 15 個 native regression，
+修正後將 payload 定位改回 submission cursor，並加入五個 N、正常／差一／wrap 共 15 個 native regression，
 保留舊碼實際 EILSEQ 失敗，再跑 sanitizer 與整合 gate。這也說明為何要測異常後的正常工作，
 只測異常回覆和 teardown 可能漏掉後續狀態污染。
 
@@ -187,7 +151,7 @@ ring oracle 以 FIFO 比較 u32 wrap；guest validator 則從 raw records 核對
 
 不能。KASAN 幫助偵測受測 kernel 路徑的越界與 UAF，不等於 race detector。
 本版只保留已驗證的 KASAN 情境；沒有 KCSAN 與所有 hostile hot-remove 的實測結果。
-對面試官應說明覆蓋邊界，而不是把 sanitizer 名稱當成保證。
+測試結果受執行路徑和工具能力限制。
 
 ### 跨 u32 wrap 為何仍能算 pending？
 
@@ -206,52 +170,3 @@ Array index 再取 `counter & (N-1)`，phase 依 counter/N 的圈數交替。
 Linux PCI/VFIO/IRQ 路徑實際執行，能練習 driver 與協定設計。
 限制是沒有真實 PCIe 電氣／cache coherency／功耗／吞吐與板級韌體部署證據。
 
-## 10 分鐘現場展示腳本
-
-完整命令與報告讀法見 [DEMO 操作手冊](DEMO_ZH.md)。
-
-| 時間 | 動作 | 要講的重點 |
-|---|---|---|
-| 0:00–1:30 | 90 秒介紹，指出本版範圍 | 問題是跨 VF 隔離與 reset ownership |
-| 1:30–3:00 | 架構＋正常 I/O 時序 | 分清 guest CPU VA、IOVA、requester、completion phase |
-| 3–5 分 | `make demo-reset` 或打開已保存 T07 結果 | 一個 VF reset，另一個仍完成正確資料；先 fence 後 UNMAP |
-| 5–7 分 | 點 `toy_complete` 與 `owner_workload` | 最終 generation guard、SQ/CQ 索引分離 |
-| 7–9 分 | B018 原始 FAIL 與 regression | 假設、反例、修正與覆蓋增強 |
-| 9–10 分 | `project-latest.json`、範圍與限制 | 可重現證據；不作實體硬體或零 BUG 主張 |
-
-展示前完成完整 gate、接上電源、關閉其他大型 VM，預先打開六張圖與結果。
-現場不重新編譯整套 kernel；若 demo 失敗，保留當次 log，先指出是 build prerequisite、guest boot 還是 case failure。
-已保存的結果要報出它自己的版本與時間，不能拿舊 PASS 覆蓋現場 FAIL。
-
-## 新手自我檢核與履歷描述
-
-準備好回答以下五題，才算能自己介紹這個專案：
-
-1. 從 `owner_workload` 追到 `dma`，說出每一層的執行位置與位址種類。
-2. 在 reset 圖上標出舊 mapping 最早何時能撤除，哪個回傳值證明它完全撤除。
-3. 解釋 ACTIVE、RUNNING、lease acquired 三者為何不同。
-4. 用一個 raw artifact 說明 PASS 不只靠 log 字串。
-5. 選一個 BUG，先說錯誤假設，再說反例、修正和測試，最後說仍未覆蓋的範圍。
-
-履歷可寫：「在 16 GB WSL2 筆電建立 QEMU SR-IOV 教學加速器，整合 portable C firmware core、
-Linux PF driver 與 VFIO tenant；以同 IOVA 隔離、DMA fault、reset/stale callback、KASAN 與原生 fuzz/oracle
-驗證 M0–M3，建立可追溯建置流程和故障紀錄。」
-只有在本版完整結果確實 PASS 後才使用「驗證完成」，並能逐段解釋設計、程式及實際測試結果。
-
-## 英文摘要
-
-I built a software SR-IOV lab on a 16 GB Windows laptop using WSL2, QEMU and a custom Linux guest.
-The device exposes a PF and up to eight VFs. Each tenant owns its classic VFIO container, group,
-device descriptors and DMA mappings. A portable C core owns the device state machine and resource ledger.
-
-The central design separates address isolation, permission to issue DMA, and generation validity.
-The IOMMU limits addresses for each VF requester. A PF-controlled fence stops device access.
-Session, epoch and cancellation tokens prevent old work from touching newly configured queues.
-
-My tests use actual VFIO mappings, requester-specific DMA traces, complete buffer checks,
-fault injection and raw-log validation. A useful debugging example was a teardown timing failure:
-serial owner shutdown allowed an earlier VF's recovery deadline to expire. I changed the shutdown
-ordering and verified repeated lifecycle runs without relaxing the deadline.
-
-The deliverable is scoped to M0 through M3. I separate software-model evidence from physical hardware
-claims, and I do not claim production readiness, real-device performance or authenticated firmware updates.

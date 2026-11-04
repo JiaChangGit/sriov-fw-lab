@@ -7,7 +7,7 @@ UEFI handoff 與 T01–T10 隔離／生命週期驗證**。以下從相依套件
 
 第一次閱讀的順序是：本章完成環境與建置 → [系統分析](SYSTEM_ANALYSIS_ZH.md) 看責任和圖 →
 [Kernel 導讀](KERNEL_WALKTHROUGH_ZH.md) 認識 driver → [逐函式追蹤](TRACE_CODE_ZH.md) 跑過一筆請求 →
-[DEMO 手冊](DEMO_ZH.md) 實際操作 → [面試稿](INTERVIEW_ZH.md) 練習說明。
+[DEMO 手冊](DEMO_ZH.md) 實際操作 → [系統指南](SYSTEM_GUIDE_ZH.md) 查閱設計與限制。
 遇到問題，先找本章最後的症狀表，再看 [真實 BUG 紀錄](BUG_LOG.md)。
 
 ## 開始前：要建立什麼
@@ -288,7 +288,7 @@ PY
 不要在進行中的 run 檢查舊 latest 指標並誤認本次通過；先等 command 返回，再核對時間、case、
 command.json 與 build hashes。缺 result 或未跑的 case 仍是 NOT_RUN。
 
-## 8. 從乾淨 build 重新建立面試版
+## 8. 從乾淨 build 重新建置
 
 完整建置包含 M0–M3。Capsule 更新、持久化模型及實體板卡操作不屬於本專案。
 部分底層程式有防禦性處理，但可主張的測試覆蓋仍以 T01–T10 的實際結果為準。
@@ -331,9 +331,9 @@ PY
 `ls -td artifacts/project/*/ | head -1` 找本次執行目錄，讀其中 `result.json` 和當前 stage 的 `.log`。
 不要只依 timestamp 猜測完成，需核對程序與 step。
 
-### 面試現場展示
+### 執行範例
 
-完整入口已 PASS 後，先讀 [面試講稿](INTERVIEW_ZH.md)，再執行：
+完整入口已 PASS 後，可依 [系統指南](SYSTEM_GUIDE_ZH.md) 理解設計，再執行：
 
 ```sh
 make demo
@@ -343,7 +343,7 @@ make demo-reset
 前者展示 M1 的四 VF／domain 與 100 次生命週期；後者展示 T07 的 outstanding-work reset 和健康 VF。
 逐步操作、結果讀取程式及現場講解順序見 [DEMO 手冊](DEMO_ZH.md)。
 兩者各自產生新的 artifacts；它們不是完整測試的捷徑。若要展示同 IOVA 隔離，使用 `make verify-t04`；
-要展示舊 callback 跨 reset 被擋，使用 `make verify-t08`。面試時間短時先展示已保存的結果，再跑一個案例。
+要展示舊 callback 跨 reset 被擋，使用 `make verify-t08`。查看已保存結果時，應核對其版本與時間。
 
 逐條執行，前一條 exit code 非零就停止並除錯。不要用分號串起整批命令後只看最後一條。
 M3 aggregate 會再次檢查當前 M0/M1/M2 prerequisites，前面的拆解仍有教學與提早定位錯誤的用途。

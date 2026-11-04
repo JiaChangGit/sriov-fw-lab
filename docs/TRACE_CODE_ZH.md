@@ -397,7 +397,7 @@ uint32_t payload_index = lab_ring_index(start + received, o->entries);
 接著讀 `guest/pf/toy_pf.c:toy_irq()`。IRQ handler 讀 cause、ACK，對 mailbox 呼叫
 `complete()`，將其他事件累積後排入 workqueue；它不取得會睡眠的管理 mutex。
 `toy_notify_work()` 在可睡眠的 context 取得 admin_mutex，擷取一致快照，再發布 event。
-因此「IRQ 喚醒」與「查詢完整狀態」被分成不同 context，面試時應說得出各自允許做的事。
+因此「IRQ 喚醒」與「查詢完整狀態」被分成不同 context，應區分各自允許做的事。
 
 最後讀 `toy_read_file()`：先 wait_event，短暫取得 event_lock 將一筆資料搬到 stash，
 放開 spinlock 後才 copy_to_user。若 event ring 滿，記錄 lost count，之後明確回 LOST_EVENTS，
@@ -441,7 +441,7 @@ UEFI 路徑可從 `uefi/SriovFwPkg/SriovProbe.c` 找 `UefiMain`，依序追 core
 mailbox version，再看 EFI-stub handoff；實際檔名與入口若需要快速定位，用
 `grep -n 'UefiMain' uefi/SriovFwPkg/*.c`。詳見 [UEFI.md](UEFI.md) 的 CODE/VARS、PCD 與 BAR API 語意。
 
-## 面試時用這條閱讀路徑回答，而非背 API 名稱
+## 沿資料路徑追蹤
 
 先說需求：「我必須在兩個 VF 同時使用相同 IOVA 時，證明裝置只改到各自的 buffer。」
 接著說設計：「tenant 各自擁有 viable group/container；裝置每筆 DMA 都帶實際 VF requester。」

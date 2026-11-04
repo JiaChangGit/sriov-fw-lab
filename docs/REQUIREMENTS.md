@@ -1,4 +1,4 @@
-# 面試版範圍與驗收要求
+# 專案範圍與驗收要求
 
 目標環境為 Lenovo R7000P 2024、16 GB RAM、WSL2 Ubuntu 26.04，主題是 Linux kernel、
 PCI driver 與 VFIO。功能範圍以能在這套環境重建、執行及核對結果為原則。

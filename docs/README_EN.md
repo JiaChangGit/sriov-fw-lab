@@ -1,6 +1,6 @@
 # SR-IOV firmware and platform lab
 
-Linux driver and virtualization interview project for a 16 GB laptop, WSL2 Ubuntu 26.04 and QEMU TCG.
+Linux driver and virtualization lab for a 16 GB laptop, WSL2 Ubuntu 26.04 and QEMU TCG.
 Supported scope: **M0–M3 / T01–T10**, covering the portable core, QEMU device, PF driver, VFIO tenants and UEFI handoff.
 
 The portable C core owns the device VF state machine, mailbox, quota and scheduler.

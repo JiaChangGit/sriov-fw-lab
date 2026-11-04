@@ -1,13 +1,43 @@
 # 驗證紀錄
 
-本頁記錄 2026-10-18 的本機驗收。公開原始碼包附有 [驗證摘要](verification-summary.json)，
+本頁記錄 2026-11-05 的乾淨建置驗證與 2026-10-18 的歷史驗收。公開原始碼包附有 [驗證摘要](verification-summary.json)，
 保留 146 個受測輸入雜湊、各步驟結果與原始 result 的 SHA256；原始 logs、binary 及主機環境紀錄不隨包提供。
 下文 artifacts 路徑是本機紀錄索引，新的執行會產生不同時間戳。摘要不能獨立驗證完整 runtime 證據。
 
-公開整理後，146 個受測輸入仍逐一符合原雜湊。規格 HTML 已改為現行範圍索引，
+2026-10-18 公開整理時，146 個受測輸入逐一符合原雜湊。後續修改須以新的執行結果和輸入雜湊為準。規格 HTML 已改為現行範圍索引，
 並更新授權、路徑與文件呈現；規格的新舊雜湊分別列在摘要中。這些整理不另算一次完整 runtime 驗收。
 
-## 完整驗收：PASS
+## 2026-11-05：從空 build 建置與驗證
+
+在 WSL2 Ubuntu 26.04 的本專案工作目錄，先執行 `make env-check` 與
+`make fetch-sources`，再執行 `make verify-project JOBS=2`。
+完整入口使用 TCG，開始時 `build_started_empty=true`；結果為 **PASS**，
+耗時約 48 分 53 秒（不含來源下載）。這是本機當次測量，並非時間保證。
+
+| 範圍 | 本次結果 |
+|---|---|
+| 完整入口 | 10 個頂層步驟均 PASS，包含兩個 kernel、兩份 initramfs、驗證器及 native guest |
+| M0 | unit、sanitizer、oracle、coverage 與 fuzz gate PASS |
+| M1 | stress 與 KASAN profile 均 PASS |
+| M2 | UEFI probe、同次開機 handoff 與 disabled-PCD 對照 PASS |
+| M3 | T01–T10 與 M3 validators 均 PASS |
+| 文件 | `make build-handbook` 的本地連結與雜湊檢查 PASS；不代表瀏覽器視覺檢查 |
+
+結果檔為 `artifacts/project/20261104T165714Z-wyjr3wpm/result.json`；
+M3 明細為 `artifacts/m3/20261104T171754Z-xqgq20mn/result.json`。
+目錄時間戳使用 UTC；本節日期使用臺灣時間。
+另行核對 146 個受測輸入雜湊、10 個頂層步驟的 log 與子結果雜湊，
+以及 16 個 M3 步驟的狀態，未發現不符。
+本次完整驗證之後，手冊產生器另修正 B023；該次完整結果不包含這項後續修改。
+受測基底 commit 為 `5d43ab06ac2b4e145e6838a2288ea36601194511`，
+工作目錄含未提交修改；確切輸入以該次 result 的 `input_hashes` 為準。
+artifacts 留在本機，不等同於可由公開摘要單獨重建的證據。
+
+本次修復來源證據產生器遺失授權提示的問題，見 [B022](BUG_LOG.md#b022來源證據產生器刪除授權提示)。
+修正前中止的完整執行未計為 PASS。此結果的適用範圍仍限於軟體模型與已執行的測試，
+T05 的 WRITE-only 情境使用 toy-only kernel patch。
+
+## 2026-10-18 歷史驗收：PASS
 
 2026-10-18（臺灣時間），在 Lenovo R7000P 2024、16 GB RAM、WSL2 Ubuntu 26.04 上執行
 `make verify-project JOBS=2`，以 QEMU TCG 完成 **M0–M3／T01–T10**。
@@ -19,7 +49,7 @@
 
 受測工作目錄的基底 commit 是 `7b0cec68a191b31db99c6848421e94ca01d5ae23`，
 並包含尚未提交的修改；確切版本以結果中的 146 個 `input_hashes` 為準。
-只 checkout 這個 commit，不等於取得本次受測內容。
+只 checkout 這個 commit，不等於取得當次受測內容。
 
 ## 驗收摘要
 
@@ -72,11 +102,11 @@ source anchors、輸入／輸出 hashes 與六張內嵌 SVG。
 - **B020**：kernel printk 與 JSON 共用 UART，偶發破壞紀錄；改為雙 UART，並修正 checkpoint ACK 的輸入端。
 
 症狀、根因、修正前失敗與程式位置見 [BUG_LOG](BUG_LOG.md)。
-本輪完整驗收涵蓋上述修正後版本，未出現尚待修復的測試失敗。
+2026-10-18 的驗收涵蓋上述修正後版本，當次未出現尚待修復的測試失敗。
 
 ## 建置方式與中斷紀錄
 
-本次完整 PASS 的 `build_started_empty=false`，使用已存在的 source cache 與增量建置。
+2026-10-18 的完整 PASS 的 `build_started_empty=false`，使用已存在的 source cache 與增量建置。
 建置程式核對來源及產物後，實際執行全部驗收；不將它描述為單次從空 build 跑到底。
 
 先前從空 build 開始的 `artifacts/project/20261014T005523Z-i612et2_/` 已完成 M0、QEMU、

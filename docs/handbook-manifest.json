@@ -1,18 +1,19 @@
 {
-  "collected_at": "2026-10-18T12:37:40.078838+00:00",
+  "collected_at": "2026-11-04T18:00:35.989100+00:00",
   "fsm_edges": 20,
   "inputs": {
     "device/toy_hw.c": "7d970106f4a1e900181551d62aea60674c21b3ee23632ab3639200ac416263f2",
     "device/toy_pf.c": "f268bc8bc739400f651b29a8dd7cbd94280874ec3b16f37eedd391dac3c6cc9c",
     "device/toy_vf.c": "b5434eeae2e389aba07c4912c3f3b246a1c26af8a5fa9aace5a9cbf5ccf769ff",
-    "docs/BUG_LOG.md": "a47ee1305f1fea843aecaf8e39b659daccc768c18f0dfe605dd54c5e1ac54110",
-    "docs/BUILD_TUTORIAL_ZH.md": "edb858674af20d0d37116391ebffe9a4c21daf2cd628e489d4ddf0577884ff20",
-    "docs/DEMO_ZH.md": "9b760c594bfe5fc7d466ebe045ff69c8905fcaa723b8a6fff9623baa603f65c1",
-    "docs/INTERVIEW_ZH.md": "1ad9e60c43dad44683adc771eb34984e780229cd69e01f42465f2e2ec385563b",
-    "docs/KERNEL_WALKTHROUGH_ZH.md": "8983d10d59e83ea91968a0fdf5c98164f013d1a3440ecd33e438c8735bd9494b",
-    "docs/SYSTEM_ANALYSIS_ZH.md": "8405e0bf2af4cadcef8c94ffd4bb066cf02fc1bd0c3c6db3d1d058a5038308b2",
-    "docs/TRACE_CODE_ZH.md": "1ffdbe7b96f91997a7ffca37fa07705b2b084596fbde280e48b14639ff2c5fb5",
-    "docs/VALIDATION.md": "f9c0270435a7e682e6719cc1ce053bf9f0f3a99ba09d0382272bdd2887975f82",
+    "docs/BUG_LOG.md": "b08e335127d3e5cd57cdebdffa2f578aebc7b8480339bb8fd85ad4948db56339",
+    "docs/BUILD_TUTORIAL_ZH.md": "38fcba6a7d13917f2b44a523caff6371a4439a36df509060ae9b223043843f91",
+    "docs/DEMO_ZH.md": "a6fc763f4941d22601b284dcc26cade63f62d86dc311091bcc5187a976b54fd2",
+    "docs/KERNEL_WALKTHROUGH_ZH.md": "925789f2ee280e175d1b384350165f4fb94fdb50dbbbb991faae7d36fe96c5e9",
+    "docs/SYSTEM_ANALYSIS_ZH.md": "19316300c71b7602dbc15e8fe2651152630dca69b52e4d3c42e0f746e86c54ce",
+    "docs/SYSTEM_GUIDE_ZH.md": "83c75d6d0cf08012b98989cbffc509e459a234cb1abeff26967080921293b40a",
+    "docs/TRACE_CODE_ZH.md": "260c812b3925b069c3b690fe89d2259284752cbf2be9855e68ce64cb20ccfa5d",
+    "docs/TRACE_PRACTICE_ZH.md": "bda651a43ee994a8386d703cab4c8d1823d4ce7efcc6309738b1661ac0be86a7",
+    "docs/VALIDATION.md": "ce1ba5d7b930309d4bb68d1d863cc8d83d60f593c9c5b58fef4260d492bd2ced",
     "fwcore/admission.c": "abb185ae2c50dfb60d87f9c077083538457af9bc254b62be28e45cc647d1779b",
     "fwcore/codec.c": "74ef0524d256ce73116f2478e4da613dcfe7b57a8ad81b9434be14502e9636f0",
     "fwcore/context.c": "64513bef101451ac95378c28a368233448ae63b3a77d47c4a5635dea6891f543",
@@ -32,7 +33,7 @@
     "guest/tenant/reset.c": "5b3c4e1c29a4d5c1e52a05ff79ae5fec394a8fd0bef5d42a736a47229ee92e10",
     "guest/tenant/tenant.c": "2bdd635fcad76e0cf484324e9be3b6db01da8f2b69279c87f2ce7085c989f5d9",
     "guest/tenant/vfio.c": "3e2648b2a11a94fd8bb222378fa2b0f17c4fa0516854052dee9789256b3f155f",
-    "tools/build_handbook.py": "ff8ce79c3cacc608291ab7807c288ce331114bf15e86d394363c27a6b7738ec0"
+    "tools/build_handbook.py": "247a37eddda00de5a25804d1c04d2c141b6c104bccd892b486984814539a019e"
   },
   "outputs": {
     "docs/code/device__toy_hw.c.html": "5f08b80db70ccbca2c76b50820fa8d3f96282e1e18d305206c5d29fcc7c4642b",
@@ -63,17 +64,17 @@
     "docs/diagrams/io-sequence.svg": "ad83a6bd9cb54d1bb779161ec75f42deedc03eb57eaf95bff3fff4111e4ed353",
     "docs/diagrams/lifecycle.svg": "4b9b98b45caebc2d38255bee22d0c37687f8cde6e1b6a583f2d93a51f8917740",
     "docs/diagrams/reset-sequence.svg": "9508cf56d7ce32f845981295c1ecdb53f29c014d4d1b9cbf5850d3ed8f693cd2",
-    "docs/handbook.html": "6d302e4290a2db6de4c5aede397fab84f44eb50ae695488fe3a06246ebcbf347"
+    "docs/handbook.html": "3551ee4f5512d3ea12956314d974ce6c962f5aa87d50986cc8d52758f411b0c0"
   },
   "project_scope": "M0-M3 / T01-T10",
   "renderer": {
     "markdown-it-py": "3.0.0"
   },
-  "repo_commit": null,
+  "repo_commit": "5d43ab06ac2b4e145e6838a2288ea36601194511",
   "repo_dirty": true,
   "scope": "document_generation_only",
-  "sources_lock_sha256": "6500a9086e1e33bc1caa6f2e082e2046b01d34afad7ff26c9cec46d77d93bbcb",
-  "spec_sha256": "452271771a433315619c3015d44661663de6017ca99a61d875e16e1e2ef551c4",
+  "sources_lock_sha256": "c904209a779459f307218441fe212df9cf7ae19c2ae0fbbe2b521664650c8c96",
+  "spec_sha256": "859873a7aed6881848401236a2ddf3d52001ad07d63c7c504fcba288bf697f5d",
   "status": "PASS",
   "visual_review": "NOT_RUN"
 }

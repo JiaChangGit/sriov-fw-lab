@@ -7,7 +7,7 @@
 ## 1. 展示前準備
 
 先完成 [建置教學](BUILD_TUTORIAL_ZH.md) 的完整驗收。首次建立 kernel 可能耗時較久，
-面試當天只啟動已建好的 VM。
+執行展示前先完成建置。
 
 PowerShell：
 
@@ -86,7 +86,7 @@ assert pointer['status'] == result['status'] == 'PASS'
 PY
 ```
 
-| 欄位 | 成功時要看什麼 | 面試時如何解釋 |
+| 欄位 | 成功時要看什麼 | 如何解釋 |
 |---|---|---|
 | `M1_CAPS` | 四個 VF、各自 requester、PF/VF capabilities 完整 | PCI function 存在只是第一步 |
 | `M1_GROUPS` | 四個 group，各只有對應 VF，PF 不混在其中 | 檢查實際 group 成員 |
@@ -181,7 +181,7 @@ PY
 相同數字透過不同 requester/domain 轉譯，指向不同 owner 的 pages。
 報告要同時看到兩邊的實際工作、完整 buffer 比對與 requester 證據。
 
-若面試官追問「A 存取未映射位址會怎樣」，用 T05 的已保存結果接續說明；
+若要查看「A 存取未映射位址會怎樣」，用 T05 的已保存結果接續說明；
 `make verify-t05` 會跑六種 fault，包含 WRITE-only 實驗所需的 toy-only kernel patch。
 不要把 T04 的正常隔離測試誤說成所有錯誤權限測試。
 
@@ -189,7 +189,7 @@ PY
 
 | 時間 | 操作 | 要說清楚的問題 |
 |---|---|---|
-| 0:00–1:30 | [90 秒介紹](INTERVIEW_ZH.md) | 為何用簡單 FILL/CRC32 workload 研究隔離與生命週期 |
+| 0:00–1:30 | [系統指南](SYSTEM_GUIDE_ZH.md) | 為何用簡單 FILL/CRC32 workload 研究隔離與生命週期 |
 | 1:30–3:00 | 開架構與 I/O 時序圖 | Windows、WSL/QEMU、guest kernel/userspace 各在哪裡 |
 | 3:00–5:00 | 執行 DEMO B，查看結果 | 先 fence/cancel，再撤映射；其他 VF 如何繼續工作 |
 | 5:00–7:00 | 點 `owner_workload` 和 `toy_complete` 源碼 | SQ/CQ 索引、generation guard、CQ phase 發布 |

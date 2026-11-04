@@ -159,7 +159,7 @@
   T07 同版 QEMU 重跑：`artifacts/m3-case/20261013T074221Z-79mqmb0v/` PASS。
 - 保存這兩次 raw events 的 fixture 後，42 項 controller/semantic 測試通過：
   `artifacts/m3-validator-tests/20261013T074457Z-3r9sxbee/`。
-- 面試重點：觀測程式本身也會出錯。先確認資料的時點與語意，再判斷裝置行為；保留原始 FAIL。
+- 重點：觀測程式本身也會出錯。先確認資料的時點與語意，再判斷裝置行為；保留原始 FAIL。
 
 ## B011：Linux EFI stub 遇到新 compiler 的 C23 關鍵字
 
@@ -204,7 +204,7 @@
   M1 額外檢查 PF/VF 的 ACS/ARI，不能只讓 UEFI 忽略零 header。
 - Trace：`device/toy_pf.c` 的 realize/capability 安排 → pinned
   `hw/pci/pcie_sriov.c` 的 reset 寫入範圍 → UEFI extended-capability walk。
-- 面試重點：capability 初次建立正確還不夠；reset 路徑也會改寫同一片 config space。
+- 重點：capability 初次建立正確還不夠；reset 路徑也會改寫同一片 config space。
 
 ## B014：UEFI PCI I/O protocol index 不等於實體 BAR 編號
 
@@ -217,7 +217,7 @@
 - 修正：probe 先按 config BAR type 走實際佈局，推得 protocol index，再比對回傳的 type、length、base。
   不拿另一個 index 回 Success 就算通過，也不對使用中的 BAR 寫 all-ones 來 sizing。
 - 對照：[D012](DECISIONS.md#d012--resolve-edk2-protocol-bar-indices-from-physical-bar-layout)。
-  面試時說明是「這個 pinned implementation 的映射」，不要推廣成所有 UEFI 都有同樣細節。
+  應說明這是「這個 pinned implementation 的映射」，不要推廣成所有 UEFI 都有同樣細節。
 
 ## B015：EDK2 沒改來源卻幾乎整套重編
 
@@ -302,6 +302,36 @@
   缺 kernel log 拒收及 probe-only 行為；全部 Python tests 共 73 項已通過。
   真實 VM 與最終整合結果以 [VALIDATION](VALIDATION.md) 首節為準。
 - 教訓：修正共用機制時，要列出每個使用它的入口；單一情境修好不代表其他 boot path 一併修好。
+
+## B021：系統指南更名後，展示手冊仍指向舊檔名
+
+分類：本次文件修改造成的失效連結。
+
+- 重現：更名指南後執行 `make build-handbook`，連結檢查回報
+  `Missing target: INTERVIEW_ZH.md in handbook.html`；
+  紀錄為 `artifacts/handbook-check/20261104T164655Z-upa29jss/result.json`。
+- 原因：展示手冊的時間表仍保留舊連結。
+- 修正：將連結指向 `SYSTEM_GUIDE_ZH.md`，重新產生手冊並檢查連結。
+
+## B022：來源證據產生器刪除授權提示
+
+分類：實際重現的文件產生問題。
+
+- 重現：執行完整驗證的 M0 階段後，`docs/SOURCE_EVIDENCE.md` 的第三方授權提示遭覆寫刪除。
+- 原因：`tools/source_evidence.py` 重新產生整份文件時，樣板缺少該提示。
+- 修正：將原有提示與第三方聲明連結加入產生器樣板，再重新執行並檢查結果。
+- 本次發現問題後停止尚未完成的完整驗證；該次不計為通過，修正後另從空 build 重跑。
+
+## B023：手冊連結指向未發布的本機測試紀錄
+
+分類：可重現的文件發布問題。
+
+- 重現：在已有 `artifacts/` 的工作目錄執行 `make build-handbook`，
+  產生的 HTML 包含 8 個指向該目錄的連結；`artifacts/` 被 Git 忽略，
+  因此這些目標不會出現在乾淨複本。
+- 原因：產生器依本機路徑是否存在決定是否建立連結，文件檢查也只檢查本機檔案是否存在。
+- 修正：手冊保留 artifacts 的純文字路徑，不依本機紀錄建立連結；
+  重建後以版本庫將包含的檔案清單檢查本地連結。
 
 ## 驗證界線
 
