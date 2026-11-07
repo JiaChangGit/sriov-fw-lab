@@ -56,6 +56,11 @@ libslirp 是 QEMU 的選配網路依賴，本專案 guest 測試不需要外部�
 Sparse、cppcheck、shellcheck 等補充分析工具不等於已執行的驗收項目；
 是否執行要看當次紀錄，不能只因已安裝就列為 PASS。
 
+讀碼與除錯練習另使用 `ripgrep`（`rg`）及 `gdb`，不在基本 installer 清單內；
+額外安裝命令見[建置手冊](BUILD_TUTORIAL_ZH.md)。
+一般離線手冊建置只需已提交的圖檔；修改 Mermaid 來源後重新產 SVG，才需要 Python 3、
+本機 Chromium 瀏覽器與固定版本 Mermaid。來源 hash 與維護命令見 [DIAGRAMS](DIAGRAMS.md)。
+
 ## 16 GB 筆電的資源安排
 
 預設 JOBS=2，一次只執行一項大型建置或一台 guest。

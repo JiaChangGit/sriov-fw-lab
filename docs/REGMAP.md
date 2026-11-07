@@ -107,7 +107,7 @@ Wire entry 固定為 32 bytes，依下列 offset 編解碼；不以 host C struc
 
 tenant：填 SQ → release barrier → 寫 SQ_TAIL → MMIO doorbell；device：檢查 state/gate → fetch SQ → decode/copy 到固定本地 buffer → 執行 → 寫 CQ bytes 0..23 與 reserved → 最後單獨寫 phase → 更新 CQ_TAIL → MSI-X。tenant：等待 eventfd → acquire load 檢查 phase → 讀 completion → 驗 epoch/id/status → 更新 CQ_HEAD。payload 與 CQ phase 間有 adapter ordering；C `volatile` 本身不足以保證順序。x86_64 tenant 使用 C11 fence 與 VFIO pwrite/pread helper，詳見 [記憶體順序](MEMORY_ORDER.md)。這條路徑的測試不代表 non-coherent 實體平台的 DMA 保證。
 
-CQ 滿時停止取新 SQ；不能覆寫 unread CQ。每 VF 最多一筆 delayed completion，預留 CQ slot 後才能執行 payload；pending 存在時停止 fetch 下一筆 SQ，維持這個預留 slot。descriptor fetch 或 CQ write translation 失敗：fence VF、清 pending callback、FAILED/health fault，保留錯誤計數；payload DMA 失敗若 CQ 仍安全可寫，先回 DMA_ERROR 再 fence。epoch 不符的 SQ 只消耗 SQ、STALE_DESC++，不 DMA payload/CQ，tenant 自行在 reset handshake 後中止舊 request。
+CQ 滿時停止取新 SQ；不能覆寫 unread CQ。每 VF 最多一筆 delayed completion，預留 CQ slot 後才能執行 payload；pending 存在時停止 fetch 下一筆 SQ，維持這個預留 slot。descriptor fetch 或 CQ write translation 失敗：fence VF、清 pending callback、FAILED/health fault，保留錯誤計數；payload DMA 失敗若 CQ 仍安全可寫，先回 `FW_DMA`（wire status 5）再 fence。epoch 不符的 SQ 只消耗 SQ、STALE_DESC++，不 DMA payload/CQ，tenant 自行在 reset handshake 後中止舊 request。
 
 ### 一次 CRC I/O：資料經過哪些邊界
 

@@ -15,6 +15,147 @@ QEMU 裡的自建 Linux 是 L2，PF driver、labd 與 tenant 都在 L2。
 模擬 DMA 使用錯誤 requester，要看 QEMU 的 qemu.log；QEMU 本身編不過，要看 L1 build log。
 在 WSL 載入 toy_pf.ko 不會連上 guest 裡的 PCI function，也不屬於本專案的操作流程。
 
+## 閱讀路線與完成條件
+
+本章假設已能閱讀 C 的指標、結構與條件分支，並會在 shell 執行命令。尚未建置時，
+可以先完成靜態追蹤；[動手追蹤](TRACE_PRACTICE_ZH.md) 的 native GDB 練習不需要啟動 guest。
+讀完後應能把一筆工作寫成「輸入 → 檢查 → 副作用 → 發布 → 回收」，並回答三件事：
+
+1. 誰持有這筆工作的身分、記憶體與完成位置？
+2. 哪個 guard 阻止它在 reset 後繼續 DMA？
+3. 失敗時，哪些資源已取得、哪些內容可能已改變、誰負責清理？
+
+不必先背完整目錄。第一次沿 FILL 成功路徑閱讀，第二次將輸入改成 stale epoch，
+第三次在 payload DMA 中途失敗。三條路徑使用同一組函式，差別出現在分支與後置條件。
+
+## Trace code 的六個步驟
+
+Trace code 是用特定問題檢查程式的控制、資料與狀態變化。
+靜態追蹤推導可能的行為；動態追蹤記錄某次執行實際走過的路徑。兩者應互相核對，
+也都要標明來源版本。只有函式名稱清單，無法解釋程式為何接受或拒絕一筆工作。
+
+| 步驟 | 本專案的做法 | 應留下的結果 |
+|---|---|---|
+| 1. 固定問題 | 「epoch=4 的 FILL 為何在 live epoch=5 時沒有 CQ？」 | 可由反例推翻的問題，避免把所有原因都叫 timeout |
+| 2. 固定輸入與入口 | 記下 VF、SQ bytes、SQ_HEAD/TAIL、CQ_HEAD/TAIL、session/epoch/token | 能在同一版本重建的最小情境 |
+| 3. 找定義與呼叫者 | 搜尋 `service_one` 的定義、呼叫點及 `fw_decode_sq` | 分清函式內部檢查與呼叫者的額外檢查 |
+| 4. 標副作用與分支 | 追 `sq_head++`、stale counter、payload DMA、CQ phase | 每條 return 之前究竟改過什麼 |
+| 5. 越界時換觀測點 | tenant 的 pwrite → QEMU MMIO；MSI-X → guest eventfd | 每個程序或執行層各自的 stack 與證據 |
+| 6. 用觀測核對推論 | 比較 guest 結果、QEMU log、寄存器與 guard bytes | 已證實的關係，以及尚未執行的分支 |
+
+以下命令在 L1 repository 根目錄執行；先縮小檔案範圍，再讀定義前後的完整函式：
+
+```sh
+git rev-parse HEAD
+git status --short
+rg -n 'service_one|toy_complete|same_generation|static bool dma' device/toy_hw.c
+rg -n 'fw_decode_sq|validate_sq|fw_ring_phase' fwcore/codec.c
+rg -n 'owner_workload|payload_index|memory_order|__atomic_load_n' guest/tenant/owner.c
+rg -n 'toy_schedule|toy_worker|write_vf' device
+```
+
+`rg` 的命中是索引，不是完整語意。讀 `fw_decode_sq()` 時若只看到它回 FW_OK，
+不能推論 DMA 會成功：parser 不查 IOMMU mapping，也不比較 live epoch；後兩者分別在裝置與 DMA 路徑處理。
+
+### 追蹤表怎麼寫
+
+以 entries=16、SQ_HEAD=6、SQ_TAIL=7、CQ_HEAD=CQ_TAIL=5 為例，假設 live epoch=4 且 gate 開啟，
+descriptor 的 id=0x1234、addr=0x400000、len=8、opcode=FILL、epoch=4、arg=0x79。
+這是自行組合的教學輸入，不是 `owner_workload()` 自動產生的固定 workload。
+
+| 位置 | 進入時的值 | 檢查與動作 | 離開後的值／可觀測結果 |
+|---|---|---|---|
+| `service_one()` 初段 | SQ 有一筆、CQ 尚有容量 | gate、pending、empty、CQ full 檢查 | 不符合時不取 SQ |
+| SQ DMA 成功後 | SQ_HEAD=6 | 讀 `sq_base + 6*32`，執行 `sq_head++` | SQ_HEAD=7；失敗則 `toy_fail()`，不推進 SQ_HEAD |
+| 建立 `ToyOperation` | live session/epoch/token | 保存 generation、`cq_index=5` | 工作綁定此代與此 CQ 位置 |
+| `fw_decode_sq()` | 32-byte wire data | 解碼並檢查長度、opcode、flags、位址加法 | 格式合法時才賦值給 `op.sq` |
+| raw epoch 比較 | descriptor epoch=4 | 比較 wire bytes 與 live epoch | 相符才繼續；不符增加 STALE_DESC，SQ 已前進、CQ 不變 |
+| `toy_complete()` | `op.valid=true` | 再查 generation 與 gate | 避免 fetch 之後發生 reset 的空窗 |
+| payload DMA | addr=0x400000、len=8 | 以 VF requester 寫入 8 個 0x79 | 成功後才準備 OK completion；fault 可能已寫入部分範圍 |
+| CQ 發布 | `cq_index=5` | 寫 body、reserved bytes、最後寫 phase | CQ slot 5 phase=1，CQ_TAIL=6，嘗試 IRQ |
+| tenant 消費 | CQ_HEAD=5 | phase acquire 後核對欄位與資料 | CQ_HEAD=6，才歸還該 CQ slot |
+
+表格應把「已經發生的副作用」寫在 return 前。stale descriptor 並非完全沒做事：
+它已完成 SQ DMA 並推進 SQ_HEAD，只是不執行 payload/CQ DMA。這正是 SQ 與 CQ 游標可能分離的原因。
+
+## 三條分支的流程圖
+
+```mermaid
+flowchart TD
+    A[service_one：檢查 gate 與 ring] --> B{可 fetch？}
+    B -->|否| Z[返回，未消費 SQ]
+    B -->|是| C{SQ DMA 成功？}
+    C -->|否| D[toy_fail，返回]
+    C -->|是| E[SQ_HEAD 加一；保存 generation 與 CQ 位置]
+    E --> F[fw_decode_sq]
+    F --> G{raw epoch 等於 live epoch？}
+    G -->|否| H[STALE_DESC 加一；不發布 CQ]
+    G -->|是| I{格式合法？}
+    I -->|否| J[設定 BAD_DESC，保留 id 與 length]
+    I -->|是| K[保留 OK 工作]
+    J --> L[立即完成或保存 delayed operation]
+    K --> L
+    L --> M[toy_complete：檢查 valid、generation、gate]
+    M --> N{仍可執行？}
+    N -->|否| O[消耗工作；舊 generation 另計 STALE_CPL]
+    N -->|是| P[合法工作才做 payload DMA]
+    P --> Q[寫 CQ body，再寫 phase]
+    Q --> R{CQ DMA 成功？}
+    R -->|否| S[toy_fail；不推進 CQ_TAIL]
+    R -->|是| T[CQ_TAIL 加一；嘗試 MSI-X]
+```
+
+這張圖將函式內的直接呼叫與資料分支放在一起；延遲路徑會先把 `op` 存入 slot，
+之後由 worker 再呼叫 `toy_complete()`，不能把兩次執行理解成一個尚未返回的 stack frame。
+payload DMA 失敗時仍嘗試發布 FW_DMA completion，發布成功後才 `toy_fail()`；
+圖中「合法工作」指 parser 接受的工作，不能解讀成 IOMMU 保證接受其位址。
+
+## 關鍵程式碼：拒絕舊工作應放在哪裡
+
+以下片段摘自 [裝置執行路徑](../device/toy_hw.c)，省略 log 與未相關分支；
+請回到完整函式查看所有 guard，而不要把片段當成可替換的實作。
+
+```c
+static bool same_generation(ToyPF *pf, ToySlot *s, const ToyOperation *op)
+{
+    return !op || (op->session == pf->session &&
+                   op->epoch == s->epoch && op->token == s->token);
+}
+```
+
+session 區分整體裝置工作階段；epoch 與 token 區分 VF 的世代與取消邊界。
+`op == NULL` 表示這次呼叫沒有已保存的工作 tuple；`gate()` 仍會檢查 live VF、fence、kill、
+config、ACTIVE 與 BME。`NULL` 並非免除所有檢查。
+
+```c
+if (!same_generation(pf, s, op)) {
+    toy_saturate(&s->stale_cpl);
+    /* 完整程式在此輸出 TOY_STALE_CPL。 */
+    op->valid = false;
+    return;
+}
+if (!gate(pf, vf, op)) {
+    op->valid = false;
+    return;
+}
+```
+
+`toy_complete()` 將兩個檢查放在第一筆 payload/CQ DMA 前。若只在 SQ fetch 時檢查 epoch，
+工作可能已被保存為 delayed operation，而 reset 已換掉 mapping；舊 callback 仍會進入後半段。
+反過來，只看 gate 也不足：新世代 REARM 後 gate 已打開，必須用保存的 tuple 拒絕舊工作。
+
+```c
+result = write ? pci_dma_write(PCI_DEVICE(s->vf), addr, buffer, length) :
+                 pci_dma_read(PCI_DEVICE(s->vf), addr, buffer, length);
+```
+
+這裡選擇的是 `s->vf`。相同數字 IOVA 在不同 domain 中可指向不同的 page，
+必須把 requester 身分一併追到 PCI helper，才能解釋 T04/T05 為何能驗證隔離。
+
+**自問自答：** generation 正確，是否就能省略 DMA 回傳值？不能。generation 回答「是不是此代工作」，
+IOMMU 與 PCI helper 回傳值回答「這次存取是否被接受」；頁面可能沒有映射或權限不足。
+同樣地，FW_DMA completion 的 length 是原請求長度，不是已寫入 byte 數；要判斷部分寫入，必須看 buffer 與 guard。
+
 ## 四種位址與兩種權限
 
 tenant 的 C pointer 是 guest process 的虛擬位址，CPU 經 guest page table 存取它。
@@ -42,7 +183,7 @@ Group/container 的背景可對照 [Linux VFIO 文件](https://docs.kernel.org/d
 
 ## 控制流程入口：啟用 VF 之前先預留資源
 
-從 `guest/pf/toy_pf.c:toy_sriov_configure()` 開始看。寫入 PF 的 `sriov_numvfs` 後，
+從 [`guest/pf/toy_pf.c:toy_sriov_configure()`](../guest/pf/toy_pf.c#L358) 開始看。寫入 PF 的 `sriov_numvfs` 後，
 Linux 會進入這個 driver callback。driver 在管理序列化區段中先驗證要求值、既有 VF 數與 leases，
 對每個 slot 執行 PROVISION，最後才呼叫 `pci_enable_sriov()`。
 
@@ -51,8 +192,8 @@ PROVISION 不是單純設一個 enabled bit，還要管理 queue/vector/reserve 
 權威 ledger 與 VF FSM 放在 `fwcore`；PF driver 保存 host transaction、lease 與觀察快照，
 不另寫一份自行決定 ACTIVE/FAILED 的 firmware FSM。
 
-繼續追 `toy_mailbox_status()` → QEMU `device/toy_pf.c:write_pf()` →
-`toy_mbx_work()` → `fwcore/mailbox.c:fw_handle_mailbox()`。
+繼續追 `toy_mailbox_status()` → QEMU [`device/toy_pf.c:write_pf()`](../device/toy_pf.c#L137) →
+`toy_mbx_work()` → [`fwcore/mailbox.c:fw_handle_mailbox()`](../fwcore/mailbox.c#L87)。
 mailbox 的 session/sequence 與回覆 cache 處理重送；重送相同 request 不能再次預留資源。
 讀到 callback 不代表已完成，還要看它回傳的 status、transaction commit 與 unwind 分支。
 
@@ -62,11 +203,11 @@ mailbox 的 session/sequence 與回覆 cache 處理重送；重送相同 request
 
 ## 一個 tenant 如何真正取得 VFIO 所有權
 
-先讀 `guest/admin/labd.c:isolated_owner_start()`，再讀 `start_owner()`。
+先讀 [`guest/admin/labd.c:isolated_owner_start()`](../guest/admin/labd.c#L339)，再讀 `start_owner()`。
 labd 取得 per-open PF lease、查詢 VF 的 group、啟動 child、保存 pidfd，並檢查 Unix socket 的
 SO_PEERCRED。child 在 exec 前關閉管理 fd，不繼承 PF fd 或另一個 tenant 的 VFIO fd。
 
-再讀 `guest/tenant/vfio.c:lab_vfio_open()`。重要順序如下：
+再讀 [`guest/tenant/vfio.c:lab_vfio_open()`](../guest/tenant/vfio.c#L137)。重要順序如下：
 
 1. 將該 VF 綁定 vfio-pci，核對 sysfs driver link。
 2. 開啟 container，核對 VFIO API 與 TYPE1 IOMMU extension。
@@ -83,7 +224,7 @@ VFIO open 本身可能觸發 PCI FLR。`owner_open()` 因此在取得 fd 後重�
 
 ## 建立 ring：有 CONFIG 還不能立即跑
 
-`guest/tenant/owner.c:map_buffers()` 建立三種映射：
+[`guest/tenant/owner.c:map_buffers()`](../guest/tenant/owner.c#L149) 建立三種映射：
 
 | Buffer | IOVA | 裝置方向 | VFIO flags |
 |---|---|---|---|
@@ -96,7 +237,7 @@ T05 還揭露 pinned Intel IOMMU 對 WRITE-only 的平台差異，詳見 BUG_LOG
 不能用 requested flags 的列印結果代替實際權限測試。
 
 `owner_configure()` 建立 eventfds、登記 MSI-X IRQ、設定 BME，再寫 staging queue registers
-與 session/epoch，最後寫 CONFIG_COMMIT。QEMU `device/toy_vf.c:config_commit()`
+與 session/epoch，最後寫 CONFIG_COMMIT。QEMU [`device/toy_vf.c:config_commit()`](../device/toy_vf.c#L58)
 驗證範圍、entries、當前 generation 及 fence，成功後成為 READY_PENDING。
 
 tenant 送 READY 給 labd。labd 核對自己的 lease、peer、PF live snapshot、ready_gen，
@@ -112,9 +253,9 @@ tenant 送 READY 給 labd。labd 核對自己的 lease、peer、PF live snapshot
 CPU 填好 SQ 後執行 C11 release fence；`owner_write32()` 再執行 sequentially consistent fence，
 經 VFIO region pwrite 寫入 register。本版只驗證 x86_64 QEMU 路徑；這些 fence 不等於跨平台 DMA coherency 保證。
 程式透過 `owner_write32()` 存取 register；程式不 mmap MSI-X table 保留頁。
-SQ_TAIL 與 DOORBELL 進入 `device/toy_vf.c:write_vf()`，喚醒有界 worker。
+SQ_TAIL 與 DOORBELL 進入 [`device/toy_vf.c:write_vf()`](../device/toy_vf.c#L80)，喚醒有界 worker。
 
-`device/toy_hw.c:toy_worker()` 計算 backlog、交給 core 的 logical scheduler，
+[`device/toy_hw.c:toy_worker()`](../device/toy_hw.c#L376) 計算 backlog、交給 core 的 logical scheduler，
 再由 `service_one()` 取 descriptor。最重要的轉折點是 `dma()`：
 它把 **該 VF 的 PCI device** 傳給 `pci_dma_read/write()`，所以 QEMU vIOMMU 看到的是該 VF RID。
 若改成 PF 或直接寫 guest RAM，即使 FILL 的 byte pattern 看似正確，隔離契約也已經破壞。
@@ -142,7 +283,7 @@ native ring oracle 另用獨立 Python FIFO 比較跨 UINT32_MAX 的行為，不
 
 ## FENCE、FLR 與 delayed completion 的先後關係
 
-`device/toy_hw.c:toy_fence()` 先關 gate，取消 pending work、清除 pending IRQ，
+[`device/toy_hw.c:toy_fence()`](../device/toy_hw.c#L52) 先關 gate，取消 pending work、清除 pending IRQ，
 檢查溢位後才增加 epoch 與 cancel token。同一個非零 fence token 重送時，維持 fence 並取消 pending，
 但不再次增加世代；FLR 則不使用這個重送去重分支。
 不能先 unmap，再希望裝置剛好沒發 DMA。`toy_vf_flr()` 共用 clear/cancel 邏輯，
@@ -165,8 +306,8 @@ PF 的 ledger 歸零只能證明 firmware 資源釋放，不能證明 userspace 
 
 ### 1. 先讓裝置真的持有一筆工作
 
-由 `guest/admin/recovery.inc:recovery_handshake()` 設定 delay-cpl-ticks=60000，
-再讓 `guest/tenant/recovery.c:owner_submit_pending()` 提交 FILL。
+由 [`guest/admin/recovery.inc:recovery_handshake()`](../guest/admin/recovery.inc#L50) 設定 delay-cpl-ticks=60000，
+再讓 [`guest/tenant/recovery.c:owner_submit_pending()`](../guest/tenant/recovery.c#L13) 提交 FILL。
 先完成 4096 筆正常 I/O 才注入延遲，避免把初始化與故障觀察混在一起。
 
 這筆 descriptor 的 id 是 0x708、length 是 8、payload IOVA 是 0x400000、FILL byte 是 0x79。
@@ -211,7 +352,7 @@ owner 先回 HELLO，等待實際 device virtual time 至少走過 200 ticks。
 此時先不送 HELLO_REPLY 授權新配置。這是在 1000-tick READY deadline 內的慢 owner，
 不是把 host sleep 的 200 ms 當作裝置時間。
 
-`guest/tenant/recovery.c:owner_retire()` 要求三個 VFIO UNMAP 都完整返回，
+[`guest/tenant/recovery.c:owner_retire()`](../guest/tenant/recovery.c#L43) 要求三個 VFIO UNMAP 都完整返回，
 把舊 CPU allocation 移入 retired 陣列，保留每個 byte 的 guard copy。
 隨後 `owner_configure()` 配置另一組 CPU memory，在同一 container 重用相同 IOVA。
 驗證器要求兩代 vaddr 不相同。若直接 free 舊 buffer，allocator 可能重用同一位址，
@@ -229,8 +370,8 @@ TOY_FAULT_ACK property=try-stale-cpl valid=1 ack=6 consumed=1
 ```
 
 `toy_complete()` 先檢查 generation，再檢查 gate，因此這兩次都在世代不符時返回。
-第二次在 gate 已解除後執行，用來確認新 queue 恢復運作時，舊 callback 仍不能寫入。`device/toy_pf.c:stale_set()` 將 retained operation 副本交給
-`device/toy_hw.c:toy_complete()`，不是直接把 STALE_CPL 加一。
+第二次在 gate 已解除後執行，用來確認新 queue 恢復運作時，舊 callback 仍不能寫入。[`device/toy_pf.c:stale_set()`](../device/toy_pf.c#L392) 將 retained operation 副本交給
+[`device/toy_hw.c:toy_complete()`](../device/toy_hw.c#L215)，不是直接把 STALE_CPL 加一。
 
 ACK 的 valid=1 指「呼叫前副本有效」，consumed=1 指「callback 已消耗該副本」。
 這兩個時點曾被記成同一個值，導致 B010 的真實 validator FAIL。
@@ -252,12 +393,12 @@ B 在 pending、slow_ready、configured_fenced、fresh_io 四個 checkpoint 的 
 
 這些是閱讀練習，不算新增的 runtime PASS。先寫下答案，再打開原始碼核對：
 
-1. 在 `device/toy_hw.c:toy_complete()` 找出第一個可能寫 payload 的點。
+1. 在 [`device/toy_hw.c:toy_complete()`](../device/toy_hw.c#L215) 找出第一個可能寫 payload 的點。
    沿此前每個 return 分支，說明 old token、fence、BME、bad descriptor 分別在哪裡被拒絕。
    如果只在 SQ fetch 檢查 epoch，延遲 completion 會留下哪個空窗？
-2. 在 `guest/tenant/owner.c:owner_workload()` 找出 release、phase acquire、CQ_HEAD 三個位置。
+2. 在 [`guest/tenant/owner.c:owner_workload()`](../guest/tenant/owner.c#L231) 找出 release、phase acquire、CQ_HEAD 三個位置。
    解釋為何 eventfd 成功讀取後還要 drain CQ，以及 phase 檢查不能搬到讀取 CQ body 之後。
-3. 在 `guest/admin/recovery.inc:recovery_handshake()` 列出所有可能回錯的 handshake 步驟。
+3. 在 [`guest/admin/recovery.inc:recovery_handshake()`](../guest/admin/recovery.inc#L50) 列出所有可能回錯的 handshake 步驟。
    對每一步標出當時誰持有 lease、舊 mapping、新 mapping、pending work。
    說明為何出錯不能一律執行 memset 清 ledger。
 
@@ -267,7 +408,7 @@ B 在 pending、slow_ready、configured_fenced、fresh_io 四個 checkpoint 的 
 
 ## 重要實作一：把 bytes 安全轉成 descriptor
 
-打開 `fwcore/codec.c:fw_decode_sq()`。讀法分三步：先將 local struct 清零，再以逐 byte LE helper
+打開 [`fwcore/codec.c:fw_decode_sq()`](../fwcore/codec.c#L25)。讀法分三步：先將 local struct 清零，再以逐 byte LE helper
 讀固定 offset，最後驗證後才賦值給呼叫者的 `out`。這讓失敗輸入不會留下半解碼結果。
 
 | SQ offset | 長度 | 欄位 | 必要條件 |
@@ -282,12 +423,12 @@ B 在 pending、slow_ready、configured_fenced、fresh_io 四個 checkpoint 的 
 不要把 bytes cast 成 packed struct：即使 x86 允許部分 unaligned access，也會把 layout 與 endianness
 假設散落到各層。逐欄解碼較容易在 native fuzz、QEMU、UEFI 重用。
 
-`fwcore/codec.c:fw_queue_validate()` 再檢查 N=16..256 且為 2 的次方、SQ/CQ 相同大小、64-byte 對齊、
+[`fwcore/codec.c:fw_queue_validate()`](../fwcore/codec.c#L81) 再檢查 N=16..256 且為 2 的次方、SQ/CQ 相同大小、64-byte 對齊、
 session/epoch 相符、加法不溢位、兩段範圍不重疊。Descriptor 正確不等於 ring configuration 正確，兩層都要驗證。
 
 ## 重要實作二：有表格也要有 guard 的 FSM
 
-沿 `fwcore/fsm.c:fw_transition()` 讀：
+沿 [`fwcore/fsm.c:fw_transition()`](../fwcore/fsm.c#L28) 讀：
 
 1. 在 `edges` 找 `(current state, event)`。找不到時，在任何 HAL 呼叫之前回 FW_STATE。
 2. 取得硬體 snapshot，要求 fenced；需要新 deadline 時以 checked arithmetic 計算。
@@ -300,7 +441,7 @@ Native tests 不只數合法邊，還驗非法事件後整份 context 不變；H
 
 ### 手算一次 admission 與 quota
 
-搭配 `fwcore/admission.c:fw_create()` 閱讀：先驗 VF 範圍與 reserve=1..64，
+搭配 [`fwcore/admission.c:fw_create()`](../fwcore/admission.c#L5) 閱讀：先驗 VF 範圍與 reserve=1..64，
 再要求 FREE、fenced、未 killed，且沒有 PCI function、live config 或 outstanding work。
 所有檢查成功後，才一起更新 state、reserve、epoch 與三個 resource counters。
 
@@ -322,7 +463,7 @@ remaining=32−8=24，最後確認 24≤64−16，才寫回 used_credit=40。
 
 ## 重要實作三：重送與 exactly-once 的邊界
 
-`fwcore/mailbox.c:fw_handle_mailbox()` 先驗非零 seq 與 live session。
+[`fwcore/mailbox.c:fw_handle_mailbox()`](../fwcore/mailbox.c#L87) 先驗非零 seq 與 live session。
 如果 seq 等於最近已接受的 seq，必須比較完整 opcode、target、args；相同才回 cached reply，
 不同則 SEQ_CONFLICT。比最後 seq 舊的請求回 STALE_SEQ。這是「單一 outstanding、最後一筆 cache」
 的去重設計，不是無限歷史的分散式 exactly-once 系統。
@@ -333,7 +474,7 @@ PF 的 `toy_mailbox_status()` 寫欄位後 SUBMIT，再同時檢查 DONE 與 ACK
 
 ## 重要實作四：logical scheduler 與效能的區別
 
-`fwcore/scheduler.c:fw_schedule_round()` 每輪最多分配 64 credits。先篩 ACTIVE、unfenced、非 killed、
+[`fwcore/scheduler.c:fw_schedule_round()`](../fwcore/scheduler.c#L4) 每輪最多分配 64 credits。先篩 ACTIVE、unfenced、非 killed、
 BME、config_valid、沒有 delayed outstanding 的 VF，給 `min(reserve, backlog)` 基本配額；
 剩餘以 reserve 作權重分配，先取整數，再依餘數補足，相同餘數用 round 做輪替。
 需求較少的 VF 先封頂，再重算其他 VF 的份額；迴圈由八個 VF 的固定上限限制。
@@ -344,7 +485,7 @@ BME、config_valid、沒有 delayed outstanding 的 VF，給 `min(reserve, backl
 
 ## 重要實作五：為何 SQ index 不等於 CQ index
 
-這個缺陷位於 `guest/tenant/owner.c:owner_workload()`。
+這個缺陷位於 [`guest/tenant/owner.c:owner_workload()`](../guest/tenant/owner.c#L231)。
 例：SQ tail=6、CQ head=5，表示先前有一筆 stale SQ 被 consume，但沒有產生 CQ。
 下一筆請求寫 SQ slot 6，也把 payload 放在 slot 6 對應的區段；completion 卻會寫 CQ slot 5。
 若用 CQ index 找 payload，就會核對到別筆 buffer。
@@ -394,7 +535,7 @@ uint32_t payload_index = lab_ring_index(start + received, o->entries);
 | `read_mutex` | 同一 fd 的讀者與暫存 event | copy_to_user 失敗保留 stash，下一次 read 仍能取回 |
 | `kref` | `toy_pf` 記憶體壽命 | open 增加引用、release 減少；與裝置是否可 MMIO 是兩件事 |
 
-接著讀 `guest/pf/toy_pf.c:toy_irq()`。IRQ handler 讀 cause、ACK，對 mailbox 呼叫
+接著讀 [`guest/pf/toy_pf.c:toy_irq()`](../guest/pf/toy_pf.c#L296)。IRQ handler 讀 cause、ACK，對 mailbox 呼叫
 `complete()`，將其他事件累積後排入 workqueue；它不取得會睡眠的管理 mutex。
 `toy_notify_work()` 在可睡眠的 context 取得 admin_mutex，擷取一致快照，再發布 event。
 因此「IRQ 喚醒」與「查詢完整狀態」被分成不同 context，應區分各自允許做的事。
@@ -405,7 +546,7 @@ uint32_t payload_index = lab_ring_index(start + received, o->entries);
 
 ## 重要實作七：probe 失敗的反向回收
 
-從 `guest/pf/toy_pf.c:toy_probe()` 把取得資源的順序寫下來，再沿 goto label 反向核對：
+從 [`guest/pf/toy_pf.c:toy_probe()`](../guest/pf/toy_pf.c#L622) 把取得資源的順序寫下來，再沿 goto label 反向核對：
 
 | 取得資源 | 出錯後對應處理 | 為何順序重要 |
 |---|---|---|
@@ -431,7 +572,7 @@ T02 在真實 probe、owner setup 和 PCI enumeration 路徑注入失敗，驗�
 還必須證明「這個 PASS 的確測過這個 build」。
 
 證據管道本身也要 trace。`guest/init` 將測試 stdin/stdout 指到 UART1，kernel console 留在 UART0。
-沿 `guest/tenant/m1_spike.c:host_checkpoint()`，確認等待 ACK 的 fd 也來自同一條協定 UART，
+沿 [`guest/tenant/m1_spike.c:host_checkpoint()`](../guest/tenant/m1_spike.c#L44)，確認等待 ACK 的 fd 也來自同一條協定 UART，
 而不是重新開啟 `/dev/console`；後者仍指向核心 console，會讓事件送得出去、回覆卻永遠讀不到。
 它先設 raw/noecho，再送 WAITING，逐 byte 核對 token，成功／失敗都恢復 termios。
 `tools/run_uefi.py:read_uefi_output()` 則分別讀取 firmware/kernel 與測試日誌，檢查後才組合成解析輸入。

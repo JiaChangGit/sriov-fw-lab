@@ -244,7 +244,7 @@ and subsequent 100-cycle validations are recorded in BUG_LOG B001.
 
 ## D016 — Scope the laptop project release to M0–M3
 
-The supported configuration is M0–M3/T01–T10 on a Lenovo R7000P 2024 with 16 GB RAM, WSL2 Ubuntu 26.04 and QEMU TCG.
+The supported configuration is M0–M3/T01–T10 on a 16 GB RAM system with WSL2 Ubuntu 26.04 and QEMU TCG.
 This keeps the project reproducible without a physical SR-IOV adapter. KCSAN/KVM, persistent firmware updates and the M4/M5 acceptance matrix are outside the supported scope.
 Reserved wire values return UNSUP and retain their ABI numbers.
 

@@ -1,6 +1,6 @@
-# 新手建置與除錯手冊
+# 從來源建置與除錯
 
-適用環境：Lenovo R7000P 2024、實體 RAM 16 GB、Windows 11、WSL2 Ubuntu 26.04。
+適用環境：實體 RAM 16 GB、Windows 11、WSL2 Ubuntu 26.04。
 專案內容是 **M0–M3：portable core、QEMU SR-IOV 裝置、guest PF driver、VFIO tenant、
 UEFI handoff 與 T01–T10 隔離／生命週期驗證**。以下從相依套件與來源開始建置，
 每一階段都列出命令、輸出位置和成功判斷。實際驗收版本及建置方式見 [VALIDATION.md](VALIDATION.md)。
@@ -10,6 +10,11 @@ UEFI handoff 與 T01–T10 隔離／生命週期驗證**。以下從相依套件
 [DEMO 手冊](DEMO_ZH.md) 實際操作 → [系統指南](SYSTEM_GUIDE_ZH.md) 查閱設計與限制。
 遇到問題，先找本章最後的症狀表，再看 [真實 BUG 紀錄](BUG_LOG.md)。
 
+本章假設讀者能在終端機切換目錄、讀取檔案，並能辨認 C 的函式與結構；不預設已使用過
+Kbuild、QEMU、VFIO 或 EDK2。工具的參數、產物與執行模型另見
+[建置工具與執行環境](TOOLS_DEEP_DIVE_ZH.md)。完成本章後，應能從一個失敗的 stage 找到
+對應來源、實際命令和第一個錯誤，並判斷它屬於環境、編譯、映像封裝、開機或測試契約。
+
 ## 開始前：要建立什麼
 
 你不需要購買支援 SR-IOV 的網卡，也不需要把筆電 GPU passthrough 給 VM。
@@ -17,7 +22,7 @@ WSL 裡的 QEMU 用 TCG 模擬 x86 CPU 與 toy PCIe device；QEMU 內的 Linux �
 PF driver、VFIO ioctl 和 IOMMU 路徑。資料工作只有 FILL（寫固定 byte）與 CRC32（讀資料計算 checksum）。
 簡單工作負載讓隔離、錯誤處理與 reset 更容易逐 byte 驗證。
 
-| 名稱 | 新手先記住的意思 |
+| 名稱 | 本章使用的定義 |
 |---|---|
 | PF / VF | PF 是管理 function；VF 是分配給 tenant 的資料 function；此模型最多八個 VF |
 | Driver / module | Linux 核心程式；本專案的 `toy_pf.ko` 只載入 QEMU 裡的 Linux |
@@ -30,6 +35,53 @@ PF driver、VFIO ioctl 和 IOMMU 路徑。資料工作只有 FILL（寫固定 by
 首次下載和編譯需要網路與足夠磁碟；guest 測試不需要外部網路。整套流程包含 Linux、QEMU、
 EDK2 建置與多輪 VM，應安排數小時的工作窗口；實際時間依 CPU、磁碟、快取與熱節流而變。
 不要把其他機器的耗時當成 timeout 標準。全程保持筆電供電，關閉佔用大量 RAM 的其他 VM。
+
+## 建置路線與階段契約
+
+建置流程把來源轉成可開機的系統，再檢查系統行為。下圖是**產物依賴圖**，不是要求同時
+啟動多個建置。16 GB 環境依下列章節串行執行；完整入口已安排順序。
+
+```mermaid
+flowchart TD
+    E[WSL 環境與系統套件] --> S[fetch-sources 與 sources.lock.json]
+    S --> C[portable core 建置與 M0]
+    S --> Q[QEMU 與 toy device]
+    S --> K[stress / kasan kernel 與 PF module]
+    S --> B[BusyBox 與 guest userspace]
+    K --> I[各 profile 的 initramfs]
+    B --> I
+    Q --> M1[M1：Linux 與 VFIO]
+    K --> M1
+    I --> M1
+    S --> U[EDK2 / OVMF / UEFI probe]
+    U --> M2[M2：probe 與 Linux handoff]
+    Q --> M2
+    K --> M2
+    I --> M2
+    C --> M3[M3：T01–T10 與 validators]
+    M1 --> M3
+    M2 --> M3
+```
+
+無法顯示圖時，依序讀作：套件與釘選來源 → core；QEMU、kernel/module、guest programs →
+initramfs → M1；EDK2 加上同組 Linux 產物 → M2；M0、M1、M2 和案例驗證 → M3。
+M0 檢查原生執行的 core；QEMU builder 會另外編譯並整合該份 core 的來源。
+
+| 階段 | 輸入與動作 | 本階段成立的條件 | 失敗先看哪裡 |
+|---|---|---|---|
+| 環境 | Linux filesystem、磁碟、RAM、工具檢查 | environment JSON 沒有 blockers | `artifacts/environment/wsl.json` |
+| 來源 | lock 指定的 commit、submodule、patch | checkout 與 lock 相符 | `artifacts/sources/failure.json` 與命令 log；成功後核對 lock |
+| M0 | core、fake HAL、unit/oracle/fuzz | 驗證入口與它引用的結果均 PASS | `artifacts/m0-latest.json` 指向的 run |
+| QEMU | pinned QEMU、整合 patch、`device/`、`fwcore/` | binary、toy device help、輸入與 binary hashes | `artifacts/build-qemu/` 當次 configure／compile log |
+| Kernel | pinned Linux、patch、profile config、PF driver | 最終 `.config` 通過檢查，kernel 與 module 建置完成 | `config-check.json`、`compile.log`、`pf-module.log` |
+| Initramfs | 配套 kernel/module、BusyBox、guest programs、ELF 相依檔 | 映像 stamp、manifest、loader 檢查通過 | `elf-closure.json`、`loader-check-*.log`、`file-manifest.json` |
+| M1／M2／M3 | 各層可執行產物及指定案例 | host validator 接受完整證據 | 當次 `result.json`，再依症狀找 UART／QEMU／QMP logs |
+
+**自問：QEMU 編譯成功，為何還不能說 VFIO 已正常？** 編譯只檢查 host 程式能否產生；
+group viability、IOMMU domain、DMA 權限及中斷，需要 L2 Linux 開機並實際執行 VFIO ioctl。
+
+**自問：為什麼不能把壞掉的 module 換成另一份 `.ko` 就繼續？** Initramfs 與 runner 會核對
+配套 kernel、module 和映像 hashes。替換檔案改變了驗證輸入，必須重新封裝並跑相關 gate。
 
 ## 0. 先辨認終端機在哪一層
 
@@ -61,9 +113,8 @@ wsl -d Ubuntu-26.04
 確認 Ubuntu-26.04 的 VERSION 是 2。`wsl --status` 的預設發行版不一定就是這個專案使用的發行版，
 因此明確使用 `-d Ubuntu-26.04`。缺 `.wslconfig` 表示使用 WSL 預設，不是本身就有錯。
 
-既有實測記錄位於 `artifacts/environment/windows.json`，包含 Ryzen 7 7840H、8 核心/16 threads、
-Windows 可見約 16 GB RAM，以及原本 `memory=9319743488` 的設定。
-這是當時的機器觀測，不據機型名稱猜 KVM 能力；以重新檢查結果為準。
+執行環境檢查後的本機紀錄位於 `artifacts/environment/windows.json`；
+CPU、記憶體與 WSL 設定依實際檢查結果判斷，不據機型名稱猜測 KVM 能力。
 
 16 GB 機器的操作預算是 JOBS=2、一次一項大型建置、一次一個 guest。
 一般 guest 1536 MiB，KASAN guest 2048 MiB。Swap 只能緩解壓力，不代替可用 RAM。
@@ -126,6 +177,18 @@ sudo python3 tools/install_deps.py
 它安裝系統 apt dependencies，保存 apt-cache、apt-get 和 dpkg-query log 到
 `artifacts/dependencies/`。這不是每次 build 都要做的步驟，也不使用 sudo pip。
 完成後回到一般 user 的 WSL shell 重跑 `make env-check`。
+
+程式追蹤與除錯章另外使用 ripgrep（命令為 `rg`）與 GDB；這兩項不在基本 installer 清單中。
+要完成這些練習，在 L1 安裝並確認工具可用：
+
+```sh
+sudo apt-get install --no-install-recommends ripgrep gdb
+rg --version
+gdb --version
+```
+
+`rg` 用來快速找定義與呼叫點，GDB 用來觀察已編入除錯資訊的 native 練習程式。
+一般專案建置不要求使用它們；不應因 GDB 練習成功就替 VM 案例標記 PASS。
 
 若依賴安裝因網路失敗，先看 `artifacts/dependencies/` 最新一輪的 `00.log`～`03.log` 和
 `result.json`。修正網路／套件來源後重跑同一支 bootstrap；不要把缺少套件造成的後續編譯錯誤

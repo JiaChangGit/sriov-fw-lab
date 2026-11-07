@@ -4,6 +4,27 @@
 歷史 PASS 只對應該次輸入；最新驗收以 [VALIDATION.md](VALIDATION.md) 的 checkpoint 為準。
 測試範圍為 M0–M3／T01–T10；每筆紀錄區分症狀、根因、修正和回歸證據。
 
+## 按症狀查找
+
+先以此表選擇候選紀錄，再確認觸發條件與受測版本。相同症狀不代表相同根因；
+可操作的證據收集、反證與回歸流程見 [BUG 定位、反證與修正](DEBUGGING_ZH.md)。
+
+| 觀察到的問題 | 相關紀錄 | 應先分清的條件 |
+|---|---|---|
+| cleanup 後仍 KILLED／FAILED | B001、B004 | 正常 FLR、初次 power-on、deadline 三者不同 |
+| DMA 權限與預期不同 | B002、B003 | requested flags、有效平台權限、CPU allocation、mapping 各自獨立 |
+| 完成後 payload 驗證失敗 | B018 | SQ submission cursor 與 CQ completion cursor 是否已分歧 |
+| guest 看似成功、host 卻拒絕 | B005、B008、B010、B020 | raw bytes、事件位置、觀測時點與裝置本身分開檢查 |
+| probe／capability 讀取不符 | B013、B014 | config 寫入範圍與 API index 的實際語意 |
+| 編譯／link／patch 失敗 | B007、B011、B012、B019 | 使用的 compiler、dialect、連結單元、bytes 與依賴 |
+| 增量建置或資源量變動 | B015、B016 | 生成輸入改變、一次性 cache、持續成長分開量測 |
+| 來源或舊 PASS 可信度不足 | B009、B017 | 包含指定 patch 不等於只有它；目前 binary 不等於曾受測 binary |
+| 平台介面不存在 | B006 | 缺介面不代表觀察到空結果 |
+| 產生文件後內容或連結失效 | B021、B022、B023 | 檢查產生器樣板及乾淨公開複本可取得的目標 |
+
+`artifacts/` 路徑用於辨識本機歷史紀錄，公開原始碼包不包含這些 raw logs。
+讀者可按建置與驗證入口產生自己的結果；不得將此表當成已取得歷史原始證據的替代品。
+
 ## B001：四個 owner 串行關閉造成 READY deadline 到期
 
 狀態：**修正後 100 輪 PASS，完整受影響回歸 PASS**。
@@ -13,10 +34,10 @@
 - 受影響回歸：`artifacts/m3-checkpoint/20261012T165003Z-0lbowior/`，T01 FAIL，後續案例 NOT_RUN。
 - 症狀：第 16 個 measured cycle 的 owner 都已正確 UNMAP、close、reap、release，
   但 disable 後 VF 0 的旗標是 FENCED|KILLED，測試要求的乾淨基線不成立。
-- 根因：`guest/admin/labd.c:lifecycle_case()` 的註解描述一起關閉，實作卻對每個 VF
+- 根因：[`guest/admin/labd.c:lifecycle_case()`](../guest/admin/labd.c#L574) 的註解描述一起關閉，實作卻對每個 VF
   依序執行 `owner_stop()` 並等待退出。第一個 close 觸發真實 PCI FLR，進入 RECOVERING；
   等待其餘 VF 的清理和 socket 清除期間可能超過 1000 個 virtual ticks。
-  `fwcore/context.c:fw_poll_deadlines()` 因 READY 逾時轉 FAILED，KILL 必須保留到 global recovery。
+  [`fwcore/context.c:fw_poll_deadlines()`](../fwcore/context.c#L141) 因 READY 逾時轉 FAILED，KILL 必須保留到 global recovery。
 - 修正：將 stop 拆成 begin/finish。先對每個 owner fence 並送停止通知，再確認各 owner
   的 EXIT_ACK、pidfd/waitpid 退出與 lease release。最後一個 lease 關閉後立即 disable PCI VFs，
   再清除 socket、目錄與管理 fd。
@@ -73,8 +94,8 @@
   舊 hook 一律當 FLR，替尚無 tenant 的 VF 開始 READY deadline。
 - 修正：初次 power-on 仍 fence、advance generation、clear queue，但不發 firmware FLR event。
   已 realized 的 VF reset 仍走真實 `toy_vf_flr()`。
-- Trace：`device/toy_vf.c` 的 reset hook → `device/toy_hw.c:toy_vf_flr()` →
-  `fwcore/fsm.c:fw_vf_event()`。raw log 分別使用 TOY_VF_POWER_ON／TOY_FLR。
+- Trace：`device/toy_vf.c` 的 reset hook → [`device/toy_hw.c:toy_vf_flr()`](../device/toy_hw.c#L111) →
+  [`fwcore/fsm.c:fw_vf_event()`](../fwcore/fsm.c#L96)。raw log 分別使用 TOY_VF_POWER_ON／TOY_FLR。
 - 回歸：`artifacts/m3-checkpoint/20261012T111926Z-eajy2snh/` 包含 M1、M2 與當時已實作的 M3 案例。
 
 ## B005：kernel printk 插入 JSON serial 記錄
@@ -175,7 +196,7 @@
   `drivers/firmware/efi/libstub/Makefile` → 出錯的 `include/linux/stddef.h`／`types.h`。
 - 修正後早期證據：`artifacts/build-kernel/20261008T005830Z-j07gwf5d/`；
   新版 KASAN/stress 的實際 runtime 另隨 M3 checkpoint 保存。
-- 新手判斷：不要只看最後 `make Error 2`，向前找第一個 compiler error 與那一個 compile argv。
+- 定位方式：不要只看最後 `make Error 2`，向前找第一個 compiler error 與那一個 compile argv。
 
 ## B012：NASM 3 不再接受 EDK2 舊 X64 PUSH operand 寫法
 
@@ -264,7 +285,7 @@
   原碼以 CQ head index 找 payload，可能出現 EILSEQ 或 EBADMSG。
 - 原始失敗：`artifacts/release-preparation/20261013T181909Z-69pn08bk/owner-before-fix.log`。
   該目錄以 Git HEAD 取出修正前 owner.c，編譯同一個新測試，確實取得非零退出碼；沒有改動歷史 log。
-- 修正：`guest/tenant/owner.c:owner_workload()` 以 `start + received` 的原始 SQ cursor 找 payload，CQ cursor 只定位 completion。
+- 修正：[`guest/tenant/owner.c:owner_workload()`](../guest/tenant/owner.c#L231) 以 `start + received` 的原始 SQ cursor 找 payload，CQ cursor 只定位 completion。
   仍核對 completion id、epoch、status、length、CRC 和 guards。
 - 回歸：`make verify-guest-native` 執行真實 owner_workload，涵蓋五個 ring sizes 的正常、SQ/CQ 差一、u32 wrap，共 15 組。
   首次修正後 ASan/UBSan PASS：`artifacts/guest-native/20261013T181637Z-1ub_ttyc/`。
@@ -307,8 +328,7 @@
 
 分類：本次文件修改造成的失效連結。
 
-- 重現：更名指南後執行 `make build-handbook`，連結檢查回報
-  `Missing target: INTERVIEW_ZH.md in handbook.html`；
+- 重現：更名指南後執行 `make build-handbook`，連結檢查回報手冊仍指向已刪除的舊指南檔名；
   紀錄為 `artifacts/handbook-check/20261104T164655Z-upa29jss/result.json`。
 - 原因：展示手冊的時間表仍保留舊連結。
 - 修正：將連結指向 `SYSTEM_GUIDE_ZH.md`，重新產生手冊並檢查連結。
@@ -337,3 +357,46 @@
 
 M4 hostile remove／crash／併發全矩陣和 M5 持久化已移出本版範圍，不改標 PASS。
 以上修正和有限測試不能證明零 BUG；一般排錯策略與真實重現紀錄分開閱讀。
+
+## 兩筆修正的程式推導
+
+以下從現有修正碼重建因果關係；數字案例是推導範例，不是額外的動態觀測。
+
+### B001：把等待順序寫成可檢查的契約
+
+[`lifecycle_case()`](../guest/admin/labd.c) 中兩個迴圈有不同責任：第一個發出 fenced stop，
+第二個確認退出並 release。程式保留兩階段，避免第一個 VF 先進 RECOVERING，
+卻在其他 owner 尚未開始停止時累積等待時間。
+
+```c
+if (!failed) for (unsigned vf=0;vf<4;vf++)
+    if (owner_stop_begin(&owners[vf])) { failed=1; break; }
+if (!failed) for (unsigned vf=0;vf<4;vf++)
+    if (owner_stop_finish(&owners[vf])||release_owner(&owners[vf])) { failed=1; break; }
+```
+
+驗證器檢查的是「全部 fence 事件先於第一個 reap」，而非僅要求最後都退出。
+這個相對順序可以揭露相同錯誤再次出現；單看 final fds/maps=0 無法判斷中間是否已 timeout。
+
+### B018：兩個 cursor 必須各司其職
+
+假設 N=16，正常處理 5 筆後 SQ head=5、CQ tail=5。再消費一筆 stale descriptor，
+SQ head 變 6、CQ tail 仍為 5。下一筆正常請求來自 SQ slot 6，它的 completion 會放 CQ slot 5。
+
+| 時點 | SQ head | CQ tail | 下一筆正常 payload 的定位依據 |
+|---|---|---|---|
+| 5 筆正常工作已完成 | 5 | 5 | submission cursor |
+| stale descriptor 已消費 | 6 | 5 | submission cursor 6，不能取 CQ slot 5 |
+| 下一筆正常工作已完成 | 7 | 6 | completion id 應對應那筆 submission |
+
+[`owner_workload()`](../guest/tenant/owner.c) 分開計算兩個 index：
+
+```c
+uint32_t index=lab_ring_index(o->cq_head,o->entries);
+/* index 用於 CQ entry。 */
+uint32_t payload_index=lab_ring_index(start+received,o->entries);
+/* payload_index 用於原始 submission 所屬的 payload。 */
+```
+
+回歸必須在 stale 輸入之後再做正常工作，才能確認異常處理沒有污染後續資料流。
+只驗「stale 沒有 CQ」再立即 teardown，無法覆蓋這個錯誤。

@@ -1,7 +1,7 @@
 # 專案內容與教材目標
 
 本專案用於學習與說明 Linux kernel、PCI driver、VFIO 和裝置生命週期。
-執行環境是 Lenovo R7000P 2024、16 GB RAM、WSL2 Ubuntu 26.04，功能範圍為 M0–M3／T01–T10。
+執行環境是 16 GB RAM、WSL2 Ubuntu 26.04，功能範圍為 M0–M3／T01–T10。
 完整驗收條件見 [REQUIREMENTS](REQUIREMENTS.md)。
 
 ## 實作驗收

@@ -2,6 +2,11 @@
 
 本指南整理系統設計、故障處理及其驗證界線。實際執行結果見 [VALIDATION.md](VALIDATION.md)。
 
+本章用問題檢查設計推理；完整狀態／資料流見 [系統分析](SYSTEM_ANALYSIS_ZH.md)，
+實際下命令定位問題見 [BUG 定位、反證與修正](DEBUGGING_ZH.md)。
+第一次作答時先遮住說明，寫出「管理者、guard、失敗後保留什麼、如何驗證」四項，
+再與答案比對。只記術語定義，無法判斷異常路徑是否安全。
+
 ## 系統分析：把需求轉成可檢查的條件
 
 | 需求 | 設計決定 | 故障時必須觀察什麼 |
@@ -169,4 +174,98 @@ Array index 再取 `counter & (N-1)`，phase 依 counter/N 的圈數交替。
 價值是可控制 requester、logical clock、fault checkpoint 與 retained callback，使跨層錯誤可重現。
 Linux PCI/VFIO/IRQ 路徑實際執行，能練習 driver 與協定設計。
 限制是沒有真實 PCIe 電氣／cache coherency／功耗／吞吐與板級韌體部署證據。
+
+## 情境推演：修改條件後會發生什麼
+
+### 情境一：Tenant 已寫完 queue bases，可否立即 doorbell？
+
+**先預測。** 此時 core 可能已是 ACTIVE，且 SQ／CQ 的 IOVA 都合法；還缺哪個條件？
+
+**推導。** 分次寫入只更新 staging。`config_commit()` 驗證完整設定後才複製到 live config，
+並設為 READY_PENDING。接著 owner 的 READY tuple 必須經 labd／PF 核對，
+`fw_rearm()` 再確認 epoch、ready_gen、BME、fenced、無 outstanding、未 killed 和 deadline，才由 HAL 開 gate。
+單獨寫 bases 或 CONFIG_COMMIT 都不是 DMA 授權。
+
+**讀碼位置。** [`device/toy_vf.c`](../device/toy_vf.c) 的 `config_commit()`／`write_vf()` →
+[`fwcore/admission.c`](../fwcore/admission.c) 的 `fw_rearm()` →
+[`device/fw_adapter.c`](../device/fw_adapter.c) 的 `hal_gate()`。
+
+**檢查答案。** 應同時說出「staging 與 live config 不同」和「READY_PENDING 仍 fenced」。
+若只說 queue 地址是否合法，尚未回答誰有權開 DMA。
+
+### 情境二：A 已 reset，舊 callback 延遲到新 queue RUNNING 才到達
+
+**先預測。** 新 queue 已 RUNNING，為何 gate 還能拒絕舊 callback？
+
+**推導。** 新 live tuple 的 epoch/token 已變；舊 operation 帶著當時的 tuple。
+`toy_complete()` 先比 `same_generation()`，不符便增加 STALE_CPL 並消耗該 operation。
+即使目前 queue 合法、BME 打開、core ACTIVE，這筆舊 operation 仍不屬於現在的世代。
+新 queue 可工作與舊工作可完成，是兩個不同命題。
+
+**如何反證修正不完整。** 如果僅檢查 callback 在 fenced 階段被擋，會漏掉重開 gate 後的情況。
+T08 分別在 fresh config 仍 fenced，以及 REARM 後執行真實 retired callback，檢查新舊 buffers、CQ 和 IRQ。
+應從 [`validate_recovery()`](../tools/validate_recovery.py) 找到兩次 callback 的必要條件。
+
+### 情境三：Payload 已改變，但寫 CQ phase 時 fault
+
+**先預測。** 可否直接發 IRQ，讓 tenant 知道 payload 完成了？
+
+**推導。** 不可。協定以有效 CQ entry 宣告結果；phase 尚未成功發布，就沒有可接受的 completion。
+`toy_complete()` 先寫 body，最後單獨寫 phase；任何 CQ DMA 失敗就 `toy_fail()`，
+不會經成功路徑增加 CQ tail 或發 completion IRQ。payload 的部分或全部副作用可能已存在，
+錯誤處理不能宣稱跨所有 DMA 有 transaction rollback。
+
+**檢查答案。** 應說明 owner 必須把受影響的 outstanding request 當作失敗處理並協調 reset，
+不能因 buffer 看起來像預期值就自行宣告完成。讀碼位置在
+[`toy_complete()`](../device/toy_hw.c) 的 body／phase 寫入與 `s->cq_tail++` 之間。
+
+### 情境四：VFIO UNMAP 回傳長度小於 requested，接著 close 成功
+
+**先預測。** 最後所有 fd 都關掉，是否可以把整個 cleanup 改成成功？
+
+**推導。** 不能。安全回收與測試是否成功是兩件事。程式可在 UNMAP 不完整時保留 allocation，
+先關閉 owner 的 VFIO device／group／container，讓映射生命週期收斂後才釋放 RAM；
+但應保留先前的 failure。否則就把已發生的契約違反藏在成功 teardown 裡。
+
+**讀碼位置。** [`lab_vfio_close()`](../guest/tenant/vfio.c) 的 `failed` 累積與
+[`guest/tenant/owner.c`](../guest/tenant/owner.c) 的 owner mapping cleanup。
+應辨認 baseline VFIO helper 與三種 OWNER_MAP 的實作各自保存哪些狀態，不要將兩套結構混用。
+
+### 情境五：FREE、reserve=0，但 flags 同時有 KILLED
+
+**先預測。** 是否可直接開始下一輪 PROVISION？
+
+**推導。** 不可只看 FREE。`fw_create()` 拒絕 killed hardware；FREE 是 core 資源狀態，
+KILLED 是硬體 gate 狀態。FAILED 經 DESTROY／RELEASE 可以釋放 ledger，
+但 KILL 仍保留到 global recovery。乾淨基線要檢查全部 slots 的 core、flags、config、outstanding、lease。
+
+**如何驗證。** 對照 [`fw_create()`](../fwcore/admission.c)、
+[`fw_global_recover()`](../fwcore/context.c) 及測試 validator 的 final snapshot。
+若只是將 state 或 reserve 手動歸零，沒有證明全域復原前提成立。
+
+### 情境六：本地圖文正常，推上 GitHub 後連結失效
+
+**先預測。** 問題可能不在 Markdown 語法，還缺哪項發布條件？
+
+**推導。** 本地存在的 ignored artifacts、build outputs 或 HTML viewer 不一定能在 GitHub 取得。
+公開入口應指向 tracked Markdown、SVG 與 source；離線 HTML 供下載後開啟。
+本地連結檢查還需採公開檔案集合，不能因開發目錄剛好存在 raw log 就建立可點擊連結。
+B023 是這種差異的實際案例。
+
+**檢查答案。** 應分開驗證相對路徑／anchor 正確，以及 target 真的會隨 repository 發布。
+教材生成成功只表示文件檢查通過，不能替代裝置／driver 的 M0–M3 驗收。
+
+## 不看程式先回答，再用原始碼修正答案
+
+| 問題 | 答案至少應包含 | 用哪裡確認 |
+|---|---|---|
+| 一個 VF 有幾筆 delayed operation？ | 每 VF `pending` 最多一筆；CQ capacity 仍須足夠 | `service_one()`、`ToySlot` |
+| 舊 descriptor 為何與舊 callback 分開計數？ | 前者在 fetch 後判斷 descriptor epoch；後者帶已保存 tuple，在完成入口被拒 | `service_one()`、`toy_complete()` |
+| 哪裡提交 ledger 釋放？ | owners_closed、無 PCI/config/outstanding 且 guard 成立後，由 core 釋放 | `fw_transition()` 的 RELEASE_OK／ABORT_OK |
+| Deadline 到了是否一律同一事件？ | QUIESCING／RESETTING 用 EV_TIMEOUT；RECOVERING 用 VERIFY_FAIL，且無 PCI 時等待 DESTROY | `fw_poll_deadlines()` |
+| 觀測欄位讀取時點為何重要？ | 同一欄位可在呼叫中被消耗或改寫，必須定義 before／after | B010、`toy_complete()` |
+| 哪個測試能證明實體吞吐？ | 本版沒有該證據；TCG 只支持受測模型與功能結論 | VALIDATION 與本版範圍 |
+
+作答不完整時回到對應函式，補上輸入、guard、狀態變化與一個失敗分支。
+能說出名稱之後，下一步是指出哪一行阻止反例，以及哪一個測試會在那行被移除後失敗。
 

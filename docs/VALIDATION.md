@@ -39,7 +39,7 @@ T05 的 WRITE-only 情境使用 toy-only kernel patch。
 
 ## 2026-10-18 歷史驗收：PASS
 
-2026-10-18（臺灣時間），在 Lenovo R7000P 2024、16 GB RAM、WSL2 Ubuntu 26.04 上執行
+2026-10-18（臺灣時間），在 16 GB RAM、WSL2 Ubuntu 26.04 的環境上執行
 `make verify-project JOBS=2`，以 QEMU TCG 完成 **M0–M3／T01–T10**。
 十個頂層步驟全部通過，總耗時約 35 分 28 秒。這是本機當次測量，不是首次建置的時間預估。
 

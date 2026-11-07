@@ -1,6 +1,6 @@
 # 專案範圍與驗收要求
 
-目標環境為 Lenovo R7000P 2024、16 GB RAM、WSL2 Ubuntu 26.04，主題是 Linux kernel、
+目標環境為 16 GB RAM、WSL2 Ubuntu 26.04，主題是 Linux kernel、
 PCI driver 與 VFIO。功能範圍以能在這套環境重建、執行及核對結果為原則。
 本文件定義 M0–M3／T01–T10 的驗收要求；實測結果見 [VALIDATION](VALIDATION.md)。
 

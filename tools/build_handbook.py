@@ -8,10 +8,13 @@ import re
 from urllib.parse import quote
 
 from lab_common import ROOT, artifact_dir, provenance, sha256, write_json
+from render_doc_diagrams import diagram_key
 
 DOCS = ROOT / "docs"
-CHAPTERS = ["BUILD_TUTORIAL_ZH.md", "SYSTEM_ANALYSIS_ZH.md", "KERNEL_WALKTHROUGH_ZH.md",
-            "TRACE_CODE_ZH.md", "TRACE_PRACTICE_ZH.md", "DEMO_ZH.md", "SYSTEM_GUIDE_ZH.md", "BUG_LOG.md", "VALIDATION.md"]
+CHAPTERS = ["LEARNING_PATH_ZH.md", "BUILD_TUTORIAL_ZH.md", "TOOLS_DEEP_DIVE_ZH.md",
+            "SYSTEM_ANALYSIS_ZH.md", "KERNEL_WALKTHROUGH_ZH.md", "TRACE_CODE_ZH.md",
+            "TRACE_PRACTICE_ZH.md", "DEBUGGING_ZH.md", "DEMO_ZH.md",
+            "SYSTEM_GUIDE_ZH.md", "BUG_LOG.md", "VALIDATION.md"]
 CODE = ["fwcore/fsm.c", "fwcore/context.c", "fwcore/admission.c", "fwcore/mailbox.c", "fwcore/codec.c", "fwcore/scheduler.c", "device/toy_pf.c",
         "device/toy_vf.c", "device/toy_hw.c", "guest/pf/toy_pf.c", "guest/pf/toy_control.inc", "guest/admin/labd.c",
         "guest/admin/t06.inc", "guest/admin/recovery.inc", "guest/tenant/vfio.c", "guest/tenant/owner.c",
@@ -22,7 +25,7 @@ CSS = """
 :root{color-scheme:light;--ink:#18293c;--blue:#184d83;--line:#ced9e4;--muted:#526477}
 *{box-sizing:border-box}body{margin:0;background:#f2f5f8;color:var(--ink);font:17px/1.8 system-ui,'Microsoft JhengHei',sans-serif}
 a{color:var(--blue);overflow-wrap:anywhere}header{background:#102e4d;color:#fff;padding:48px max(24px,calc((100vw - 1100px)/2))}
-header p{max-width:850px}header a{color:#b8dcff}.label{letter-spacing:.15em;font-size:13px;color:#b8dcff}
+header p{max-width:850px}header a{color:#b8dcff}header .label{letter-spacing:.15em;font-size:13px;color:#b8dcff}
 .layout{max-width:1420px;margin:auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:32px;padding:30px}
 nav{position:sticky;top:20px;align-self:start;max-height:95vh;overflow:auto;font-size:14px}nav a{display:block;margin:12px 0}
 main{min-width:0;background:white;padding:36px 44px;border:1px solid var(--line);border-radius:12px}
@@ -31,7 +34,7 @@ p{max-width:95ch}section+section{margin-top:80px;border-top:4px solid var(--blue
 pre{overflow:auto;background:#112c45;color:#eaf3fa;padding:20px;border-radius:8px;font-size:14px;line-height:1.6}
 code{font-family:Consolas,monospace;font-size:.88em}p code,li code,td code{background:#edf3f8;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}
 .table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;margin:20px 0;font-size:15px}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf1f8}
-img,svg{max-width:100%;height:auto}.diagram{overflow:auto;margin:20px 0}.diagram svg{min-width:900px;width:100%;display:block}blockquote,.notice{border-left:5px solid #c4841b;background:#fff5df;padding:16px 20px;margin:24px 0}.muted{color:var(--muted)}
+img,svg{max-width:100%;height:auto}.diagram{overflow:auto;margin:20px 0}.diagram svg{max-width:none;display:block}blockquote,.notice{border-left:5px solid #c4841b;background:#fff5df;padding:16px 20px;margin:24px 0}.muted{color:var(--muted)}
 .source-line{display:block;white-space:pre}.source-line:target{background:#355b79}.line-no{display:inline-block;width:5em;color:#9db8ce;text-decoration:none;user-select:none}
 @media(max-width:850px){.layout{display:block;padding:14px}nav{position:static;max-height:none}main{padding:24px 18px}header{padding:30px 20px}h1{font-size:1.65rem}}
 @media print{body{background:white;font-size:11pt}header{color:#18293c;background:white;padding:0}nav{display:none}.layout{display:block;padding:0}main{border:0;padding:0}section{break-before:page}pre{white-space:pre-wrap}a{color:inherit}}
@@ -61,7 +64,7 @@ def arrow(x1,y1,x2,y2,label="",label_x=None,label_y=None):
 def svg(name,w,h,title,content):
     out=DOCS/"diagrams"/(name+".svg")
     out.parent.mkdir(parents=True,exist_ok=True)
-    data='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %s %s" role="img" aria-labelledby="title">' % (w,h)+\
+    data='<svg xmlns="http://www.w3.org/2000/svg" width="%s" viewBox="0 0 %s %s" role="img" aria-labelledby="title">' % (w,w,h)+\
          '<title id="title">'+esc(title)+'</title><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="#2b628f"/></marker></defs>'+\
          '<rect width="100%" height="100%" fill="#fafcfe"/><g font-family="system-ui,Microsoft JhengHei,sans-serif">'+content+'</g></svg>\n'
     data=data.replace('id="title"','id="'+name+'-title"').replace('aria-labelledby="title"','aria-labelledby="'+name+'-title"')
@@ -71,7 +74,7 @@ def svg(name,w,h,title,content):
 
 def diagrams():
     c=text(25,34,["執行位置與責任：Windows → WSL / QEMU → guest Linux"],23)
-    c+=box(25,65,1030,75,"L0 · Windows 11 / Lenovo / 16 GB",["WSL 管理與實體 RAM / SSD；不載入 toy PF driver"])
+    c+=box(25,65,1030,75,"L0 · Windows 11 / 16 GB",["WSL 管理與實體 RAM / SSD；不載入 toy PF driver"])
     c+=box(25,165,1030,470,"L1 · WSL2 Ubuntu 26.04",["建置工具、Python controller、artifacts；一次一個 QEMU guest"])
     c+=box(55,255,360,140,"QEMU process / toy PCIe device",["PF + 最多 8 VF / vIOMMU","VF requester DMA / fence / MSI-X","fwcore：VF 狀態機與 ledger"])
     c+=box(490,255,530,340,"L2 · 自建 Linux guest",["guest kernel / Intel vIOMMU / VFIO"])
@@ -173,10 +176,50 @@ def page(title,body):
 def code_name(name): return name.replace("/","__")+".html"
 
 
+def source_line(filename, symbol):
+    lines = (ROOT / filename).read_text(encoding="utf-8").splitlines()
+    found = [i for i, line in enumerate(lines, 1)
+             if re.search(r'^\s*(?:[A-Za-z_]\w*\s+\**)+\b' + re.escape(symbol) + r'\s*\(', line)
+             and not re.match(r'^\s*(return|if|else|while)\b', line)]
+    if not found:
+        found = [i for i, line in enumerate(lines, 1)
+                 if re.search(r'\b' + re.escape(symbol) + r'\s*\[.*\]\s*=', line)]
+    if not found:
+        raise RuntimeError("Unknown trace symbol: " + filename + ":" + symbol)
+    return found[0]
+
+
+def inline_svg(path, prefix):
+    data = path.read_text(encoding="utf-8")
+    # 同一圖可能在多章出現；所有 ID（包括 marker、clipPath、ARIA）按出現位置命名。
+    ids = re.findall(r'\sid="([^"]+)"', data)
+    for identifier in sorted(set(ids), key=len, reverse=True):
+        new = prefix + identifier
+        data = data.replace('id="' + identifier + '"', 'id="' + new + '"')
+        data = data.replace('url(#' + identifier + ')', 'url(#' + new + ')')
+        data = data.replace('href="#' + identifier + '"', 'href="#' + new + '"')
+        data = re.sub(r'(aria-(?:labelledby|describedby)=")([^"]+)(")',
+                      lambda m: m[1] + ' '.join(new if value == identifier else value
+                                for value in m[2].split()) + m[3], data)
+    # Mermaid scopes CSS with the root ID; replace selectors after attribute IDs.
+    for identifier in sorted(set(ids), key=len, reverse=True):
+        data = re.sub(r'#' + re.escape(identifier) + r'(?![\w-])',
+                      lambda _: '#' + prefix + identifier, data)
+    return '<div class="diagram">' + data + '</div>\n'
+
+
 def render_markdown(md,source,prefix):
     tokens=md.parse(source)
     counts={}
     for i,t in enumerate(tokens):
+        if t.type == "fence" and t.info.strip() == "mermaid":
+            key = diagram_key(t.content)
+            image = DOCS / "diagrams" / ("mermaid-" + key[:16] + ".svg")
+            if not image.is_file() or 'data-source-sha256="' + key + '"' not in image.read_text():
+                raise RuntimeError("Missing or stale Mermaid SVG; run tools/render_doc_diagrams.py: " + key)
+            t.type = "html_block"
+            t.content = inline_svg(image, prefix + "diagram-" + str(i) + "-")
+            continue
         if t.type!="heading_open": continue
         slug=re.sub(r"[^\w\- ]","",tokens[i+1].content.lower()).replace(" ","-")
         count=counts.get(slug,0);counts[slug]=count+1
@@ -206,19 +249,17 @@ def main():
         body=render_markdown(md,src.read_text(),"chapter-%d-"%index)
         body=body.replace('<table>','<div class="table-wrap"><table>').replace('</table>','</table></div>')
         # 依原始碼位置建立可以離線點擊的 trace anchor，函式不存在就拒絕猜行號。
-        pattern=r'<code>((?:fwcore|device|guest)/[A-Za-z0-9_./]+):([A-Za-z0-9_]+)(?:\(\))?</code>'
+        pattern=r'(<a\b[^>]*>.*?</a>)|<code>((?:fwcore|device|guest)/[A-Za-z0-9_./]+):([A-Za-z0-9_]+)(?:\(\))?</code>'
         def link(match):
-            filename,symbol=match.group(1),match.group(2)
+            if match.group(1): return match.group(0)
+            filename,symbol=match.group(2),match.group(3)
             if filename not in inputs: return match.group(0)
-            found=[i for i,line in enumerate((ROOT/filename).read_text().splitlines(),1)
-                   if re.search(r'^\s*(?:[A-Za-z_]\w*\s+\**)+\b'+re.escape(symbol)+r'\s*\(',line)
-                   and not re.match(r'^\s*(return|if|else|while)\b',line)]
-            if not found:
-                found=[i for i,line in enumerate((ROOT/filename).read_text().splitlines(),1)
-                       if re.search(r'\b'+re.escape(symbol)+r'\s*\[.*\]\s*=',line)]
-            if not found: raise RuntimeError("Unknown trace symbol: "+match.group(0))
-            return '<a href="code/'+quote(code_name(filename))+'#L'+str(found[0])+'">'+match.group(0)+'</a>'
+            return '<a href="code/'+quote(code_name(filename))+'#L'+str(source_line(filename,symbol))+'">'+match.group(0)+'</a>'
         body=re.sub(pattern,link,body)
+        def source_link(match):
+            filename,fragment=match.group(1),match.group(2) or ""
+            return 'href="code/'+quote(code_name(filename))+fragment+'"' if filename in CODE else match.group(0)
+        body=re.sub(r'href="\.\./((?:fwcore|device|guest)/[A-Za-z0-9_./]+)(#[^"]+)?"',source_link,body)
         # artifacts 不隨版本庫發布；保留文字路徑，避免乾淨 checkout 出現失效連結。
         # 本地 SVG 直接嵌入；斷網及僅複製 HTML 時圖仍可見。
         for image in (DOCS/"diagrams").glob("*.svg"):
@@ -233,11 +274,13 @@ def main():
     edges=re.findall(r'\{FW_(\w+),FW_(\w+),FW_(\w+)\}',fsm)
     table='<h2>來源中的完整 FSM 轉移表</h2><p>由當前 fwcore/fsm.c 抽取；前置條件仍須閱讀函式內的 guard。</p><table><thead><tr><th>From</th><th>Event</th><th>To</th></tr></thead><tbody>'
     table+=''.join('<tr>'+''.join('<td><code>'+esc(c)+'</code></td>' for c in row)+'</tr>' for row in edges)+'</tbody></table>'
-    chapters[0]=chapters[0].replace('</section>',table+'</section>')
-    header='<header><div class="label">SR-IOV FIRMWARE & PLATFORM LAB</div><h1>從一筆 DMA，看懂隔離與生命週期</h1><p>Linux driver／虛擬化實作教材 · 繁體中文 · 六張離線圖表</p><p>16 GB 筆電 · WSL2 · QEMU TCG · 交付範圍 M0–M3／T01–T10。實測結果與限制請見驗證紀錄。</p></header>'
+    fsm_chapter=CHAPTERS.index("SYSTEM_ANALYSIS_ZH.md")
+    chapters[fsm_chapter]=chapters[fsm_chapter].replace('</section>',table+'</section>')
+    header='<header><div class="label">SR-IOV FIRMWARE & PLATFORM LAB</div><h1>從一筆 DMA，看懂隔離與生命週期</h1><p>Linux driver／虛擬化實作教材 · 繁體中文 · 流程、資料流與狀態圖</p><p>16 GB 筆電 · WSL2 · QEMU TCG · 交付範圍 M0–M3／T01–T10。實測結果與限制請見驗證紀錄。</p></header>'
     (DOCS/"handbook.html").write_text(page("SR-IOV 系統分析與建置教材",header+'<div class="layout"><nav>'+''.join(toc)+
         '<a href="handbook-manifest.json">版本與檔案雜湊</a></nav><main>'+''.join(chapters)+'</main></div>'),encoding="utf-8")
     inputs["tools/build_handbook.py"]=sha256(Path(__file__))
+    inputs["tools/render_doc_diagrams.py"]=sha256(ROOT/"tools/render_doc_diagrams.py")
     outputs=[DOCS/"handbook.html",*(DOCS/"diagrams").glob("*.svg"),*(DOCS/"code").glob("*.html")]
     manifest={**provenance(),"status":"PASS","scope":"document_generation_only","project_scope":"M0-M3 / T01-T10",
               "visual_review":"NOT_RUN","renderer":{"markdown-it-py":importlib.metadata.version("markdown-it-py")},

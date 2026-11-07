@@ -27,7 +27,7 @@ PF driver 透過 MMIO/mailbox 操作裝置，不會直接呼叫 QEMU process 裡
 2. Guest Linux 啟動後執行 initramfs 的 `/init`，也就是 repository 裡的 `guest/init`。
 3. init 掛載 proc/sys/devtmpfs，確認 PF 存在，再載入 `/lib/modules/toy_pf.ko`。
 4. `module_pci_driver(toy_driver)` 註冊 PCI driver。`toy_ids` 指定 vendor/device，PCI core 將符合且未被占用的裝置交給 probe。
-5. `guest/pf/toy_pf.c:toy_probe()` 建立管理資源；成功後註冊 misc device。
+5. [`guest/pf/toy_pf.c:toy_probe()`](../guest/pf/toy_pf.c#L622) 建立管理資源；成功後註冊 misc device。
 6. init 由 `/sys/class/misc/toy_pf0/dev` 建立 `/dev/toy_pf0`，管理程式才有可開啟的入口。
 
 Driver 註冊和個別裝置 probe 是不同事件。模組載入成功，不代表指定裝置一定綁定成功；
@@ -81,7 +81,7 @@ DMA fence 與 worker 同步；記憶體自動釋放不會替代這些協定。
 一次 `open` 建立一個 open file description。`dup` 後的兩個 fd 指向同一個 `struct file`，
 不能把它們當成兩個互不相關的 owner。專案用 per-open context 綁 lease，也用它保存回覆 cache 和事件佇列。
 
-閱讀 `guest/pf/toy_control.inc:toy_ioctl()` 時，注意四個防線：
+閱讀 [`guest/pf/toy_control.inc:toy_ioctl()`](../guest/pf/toy_control.inc#L390) 時，注意四個防線：
 
 1. `dying` 表示已不能再操作 BAR，回 ENODEV。
 2. `copy_from_user` 先複製到 kernel local struct，再驗 size、ABI、reserved 和 VF 範圍。
@@ -99,7 +99,7 @@ DMA fence 與 worker 同步；記憶體自動釋放不會替代這些協定。
 | `toy_irq` | IRQ handler | 讀 cause、ACK、complete、排 work；不取得管理 mutex |
 | `toy_notify_work` | Workqueue | 可以睡眠；取得管理鎖後讀取一致快照，向各 open context 發布事件 |
 
-沿 `guest/pf/toy_pf.c:toy_irq()` 看 mailbox completion：
+沿 [`guest/pf/toy_pf.c:toy_irq()`](../guest/pf/toy_pf.c#L296) 看 mailbox completion：
 handler 呼叫 `complete(&pf->mbx_done)` 喚醒等待者；等待者仍需核對 DONE 和 ACK_SEQ。
 另一個 IRQ 先到、IRQ 被合併或回覆已過期，都不能靠「被喚醒」三個字判定交易成功。
 

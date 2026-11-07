@@ -3,11 +3,24 @@
 **16 GB RAM 筆電／WSL2 Ubuntu 26.04／QEMU TCG** 上可重現的 Linux driver、VFIO 與韌體教學專案。
 用 FILL／CRC32 加速器實作模擬 PCIe SR-IOV、DMA 隔離、佇列、reset 與錯誤恢復。
 
-**[離線完整教材](docs/handbook.html)** · [從零建置](docs/BUILD_TUTORIAL_ZH.md) ·
-[系統指南](docs/SYSTEM_GUIDE_ZH.md) · [系統分析](docs/SYSTEM_ANALYSIS_ZH.md) ·
-[Kernel 導讀](docs/KERNEL_WALKTHROUGH_ZH.md) · [程式追蹤](docs/TRACE_CODE_ZH.md) ·
-[追蹤練習與圖解](docs/TRACE_PRACTICE_ZH.md) ·
-[DEMO 步驟](docs/DEMO_ZH.md) · [BUG 紀錄](docs/BUG_LOG.md)
+**[從這裡開始：閱讀路線與實作練習](docs/LEARNING_PATH_ZH.md)**
+
+教材可直接在 GitHub 閱讀；各章提供操作步驟、技術原理、關鍵程式碼、流程與時序圖，
+並以預測、追蹤和自問自答核對理解。建置與歷史驗證紀錄分別標明適用環境及證據範圍。
+
+| 閱讀目的 | 章節 |
+|---|---|
+| 取得來源、安裝套件、逐階段建置與判斷結果 | [從零建置](docs/BUILD_TUTORIAL_ZH.md) |
+| 理解 compiler/linker、Kbuild、initramfs、TCG 與 VFIO | [工具與技術深入](docs/TOOLS_DEEP_DIVE_ZH.md) |
+| 分析所有權、資料流、控制流與狀態轉移 | [系統分析](docs/SYSTEM_ANALYSIS_ZH.md) · [系統指南](docs/SYSTEM_GUIDE_ZH.md) |
+| 閱讀 probe、UAPI、IRQ、鎖及資源回收 | [Kernel 導讀](docs/KERNEL_WALKTHROUGH_ZH.md) |
+| 沿一筆請求逐函式追蹤、檢查錯誤分支與 reset | [程式追蹤](docs/TRACE_CODE_ZH.md) |
+| 手算 ring、執行 GDB 練習並核對狀態 | [追蹤練習與圖解](docs/TRACE_PRACTICE_ZH.md) |
+| 依症狀定位、建立可反證假說、修正與回歸 | [除錯方法](docs/DEBUGGING_ZH.md) · [真實 BUG 紀錄](docs/BUG_LOG.md) |
+| 執行展示、查驗要求與實測限制 | [DEMO](docs/DEMO_ZH.md) · [驗證紀錄](docs/VALIDATION.md) |
+
+[離線完整教材](docs/handbook.html)請下載後用瀏覽器開啟；GitHub 檔案頁面會顯示 HTML 原始碼。
+離線版本包含預先產生的 SVG，不需連線載入圖表套件。圖表維護見 [DIAGRAMS](docs/DIAGRAMS.md)。
 
 專案範圍是 **M0–M3／T01–T10**：portable C core、QEMU 裝置、Linux PF driver、VFIO tenant、
 UEFI handoff，以及隔離與 reset 測試。使用 TCG，不需要實體 SR-IOV 卡。
