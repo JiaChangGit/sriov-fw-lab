@@ -2,6 +2,7 @@
 
 本章從 Linux driver 的角度閱讀專案。先掌握裝置怎麼綁定、誰持有資源、在哪種 context 執行，
 再進入 DMA 與 reset。搭配 [系統圖](SYSTEM_ANALYSIS_ZH.md) 和 [逐函式追蹤](TRACE_CODE_ZH.md) 閱讀。
+PF、VF、DMA、MMIO 等名詞可先查[閱讀路線的速查表](LEARNING_PATH_ZH.md#1-前置知識與補讀位置)。
 
 ## 1. 先把三個執行環境分清楚
 

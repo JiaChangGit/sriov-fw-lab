@@ -1,20 +1,20 @@
 {
-  "collected_at": "2026-11-07T02:11:07.070353+00:00",
+  "collected_at": "2026-11-08T07:32:47.166935+00:00",
   "fsm_edges": 20,
   "inputs": {
     "device/toy_hw.c": "7d970106f4a1e900181551d62aea60674c21b3ee23632ab3639200ac416263f2",
     "device/toy_pf.c": "f268bc8bc739400f651b29a8dd7cbd94280874ec3b16f37eedd391dac3c6cc9c",
     "device/toy_vf.c": "b5434eeae2e389aba07c4912c3f3b246a1c26af8a5fa9aace5a9cbf5ccf769ff",
     "docs/BUG_LOG.md": "9dafabfe256c8c89fc3580e96bb74dbf9040b7d8c26499dc466bafc9a0b44329",
-    "docs/BUILD_TUTORIAL_ZH.md": "ba3e4fe521500d281bedb82bacdfc0a6d3b6a6ba42b43c6c0a840b1d4015b335",
+    "docs/BUILD_TUTORIAL_ZH.md": "5cb98346b347aab442046dc90866d6a6f803d8c642f80be56e0b4830aef067b9",
     "docs/DEBUGGING_ZH.md": "ca6cd206658513bd9cab3fa93cdab7af2e5d2fb38c9e559e5c2aff9a80f87af7",
     "docs/DEMO_ZH.md": "a6fc763f4941d22601b284dcc26cade63f62d86dc311091bcc5187a976b54fd2",
-    "docs/KERNEL_WALKTHROUGH_ZH.md": "80815d6f1678d16d150054aa854fd5f989922a26bd06708d4d61ec786939aa8f",
-    "docs/LEARNING_PATH_ZH.md": "601844c319d551be41d39eabdf33e7a5e1e6ed2b60bd2449306e66a0c18b4b35",
+    "docs/KERNEL_WALKTHROUGH_ZH.md": "5bc847eba3642a7d9f31fac1f6c15ce9bab594284c746920679203f2ff3afa20",
+    "docs/LEARNING_PATH_ZH.md": "934e8fa2d4dca8aea1c81ffa5233a2cabaabf22c5bd1e232f07a488cc90deba2",
     "docs/SYSTEM_ANALYSIS_ZH.md": "18d7a812259801fff49195cf3c64c4ac92016c33346573b0faee656df40c6b33",
     "docs/SYSTEM_GUIDE_ZH.md": "1d690e8671b610a340d0fefec3f7e14eb60727e987cf8e505805114392248d5c",
     "docs/TOOLS_DEEP_DIVE_ZH.md": "5c712390ca99586d137c1fb3d6b01b53fb1599c799cfc894e17d094da8fad671",
-    "docs/TRACE_CODE_ZH.md": "8df3d84ea7a69d860411aceb165287475ef851e80a0899e012248f407ec7f910",
+    "docs/TRACE_CODE_ZH.md": "da0bc59b7c2cfbfe1c60bbf7d74ed496ed02f0a963e15aa3011374ec4e6a7a15",
     "docs/TRACE_PRACTICE_ZH.md": "7b3bbab939040a3d82e3356f8b222f0ec74bd0cf57e4a613a6e0668cd081c3ed",
     "docs/VALIDATION.md": "080d7e196004a629ad3882b06b50c4ad9b5220f4115e45a8f6f005715b70803b",
     "fwcore/admission.c": "abb185ae2c50dfb60d87f9c077083538457af9bc254b62be28e45cc647d1779b",
@@ -82,13 +82,13 @@
     "docs/diagrams/mermaid-b7dd794b4a6b25f1.svg": "bbd3ad34ef32bc89dbc5c977f295820c6f497fd937a9dfeb86a4f5ff4a4f8dee",
     "docs/diagrams/mermaid-f1688d92c09a92fa.svg": "eac5a2b354c40dfb10dadf20b655fd1eb6246fcea2e863f2cbaa50baf06ea064",
     "docs/diagrams/reset-sequence.svg": "248b06cb7c6fc7bf8a97f76fb2e3bb67c957b44087590d7dd8ae4d9f59d456b8",
-    "docs/handbook.html": "0b3804f8aae324e17fd6d683c6d5025844e247323c0421cdf78828f113bba123"
+    "docs/handbook.html": "352b35636ebfb17a7e956326b4859580690d42b8fa28158a0262cb37d241239e"
   },
   "project_scope": "M0-M3 / T01-T10",
   "renderer": {
     "markdown-it-py": "3.0.0"
   },
-  "repo_commit": "327dc57ea144fa7d2e88bcd09434f00b6666d9c3",
+  "repo_commit": "d4d99a4aeb3fcaf9dd9087c06e423db7547770c8",
   "repo_dirty": true,
   "scope": "document_generation_only",
   "sources_lock_sha256": "c904209a779459f307218441fe212df9cf7ae19c2ae0fbbe2b521664650c8c96",

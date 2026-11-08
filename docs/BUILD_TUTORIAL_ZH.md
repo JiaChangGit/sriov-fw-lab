@@ -9,6 +9,7 @@ UEFI handoff 與 T01–T10 隔離／生命週期驗證**。以下從相依套件
 [Kernel 導讀](KERNEL_WALKTHROUGH_ZH.md) 認識 driver → [逐函式追蹤](TRACE_CODE_ZH.md) 跑過一筆請求 →
 [DEMO 手冊](DEMO_ZH.md) 實際操作 → [系統指南](SYSTEM_GUIDE_ZH.md) 查閱設計與限制。
 遇到問題，先找本章最後的症狀表，再看 [真實 BUG 紀錄](BUG_LOG.md)。
+需要回查縮寫時，參考[閱讀路線的名詞速查表](LEARNING_PATH_ZH.md#1-前置知識與補讀位置)。
 
 本章假設讀者能在終端機切換目錄、讀取檔案，並能辨認 C 的函式與結構；不預設已使用過
 Kbuild、QEMU、VFIO 或 EDK2。工具的參數、產物與執行模型另見

@@ -11,19 +11,32 @@
 
 閱讀程式前，至少應能解釋 C 的指標、陣列、struct、bit mask、函式指標、回傳碼與資源生命週期。
 操作環境需要基本 shell 命令、工作目錄、程序、檔案描述符，以及 Make target 的概念。
-還不熟悉 PCI、VFIO、IOMMU 時，可先從下表建立最小概念，再進入實作。
+還不熟悉本專案用語時，可先查下表；解釋以閱讀本教材所需的範圍為限。
+遇到縮寫先掌握它在資料流中的角色，再依右欄連到完整實作。
 
-| 概念 | 在此專案的精確意思 | 對應閱讀 |
+| 名稱／縮寫 | 展開名稱與本專案中的用途 | 對應閱讀 |
 |---|---|---|
-| PF / VF | PCIe function；PF 提供管理入口，VF 提供可分配的資料入口。分出 VF 不等於已建立 DMA 隔離 | [系統分析](SYSTEM_ANALYSIS_ZH.md) |
-| Driver | guest Linux 內的核心模組 `toy_pf.ko`；管理 PF、協調交易與 lease | [Kernel 導讀](KERNEL_WALKTHROUGH_ZH.md) |
-| `fwcore` | portable C 裝置控制邏輯，管理 VF FSM、ledger 和 mailbox；QEMU 以 adapter 呼叫它 | [原始碼導讀](TRACE_CODE_ZH.md) |
-| VFIO | guest 核心提供的裝置存取介面；tenant 以 fd、ioctl 管理 VF、DMA mapping 與 IRQ | [工具與技術](TOOLS_DEEP_DIVE_ZH.md) |
-| IOVA | 裝置發出 DMA 時使用的位址；由 requester 對應的 IOMMU domain 轉譯，不能當成 CPU pointer | [位址與權限](TRACE_CODE_ZH.md) |
-| SQ / CQ | SQ 存提交描述元，CQ 存完成紀錄；兩者有各自的 producer / consumer 進度 | [追蹤練習](TRACE_PRACTICE_ZH.md) |
-| Fence | 阻止特定 VF 繼續 DMA 的裝置條件；須與 cancel、generation 和 readback 一起分析 | [系統指南](SYSTEM_GUIDE_ZH.md) |
-| Epoch / session / token | 識別不同生命週期的工作；用途和更新時機不同，不能合併成一個模糊的「版本號」 | [重置追蹤](TRACE_CODE_ZH.md) |
-| Artifact | 一次執行留下的命令、輸出與結果。公開包不附本機 raw logs，重跑後才會產生相應路徑 | [驗證紀錄](VALIDATION.md) |
+| PCIe／SR-IOV | PCI Express 是裝置連線介面；Single Root I/O Virtualization（單根輸入／輸出虛擬化）讓裝置提供多個可分配的 function | [系統分析](SYSTEM_ANALYSIS_ZH.md) |
+| PF／VF | Physical Function／Virtual Function：此模型的 PF 提供管理入口，VF 提供可分配的資料入口；分出 VF 不等於已建立 DMA 隔離 | [系統分析](SYSTEM_ANALYSIS_ZH.md) |
+| QEMU／TCG | QEMU 是本專案使用的系統模擬器；Tiny Code Generator 將 guest 指令動態轉譯，讓模擬 CPU 執行 | [工具與技術](TOOLS_DEEP_DIVE_ZH.md) |
+| Guest／host | guest 是 QEMU 內執行的系統；host 是執行該 QEMU 程序的環境。此處分別是 L2 Linux 與 L1 WSL | [執行位置](TRACE_PRACTICE_ZH.md) |
+| VFIO | Virtual Function I/O：Linux 提供給 userspace 存取裝置的框架。本專案用它取得 VF、設定 DMA mapping 與中斷 | [VFIO 分工](TOOLS_DEEP_DIVE_ZH.md#7-vfiofddma-mapping-與中斷的分工) |
+| DMA | Direct Memory Access（直接記憶體存取）：裝置向記憶體讀寫資料；本專案以 VF 的身分存取 SQ、payload 與 CQ | [資料流](SYSTEM_ANALYSIS_ZH.md) |
+| IOMMU／IOVA | I/O Memory Management Unit／I/O Virtual Address：IOMMU 依裝置身分轉譯並檢查 DMA 位址；IOVA 不是 CPU 指標 | [位址與權限](TRACE_CODE_ZH.md) |
+| MMIO／BAR | Memory-Mapped I/O／Base Address Register：BAR 描述裝置的位址資源，CPU 透過映射的位址存取裝置暫存器 | [Kernel 導讀](KERNEL_WALKTHROUGH_ZH.md) |
+| SQ／CQ | Submission Queue／Completion Queue：前者放提交描述元，後者放完成紀錄；兩者各有獨立游標 | [追蹤練習](TRACE_PRACTICE_ZH.md) |
+| Descriptor／payload | descriptor（描述元）記錄操作、位址與長度等資訊；payload 是操作實際讀寫的資料 | [一筆 FILL](TRACE_PRACTICE_ZH.md) |
+| IRQ／MSI-X／eventfd | Interrupt Request／Message Signaled Interrupts Extended；裝置以 MSI-X 發出中斷，guest 可用 eventfd 通知 userspace。通知仍須搭配 CQ 核對結果 | [完成紀錄](TRACE_CODE_ZH.md#completion-的發布順序與-eventfd) |
+| FSM／HAL | Finite State Machine／Hardware Abstraction Layer：FSM 描述狀態轉移；HAL 用介面隔開 core 與平台提供的操作 | [狀態分析](SYSTEM_ANALYSIS_ZH.md) |
+| Fence／gate | fence 是本模型用來阻止 VF 繼續存取的控制；gate 是每次操作前檢查存取資格的條件 | [系統指南](SYSTEM_GUIDE_ZH.md) |
+| Epoch／session／token | 協定用來辨識生命週期或工作的欄位；用途與更新時機不同，舊工作的識別值可能因此不再有效 | [重置追蹤](TRACE_CODE_ZH.md) |
+| Reset／FLR | reset 是重設動作；Function Level Reset 是針對單一 PCIe function 的重設機制 | [重置追蹤](TRACE_CODE_ZH.md) |
+| UEFI／initramfs | Unified Extensible Firmware Interface 是開機韌體介面；initramfs 是 Linux 開機初期解開的檔案系統映像 | [開機工具](TOOLS_DEEP_DIVE_ZH.md) |
+| Driver／`fwcore` | driver 是 guest Linux 的裝置驅動；`fwcore` 是裝置控制邏輯，包含狀態與資源管理，在本專案中由 QEMU adapter 呼叫 | [Kernel 導讀](KERNEL_WALKTHROUGH_ZH.md) |
+| Artifact | 一次建置或測試留下的命令、輸出與結果；公開包不附本機原始 logs，重跑後才會產生相應路徑 | [驗證紀錄](VALIDATION.md) |
+
+VFIO 的介面與適用範圍可參考 [Linux 6.12 文件](https://docs.kernel.org/6.12/driver-api/vfio.html)；
+TCG 的執行模型可參考 [QEMU 文件](https://www.qemu.org/docs/master/devel/tcg.html)。
 
 這裡的「firmware」主要指 `fwcore` 所實作的控制邏輯，不表示正在刷寫實體裝置。
 UEFI app 則在 guest Linux 啟動前執行，驗證開機階段的 probe 與 handoff；兩者的執行環境不同。

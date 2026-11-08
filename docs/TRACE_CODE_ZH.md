@@ -3,6 +3,7 @@
 本章對應 M0–M3 實作，沿控制交易、資料請求與 reset 追蹤各層程式。
 執行狀態見 [VALIDATION.md](VALIDATION.md)，真實故障見 [BUG_LOG.md](BUG_LOG.md)。
 以下檔案路徑均從 repository 根目錄起算，函式名稱比開發期間會變動的行號更適合追蹤。
+IOVA、SQ／CQ、fence 等名詞可先查[閱讀路線的速查表](LEARNING_PATH_ZH.md#1-前置知識與補讀位置)。
 
 ## 先分清楚程式究竟在哪裡執行
 
